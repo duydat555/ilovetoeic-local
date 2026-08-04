@@ -10,7 +10,7 @@ from pymysql.err import IntegrityError
 
 from app.db import db
 from app.notifications import create_notification
-from app.security import get_current_user
+from app.security import active_streak_days, get_current_user, get_dicebear_avatar
 
 
 router = APIRouter(prefix="/api/v1/classes", tags=["Class management"])
@@ -148,14 +148,15 @@ def student_response(row):
     created_at = row.get("created_at")
     if isinstance(created_at, (date, datetime)):
         created_at = created_at.isoformat()
+    name = row.get("full_name") or "Học viên TOEIC"
     return {
         "id": row["id"],
-        "name": row.get("full_name") or "Học viên TOEIC",
+        "name": name,
         "email": row.get("email") or "",
-        "avatar": row.get("avatar_url") or "",
+        "avatar": row.get("avatar_url") or get_dicebear_avatar(name or row["id"]),
         "currentScore": int(row.get("current_score") or 0),
         "targetScore": int(row.get("target_score") or 750),
-        "streakDays": int(row.get("streak_days") or 0),
+        "streakDays": active_streak_days(row),
         "lastStudyDate": (
             row.get("last_study_date").isoformat()
             if isinstance(row.get("last_study_date"), (date, datetime))

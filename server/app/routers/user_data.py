@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.db import db
 from app.notifications import create_notification
-from app.security import get_current_user
+from app.security import active_streak_days, get_current_user, normalize_date
 
 
 router = APIRouter(prefix="/api/v1", tags=["User data"])
@@ -138,6 +138,25 @@ def save_study_attempt(
             json.dumps(metadata, ensure_ascii=False),
             parse_datetime(payload.completedAt),
         ),
+    )
+    today = date.today()
+    last_date = normalize_date(user.get("last_study_date"))
+    current_streak = active_streak_days(user)
+    if last_date == today:
+        streak = max(current_streak, 1)
+    elif last_date == today - timedelta(days=1):
+        streak = current_streak + 1
+    else:
+        streak = 1
+    longest = max(int(user.get("longest_streak") or 0), streak)
+    new_score = max(int(user.get("current_score") or 0), int(payload.totalScore or 0))
+    db.execute(
+        """
+        UPDATE users
+        SET streak_days = ?, longest_streak = ?, last_study_date = ?, current_score = ?
+        WHERE id = ?
+        """,
+        (streak, longest, today, new_score, user["id"]),
     )
     activity_name = payload.testName or metadata.get("test_name") or (
         f"Part {payload.part}" if payload.part else "bài TOEIC"

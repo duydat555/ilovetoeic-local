@@ -110,15 +110,15 @@ def feature_impact_count(feature_key: str, class_id: str = ""):
         return sum(class_id in parse_json_list(row.get("class_ids")) for row in rows)
 
     if feature_key == "ranking":
-        if class_id:
+        if class_id and class_id != "all":
             row = db.fetch_one(
-                "SELECT COUNT(*) AS total FROM leaderboard_members WHERE class_id = ?",
+                "SELECT COUNT(*) AS total FROM class_memberships cm JOIN users u ON u.id = cm.user_id WHERE cm.class_id = ? AND u.role = 'student'",
                 (class_id,),
                 use_cache=False,
             )
         else:
             row = db.fetch_one(
-                "SELECT COUNT(*) AS total FROM leaderboard_members",
+                "SELECT COUNT(*) AS total FROM users WHERE role = 'student'",
                 use_cache=False,
             )
         return int((row or {}).get("total") or 0)
@@ -183,7 +183,7 @@ def feature_impact_counts(class_ids):
             class_counts[class_id]["homework"] += 1
 
     ranking_rows = db.fetch_all(
-        "SELECT class_id, COUNT(*) AS total FROM leaderboard_members GROUP BY class_id",
+        "SELECT cm.class_id, COUNT(cm.user_id) AS total FROM class_memberships cm JOIN users u ON u.id = cm.user_id WHERE u.role = 'student' GROUP BY cm.class_id",
         use_cache=False,
     )
     for row in ranking_rows:

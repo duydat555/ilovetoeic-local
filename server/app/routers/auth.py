@@ -14,12 +14,14 @@ from app import config
 from app.db import db
 from app.notifications import create_notification
 from app.security import (
+    active_streak_days,
     bearer_scheme,
     create_session,
     decode_oauth_state,
     encode_oauth_state,
     get_current_user,
     hash_password,
+    normalize_date,
     revoke_session,
     user_payload,
     verify_password,
@@ -121,6 +123,7 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
             exam_date = date.fromisoformat(payload.exam_date)
         except ValueError as error:
             raise HTTPException(status_code=422, detail="Ngày thi dự kiến không hợp lệ.") from error
+    new_avatar = payload.avatar.strip() if payload.avatar and payload.avatar.strip() else (user.get("avatar_url") or "")
     try:
         db.execute(
             """
@@ -131,7 +134,7 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
             (
                 email,
                 payload.name.strip(),
-                payload.avatar.strip(),
+                new_avatar,
                 payload.target_score,
                 exam_date,
                 user["id"],
@@ -170,11 +173,12 @@ def update_password(payload: PasswordRequest, user=Depends(get_current_user)):
 @router.post("/activity")
 def record_activity(user=Depends(get_current_user)):
     today = date.today()
-    last_date = user.get("last_study_date")
+    last_date = normalize_date(user.get("last_study_date"))
+    current_streak = active_streak_days(user)
     if last_date == today:
-        return {"user": user_payload(user)}
-    if last_date == today - timedelta(days=1):
-        streak = int(user.get("streak_days") or 0) + 1
+        streak = max(current_streak, 1)
+    elif last_date == today - timedelta(days=1):
+        streak = current_streak + 1
     else:
         streak = 1
     longest = max(int(user.get("longest_streak") or 0), streak)
@@ -233,8 +237,17 @@ def google_start(
 
 @router.get("/google/callback")
 async def google_callback(code: str = "", state: str = "", error: str = ""):
-    state_data = decode_oauth_state(state)
-    callback_url = f"{state_data['origin'].rstrip('/')}/auth/callback"
+    callback_url = f"{config.CLIENT_URL.rstrip('/')}/auth/callback"
+    state_data = {}
+    try:
+        if state:
+            state_data = decode_oauth_state(state) or {}
+            origin = state_data.get("origin")
+            if origin:
+                callback_url = f"{origin.rstrip('/')}/auth/callback"
+    except Exception:
+        pass
+
     if error or not code:
         return RedirectResponse(f"{callback_url}#error={quote(error or 'Google không trả về mã đăng nhập.')}")
 
@@ -268,7 +281,10 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
             (google_sub, email),
             use_cache=False,
         )
+        google_pic = (profile.get("picture") or "").strip()
         if user:
+            existing_pic = (user.get("avatar_url") or "").strip()
+            final_pic = google_pic if (google_pic and (not existing_pic or "googleusercontent.com" in existing_pic)) else (existing_pic or google_pic)
             db.execute(
                 """
                 UPDATE users
@@ -282,7 +298,7 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
                 (
                     google_sub,
                     profile.get("name") or user.get("full_name"),
-                    profile.get("picture") or user.get("avatar_url"),
+                    final_pic,
                     user["id"],
                 ),
             )
@@ -299,7 +315,7 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
                     user_id,
                     email,
                     profile.get("name") or email.split("@")[0],
-                    profile.get("picture") or "",
+                    google_pic,
                     google_sub,
                 ),
             )

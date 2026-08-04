@@ -5,12 +5,18 @@ import json
 import secrets
 from datetime import date, datetime, timedelta
 from typing import Optional
+from urllib.parse import quote_plus
 
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import config
 from app.db import db
+
+
+def get_dicebear_avatar(seed_text: str) -> str:
+    clean_seed = quote_plus(str(seed_text or "student").strip())
+    return f"https://api.dicebear.com/7.x/avataaars/svg?seed={clean_seed}"
 
 
 PASSWORD_ITERATIONS = 310_000
@@ -93,6 +99,31 @@ def get_current_user(
     return user
 
 
+def normalize_date(val):
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    if isinstance(val, date):
+        return val
+    if isinstance(val, str):
+        try:
+            return datetime.strptime(val[:10], "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    return None
+
+
+def active_streak_days(user):
+    last_study = normalize_date(user.get("last_study_date"))
+    if not last_study:
+        return 0
+    today = date.today()
+    if last_study < today - timedelta(days=1):
+        return 0
+    return int(user.get("streak_days") or 0)
+
+
 def user_payload(user):
     exam_date = user.get("exam_date")
     last_study_date = user.get("last_study_date")
@@ -106,11 +137,11 @@ def user_payload(user):
         "name": user.get("full_name") or "Học viên TOEIC",
         "email": user.get("email") or "",
         "role": role,
-        "avatar": user.get("avatar_url") or "",
+        "avatar": user.get("avatar_url") or get_dicebear_avatar(user.get("full_name") or user.get("id")),
         "targetScore": int(user.get("target_score") or 750),
         "currentScore": int(user.get("current_score") or 0),
         "examDate": exam_date or "",
-        "streakDays": int(user.get("streak_days") or 0),
+        "streakDays": active_streak_days(user),
         "longestStreak": int(user.get("longest_streak") or 0),
         "lastStudyDate": last_study_date,
         "totalStudyMinutes": 0,

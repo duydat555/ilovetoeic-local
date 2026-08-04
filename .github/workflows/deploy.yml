@@ -40,7 +40,39 @@ jobs:
           cd "$DEPLOY_PATH"
           git pull --ff-only origin main
 
+          # Back up production data before applying schema changes.
+          mkdir -p /var/backups/toeic
+          BACKUP_FILE="/var/backups/toeic/toeic_db_$(date +%Y%m%d_%H%M%S).sql"
+          mysqldump -u root --single-transaction --routines --events toeic_db > "$BACKUP_FILE"
+          chmod 600 "$BACKUP_FILE"
+
+          # Apply each migration once, tracked by its filename.
           cd "$DEPLOY_PATH/server"
+          DBPASS="$(sed -n 's/^DB_PASSWORD=//p' .env)"
+          export MYSQL_PWD="$DBPASS"
+          mysql -h 127.0.0.1 -u toeic_app toeic_db <<'SQL'
+          CREATE TABLE IF NOT EXISTS schema_migrations (
+              version VARCHAR(255) NOT NULL PRIMARY KEY,
+              applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          );
+          SQL
+
+          for migration in migrations/*.sql; do
+            [ -e "$migration" ] || continue
+            version="$(basename "$migration")"
+            applied="$(mysql -h 127.0.0.1 -u toeic_app toeic_db --batch --skip-column-names \
+              -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '$version'")"
+            if [ "$applied" = "0" ]; then
+              echo "Applying migration: $version"
+              mysql -h 127.0.0.1 -u toeic_app toeic_db < "$migration"
+              mysql -h 127.0.0.1 -u toeic_app toeic_db \
+                -e "INSERT INTO schema_migrations (version) VALUES ('$version')"
+            else
+              echo "Skipping applied migration: $version"
+            fi
+          done
+          unset DBPASS MYSQL_PWD
+
           .venv/bin/python -m pip install -r requirements.txt
 
           cd "$DEPLOY_PATH/client"

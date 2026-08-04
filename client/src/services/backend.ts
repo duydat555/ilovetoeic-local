@@ -56,8 +56,8 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 };
 
 const getToken = () => memoryToken
-  || readStorageValue(sessionStorage, TOKEN_KEY)
-  || readStorageValue(localStorage, TOKEN_KEY);
+  || readStorageValue(localStorage, TOKEN_KEY)
+  || readStorageValue(sessionStorage, TOKEN_KEY);
 
 const authFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const token = getToken();
@@ -73,17 +73,12 @@ const authFetch = async <T>(path: string, options: RequestInit = {}): Promise<T>
 export const sessionService = {
   getToken,
 
-  set(token: string, remember: boolean) {
+  set(token: string, _remember = true) {
     memoryToken = token;
-    removeStorageValue(localStorage, TOKEN_KEY);
+    // Đảm bảo token luôn được lưu vào localStorage để giữ phiên khi tắt/mở lại trình duyệt
+    writeStorageValue(localStorage, TOKEN_KEY, token);
+    writeStorageValue(localStorage, REMEMBER_KEY, 'true');
     removeStorageValue(sessionStorage, TOKEN_KEY);
-    if (remember) {
-      writeStorageValue(localStorage, TOKEN_KEY, token);
-      writeStorageValue(localStorage, REMEMBER_KEY, 'true');
-    } else {
-      writeStorageValue(sessionStorage, TOKEN_KEY, token);
-      removeStorageValue(localStorage, REMEMBER_KEY);
-    }
   },
 
   clear() {
@@ -97,7 +92,7 @@ export const sessionService = {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const token = params.get('token');
     if (!token) return false;
-    this.set(token, params.get('remember') !== '0');
+    this.set(token, true);
     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
     return true;
   },

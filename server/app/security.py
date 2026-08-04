@@ -62,9 +62,10 @@ def token_hash(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-def create_session(user_id: str, remember: bool) -> str:
+def create_session(user_id: str, remember: bool = True) -> str:
     raw_token = secrets.token_urlsafe(48)
-    expires_at = datetime.utcnow() + (timedelta(days=30) if remember else timedelta(hours=12))
+    # Duy trì phiên đăng nhập lâu dài (10 năm / 3650 ngày), chỉ kết thúc khi chọn Đăng xuất
+    expires_at = datetime.utcnow() + timedelta(days=3650)
     db.execute(
         """
         INSERT INTO user_sessions (token_hash, user_id, expires_at)

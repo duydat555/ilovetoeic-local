@@ -114,6 +114,9 @@ class Database:
                                 "ALTER TABLE learning_classes ADD INDEX "
                                 "idx_learning_classes_created_by (created_by, is_active)"
                             )
+                        cursor.execute(
+                            "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE expires_at < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 100 DAY)"
+                        )
             self.is_connected = True
             self.last_error = None
             print(f"[+] MySQL connected: {config.DB_NAME} at {config.DB_HOST}:{config.DB_PORT}")

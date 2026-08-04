@@ -17,7 +17,7 @@ export const MockTestPage: React.FC = () => {
   // Modal State for Mode Selection
   const [modalTest, setModalTest] = useState<MockTestItem | null>(null);
   const [activeMode, setActiveMode] = useState<TestMode>('practice');
-  const [selectedParts, setSelectedParts] = useState<SelectedParts>([...ALL_TEST_PARTS]);
+  const [selectedParts, setSelectedParts] = useState<SelectedParts>([]);
 
   const navigate = useNavigate();
 
@@ -55,7 +55,7 @@ export const MockTestPage: React.FC = () => {
   const openModeModal = (test: MockTestItem, defaultMode: TestMode) => {
     setModalTest(test);
     setActiveMode(defaultMode);
-    setSelectedParts([...ALL_TEST_PARTS]);
+    setSelectedParts([]);
   };
 
   const handleStart = () => {

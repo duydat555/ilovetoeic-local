@@ -23,6 +23,7 @@ import {
   backendService,
 } from '../../services/backend';
 import { DialogShell, PageHeader, managementInputClass } from '../../components/management/ManagementUI';
+import { getDiceBearAvatar } from '../../utils/avatar';
 
 type ClassFilter = 'all' | 'active' | 'archived';
 type ClassSort = 'newest' | 'name' | 'students';
@@ -62,19 +63,13 @@ const initialsFor = (name: string) => name
 const StudentAvatar: React.FC<{ student: ManagedClassStudent; className?: string }> = ({
   student,
   className = 'size-9',
-}) => {
-  if (student.avatar) {
-    return <img src={student.avatar} alt="" className={`${className} rounded-full object-cover ring-2 ring-surface`} />;
-  }
-  return (
-    <span
-      aria-hidden="true"
-      className={`grid ${className} place-items-center rounded-full bg-brand-100 text-xs font-extrabold text-brand-800 ring-2 ring-surface dark:bg-brand-500/15 dark:text-brand-300`}
-    >
-      {initialsFor(student.name)}
-    </span>
-  );
-};
+}) => (
+  <img
+    src={student.avatar || getDiceBearAvatar(student.name)}
+    alt={student.name}
+    className={`${className} rounded-full object-cover ring-2 ring-surface`}
+  />
+);
 
 const ProgressRing: React.FC<{ value: number }> = ({ value }) => {
   const normalized = Math.max(0, Math.min(100, Math.round(value)));

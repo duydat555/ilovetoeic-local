@@ -12,10 +12,12 @@ import {
   Mail,
   Save,
   ShieldCheck,
+  Sparkles,
   Target,
   UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { DICEBEAR_STYLES, getDiceBearAvatar, getRandomSeed } from '../../utils/avatar';
 
 type Message = {
   type: 'success' | 'error';
@@ -38,6 +40,92 @@ const getErrorMessage = (reason: unknown) => {
     return 'Mật khẩu mới phải khác mật khẩu hiện tại.';
   }
   return message;
+};
+
+const DiceBearAvatarSelector: React.FC<{
+  currentAvatar: string;
+  userName: string;
+  onSelectAvatar: (url: string) => void;
+}> = ({ currentAvatar, userName, onSelectAvatar }) => {
+  const [selectedStyle, setSelectedStyle] = useState('avataaars');
+  const [seed, setSeed] = useState(userName || 'student');
+
+  const handleSelectStyle = (styleId: string) => {
+    setSelectedStyle(styleId);
+    onSelectAvatar(getDiceBearAvatar(seed, styleId));
+  };
+
+  const handleRandomize = () => {
+    const newSeed = getRandomSeed();
+    setSeed(newSeed);
+    onSelectAvatar(getDiceBearAvatar(newSeed, selectedStyle));
+  };
+
+  const presetSeeds = [
+    'toeic-ace', 'star-learner', 'hero-500', 'pro-master',
+    'sunny-day', 'sky-high', 'spark-750', 'crown-900',
+  ];
+
+  return (
+    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-line dark:bg-surface/50">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <span className="text-xs font-bold text-slate-700 dark:text-content">
+          Chọn Avatar mẫu từ DiceBear
+        </span>
+        <button
+          type="button"
+          onClick={handleRandomize}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 transition"
+        >
+          <Sparkles className="size-3.5" /> Tạo ngẫu nhiên
+        </button>
+      </div>
+
+      <div className="flex max-w-full overflow-x-auto gap-1.5 pb-2.5 [scrollbar-width:none]">
+        {DICEBEAR_STYLES.map((style) => (
+          <button
+            key={style.id}
+            type="button"
+            onClick={() => handleSelectStyle(style.id)}
+            className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+              selectedStyle === style.id
+                ? 'bg-brand text-brand-ink shadow-sm'
+                : 'bg-white text-slate-600 hover:bg-slate-100 dark:bg-surface-elevated dark:text-content-muted'
+            }`}
+          >
+            {style.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-8">
+        {presetSeeds.map((presetSeed) => {
+          const avatarUrl = getDiceBearAvatar(presetSeed, selectedStyle);
+          const isSelected = currentAvatar === avatarUrl;
+          return (
+            <button
+              key={presetSeed}
+              type="button"
+              onClick={() => onSelectAvatar(avatarUrl)}
+              className={`group relative grid size-12 place-items-center rounded-xl border p-1 transition ${
+                isSelected
+                  ? 'border-brand bg-brand-50 ring-2 ring-brand-500/30 dark:bg-brand-500/10'
+                  : 'border-slate-200 bg-white hover:border-brand-300 dark:border-line dark:bg-surface-elevated'
+              }`}
+              title={`Chọn avatar ${presetSeed}`}
+            >
+              <img src={avatarUrl} alt="" className="size-full rounded-lg object-cover" />
+              {isSelected && (
+                <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-brand text-[9px] font-black text-brand-ink shadow-sm">
+                  ✓
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 };
 
 export const ProfilePage: React.FC = () => {
@@ -124,28 +212,14 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const initials = user.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(-2)
-    .map((part) => part[0])
-    .join('')
-    .toLocaleUpperCase('vi');
-
   return (
     <div className="mx-auto max-w-4xl space-y-7 animate-in fade-in duration-300">
       <section className="flex flex-col items-center gap-6 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:p-8 sm:text-left dark:border-line dark:bg-surface-elevated">
-        {user.avatar ? (
-          <img
-            src={user.avatar}
-            alt={user.name}
-            className="size-24 rounded-full object-cover shadow-md ring-4 ring-brand/15"
-          />
-        ) : (
-          <div className="grid size-24 place-items-center rounded-full bg-brand-50 text-2xl font-extrabold text-brand-600 shadow-md ring-4 ring-brand/15 dark:bg-brand-500/10 dark:text-brand-300">
-            {initials || 'HV'}
-          </div>
-        )}
+        <img
+          src={avatar || user.avatar || getDiceBearAvatar(user.name)}
+          alt={user.name}
+          className="size-24 rounded-full object-cover shadow-md ring-4 ring-brand/15"
+        />
         <div className="space-y-1">
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-content">{user.name}</h1>
           <p className="flex items-center justify-center gap-1 text-xs text-slate-500 sm:justify-start">
@@ -219,7 +293,7 @@ export const ProfilePage: React.FC = () => {
             </label>
           </div>
 
-          <label>
+          <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">URL ảnh đại diện</span>
             <div className="relative">
               <Camera className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -234,7 +308,13 @@ export const ProfilePage: React.FC = () => {
             </div>
           </label>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <DiceBearAvatarSelector
+            currentAvatar={avatar}
+            userName={name || user.name}
+            onSelectAvatar={(selectedUrl) => setAvatar(selectedUrl)}
+          />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
             <label>
               <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Mục tiêu điểm TOEIC</span>
               <div className="relative">
@@ -303,7 +383,7 @@ export const ProfilePage: React.FC = () => {
         )}
 
         <form onSubmit={handlePasswordSave} className="space-y-4">
-          <label>
+          <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Mật khẩu hiện tại</span>
             <div className="relative">
               <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -350,7 +430,7 @@ export const ProfilePage: React.FC = () => {
                 minLength={8}
                 autoComplete="new-password"
                 placeholder="Nhập lại mật khẩu mới"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-slate-800 dark:focus:ring-brand-500/10"
               />
             </label>
           </div>

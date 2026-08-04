@@ -11,10 +11,10 @@ import {
   School,
   Settings,
   ShieldCheck,
-  SlidersHorizontal,
   Trophy,
   UserCog,
   UserRound,
+  Wrench,
 } from 'lucide-react';
 import { UserRole } from '../types';
 import type { FeatureKey } from './features';
@@ -46,7 +46,7 @@ export const adminNavItems: NavigationItem[] = [
   { path: '/admin/classes', label: 'Quản lý lớp học', icon: School },
   { path: '/admin/homework', label: 'Bài tập về nhà', icon: ClipboardList },
   { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog },
-  { path: '/admin/features', label: 'Quản lý tính năng', icon: SlidersHorizontal },
+  { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
   { path: '/profile', label: 'Hồ sơ cá nhân', icon: ShieldCheck },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];

@@ -1,1 +1,1 @@
-export { VocabularyLivePage as VocabularyPage } from './VocabularyLivePage';
+export { TopicListPage as VocabularyPage } from './TopicListPage';

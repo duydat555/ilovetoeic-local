@@ -234,15 +234,29 @@ export const SelectionTranslator: React.FC = () => {
 
     const onMouseUp = () => translateSelection();
     const onTouchEnd = () => window.setTimeout(translateSelection, 80);
+    const onMouseDown = (event: MouseEvent | TouchEvent) => {
+      if (
+        rootRef.current &&
+        !rootRef.current.contains(event.target as Node)
+      ) {
+        close();
+      }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') close();
     };
+
     document.addEventListener('mouseup', onMouseUp);
     document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('touchstart', onMouseDown);
     window.addEventListener('keydown', onKeyDown);
+
     return () => {
       document.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('touchstart', onMouseDown);
       window.removeEventListener('keydown', onKeyDown);
     };
   }, [close, lookupWord]);

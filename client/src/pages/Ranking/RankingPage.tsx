@@ -23,6 +23,7 @@ import {
   LeaderboardMember,
   LeaderboardResponse,
 } from '../../services/backend';
+import { getDiceBearAvatar } from '../../utils/avatar';
 
 type TimeRange = 'week' | 'month' | 'all';
 type RankingMetric = 'score' | 'streak' | 'lessons';
@@ -259,7 +260,7 @@ const PodiumCard: React.FC<{
           </span>
         )}
         <img
-          src={member.avatar}
+          src={member.avatar || getDiceBearAvatar(member.name)}
           alt={`Ảnh đại diện của ${member.name}`}
           className={`block size-16 rounded-full object-cover ${styles.avatar}`}
         />
@@ -350,7 +351,7 @@ export const RankingRow: React.FC<{
     </div>
 
     <img
-      src={member.avatar}
+      src={member.avatar || getDiceBearAvatar(member.name)}
       alt={`Ảnh đại diện của ${member.name}`}
       className="size-8 shrink-0 rounded-full object-cover ring-1 ring-slate-200 dark:ring-line sm:size-10"
     />

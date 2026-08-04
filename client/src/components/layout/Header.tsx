@@ -20,6 +20,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getUserRole, ROLE_LABELS } from '../../utils/rbac';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationListItem } from '../notifications/NotificationListItem';
+import { getDiceBearAvatar } from '../../utils/avatar';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -276,7 +277,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               className="flex items-center gap-2 rounded-xl p-1 transition-colors duration-300 hover:bg-surface-hover"
             >
               <img
-                src={user.avatar}
+                src={user.avatar || getDiceBearAvatar(user.name)}
                 alt={user.name}
                 className="w-8 h-8 rounded-full object-cover ring-2 ring-brand/20"
               />

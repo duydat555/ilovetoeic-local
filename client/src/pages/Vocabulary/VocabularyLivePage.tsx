@@ -2,23 +2,26 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   BookOpen,
+  ArrowLeft,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Layers3,
-  Languages,
   List,
   RefreshCw,
   RotateCcw,
   Search,
+  Sparkles,
   Volume2,
 } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   VOCABULARY_CHANGED_EVENT,
   vocabularyService,
 } from '../../services/vocabulary';
 import { VocabularyWord } from '../../types';
+import { vocabularyTopicService, VocabularyTopic } from '../../services/vocabularyTopics';
 
 type ViewMode = 'flashcards' | 'list';
 
@@ -43,12 +46,17 @@ const VocabularySkeleton = () => (
   </div>
 );
 
-export const VocabularyLivePage: React.FC = () => {
+export const TopicFlashcardPage: React.FC = () => {
   const { user } = useAuth();
+  const { topicId = 'all' } = useParams();
   const reduceMotion = useReducedMotion();
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [query, setQuery] = useState('');
   const [rememberedOnly, setRememberedOnly] = useState(false);
+  const [smartReview, setSmartReview] = useState(false);
+  const [topic, setTopic] = useState<VocabularyTopic | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [assignTarget, setAssignTarget] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('flashcards');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -61,13 +69,15 @@ export const VocabularyLivePage: React.FC = () => {
     if (showLoading) setLoading(true);
     setError('');
     try {
-      setWords(await vocabularyService.getAll(user.id));
+      const loadedWords = await vocabularyService.getAll(user.id);
+      setWords(vocabularyTopicService.wordsForTopic(user.id, topicId, loadedWords));
+      setTopic(topicId === 'all' ? null : vocabularyTopicService.getTopics(user.id).find((item) => item.id === topicId) || null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Không thể tải từ vựng đã lưu.');
     } finally {
       if (showLoading) setLoading(false);
     }
-  }, [user]);
+  }, [topicId, user]);
 
   useEffect(() => {
     void loadWords();
@@ -81,12 +91,17 @@ export const VocabularyLivePage: React.FC = () => {
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('vi');
-    return words.filter((word) => {
+    const matches = words.filter((word) => {
       const searchable = `${word.word} ${word.meaningVi} ${word.topicName || ''}`;
       const matchesQuery = !normalized || searchable.toLocaleLowerCase('vi').includes(normalized);
       return matchesQuery && (!rememberedOnly || word.remembered);
     });
-  }, [query, rememberedOnly, words]);
+    if (!smartReview) return matches;
+    return [...matches].sort((a, b) => {
+      if (Boolean(a.remembered) !== Boolean(b.remembered)) return a.remembered ? 1 : -1;
+      return new Date(a.lastReviewedAt || 0).getTime() - new Date(b.lastReviewedAt || 0).getTime();
+    });
+  }, [query, rememberedOnly, smartReview, words]);
 
   useEffect(() => {
     setCurrentIndex((current) => Math.min(current, Math.max(filtered.length - 1, 0)));
@@ -105,11 +120,12 @@ export const VocabularyLivePage: React.FC = () => {
   const toggleRemembered = async (word: VocabularyWord) => {
     if (!user) return;
     const remembered = !word.remembered;
+    const lastReviewedAt = new Date().toISOString();
     setWords((current) => current.map((item) => (
-      item.id === word.id ? { ...item, remembered } : item
+      item.id === word.id ? { ...item, remembered, lastReviewedAt } : item
     )));
     try {
-      await vocabularyService.update(user.id, word.id, { remembered });
+      await vocabularyService.update(user.id, word.id, { remembered, lastReviewedAt });
     } catch (updateError) {
       setWords((current) => current.map((item) => (
         item.id === word.id ? { ...item, remembered: word.remembered } : item
@@ -120,17 +136,13 @@ export const VocabularyLivePage: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-10">
-      <header>
-        <div className="eyebrow mb-3">
-          <Languages className="size-3.5" aria-hidden="true" />
-          Kho từ cá nhân
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <Link to="/vocabulary" className="inline-flex items-center gap-2 text-sm font-bold text-content-muted hover:text-content"><ArrowLeft className="size-4" /> Danh sách chủ đề</Link>
+          <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-content sm:text-3xl">{topic?.name || 'Tất cả từ vựng'}</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-content-muted">{topic?.description || 'Toàn bộ những từ bạn đã tra và lưu trong kho cá nhân.'}</p>
         </div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-content sm:text-3xl">
-          Từ vựng đã lưu
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-content-muted">
-          Ôn bằng flashcard hoặc xem danh sách những từ bạn đã tra và lưu.
-        </p>
+        <div className="rounded-xl bg-brand-50 px-4 py-3 text-sm font-extrabold text-brand-800 dark:bg-brand-500/10 dark:text-brand-300">{words.filter((word) => word.remembered).length}/{words.length} từ đã thuộc</div>
       </header>
 
       <section className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -146,6 +158,7 @@ export const VocabularyLivePage: React.FC = () => {
         </label>
 
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" aria-pressed={smartReview} onClick={() => setSmartReview((current) => !current)} className={`inline-flex min-h-10 items-center gap-2 rounded-xl px-3.5 text-sm font-bold transition active:scale-[.98] ${smartReview ? 'bg-accent text-accent-contrast' : 'bg-surface-elevated text-content-muted hover:bg-surface-hover'}`}><Sparkles className="size-4" /> Ôn tập thông minh</button>
           <button
             type="button"
             aria-pressed={rememberedOnly}
@@ -344,10 +357,13 @@ export const VocabularyLivePage: React.FC = () => {
           </div>
         </section>
       ) : (
-        <section className="grid grid-cols-1 gap-3 lg:grid-cols-2" aria-label="Danh sách từ vựng">
+        <section aria-label="Danh sách từ vựng">
+          {selectedIds.length > 0 && user && <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-accent/30 bg-accent/10 p-3"><span className="mr-auto text-sm font-extrabold text-content">Đã chọn {selectedIds.length} từ</span><select value={assignTarget} onChange={(e) => setAssignTarget(e.target.value)} className="min-h-10 rounded-xl border border-line bg-surface px-3 text-sm text-content"><option value="">Chọn chủ đề đích</option>{vocabularyTopicService.getTopics(user.id).filter((item) => item.id !== topicId).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select><button type="button" disabled={!assignTarget} onClick={() => { vocabularyTopicService.addWords(user.id, assignTarget, selectedIds); setSelectedIds([]); setAssignTarget(''); }} className="min-h-10 rounded-xl bg-accent px-4 text-sm font-extrabold text-accent-contrast disabled:opacity-50">Gán vào chủ đề</button></div>}
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {filtered.map((word) => (
             <article key={word.id} className="rounded-2xl border border-line bg-surface p-4 shadow-sm dark:shadow-none">
               <div className="flex items-start justify-between gap-4">
+                <label className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-xl border border-line hover:bg-surface-hover"><input type="checkbox" className="sr-only" checked={selectedIds.includes(word.id)} onChange={() => setSelectedIds((current) => current.includes(word.id) ? current.filter((id) => id !== word.id) : [...current, word.id])} /><span className={`grid size-5 place-items-center rounded-md border ${selectedIds.includes(word.id) ? 'border-accent bg-accent text-accent-contrast' : 'border-line'}`}>{selectedIds.includes(word.id) && <CheckCircle2 className="size-3.5" />}</span></label>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-lg font-extrabold text-content">{word.word}</h2>
@@ -390,6 +406,7 @@ export const VocabularyLivePage: React.FC = () => {
               <p className="mt-3 text-xs text-content-muted">{word.topicName || 'Từ đã tra bằng AI'}</p>
             </article>
           ))}
+          </div>
         </section>
       )}
     </div>

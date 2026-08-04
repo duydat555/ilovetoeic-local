@@ -1,11 +1,13 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { AdminFeatureStatusProvider } from './context/AdminFeatureStatusContext';
 import { FeatureFlagsProvider } from './hooks/useFeatureFlags';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { RoleGuard } from './components/auth/RoleGuard';
+import { AdminFeatureRoute } from './components/auth/AdminFeatureRoute';
 import { FeatureRouteGuard } from './components/auth/FeatureRouteGuard';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { LoginPage } from './pages/Auth/LoginPage';
@@ -20,7 +22,8 @@ const MockTestPage = lazy(() => import('./pages/MockTest/MockTestPage').then((m)
 const TestExamPage = lazy(() => import('./pages/MockTest/TestExamPage').then((m) => ({ default: m.TestExamPage })));
 const TestResultPage = lazy(() => import('./pages/Results/TestResultPage').then((m) => ({ default: m.TestResultPage })));
 const StudyHistoryPage = lazy(() => import('./pages/History/StudyHistoryPage').then((m) => ({ default: m.StudyHistoryPage })));
-const VocabularyLivePage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.VocabularyLivePage })));
+const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then((m) => ({ default: m.TopicListPage })));
+const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
 const MistakeNotebookLivePage = lazy(() => import('./pages/MistakeNotebook/MistakeNotebookLivePage').then((m) => ({ default: m.MistakeNotebookLivePage })));
 const RankingPage = lazy(() => import('./pages/Ranking/RankingPage').then((m) => ({ default: m.RankingPage })));
@@ -50,7 +53,8 @@ export const App: React.FC = () => {
     <ThemeProvider>
       <AuthProvider>
         <FeatureFlagsProvider>
-          <NotificationProvider>
+        <AdminFeatureStatusProvider>
+        <NotificationProvider>
           <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
@@ -65,33 +69,22 @@ export const App: React.FC = () => {
             {/* Application Dashboard Routes with Common Layout */}
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardLivePage />} />
-              <Route element={<FeatureRouteGuard feature="learning_path" />}>
-                <Route path="/learning-path" element={<LearningPathLivePage />} />
-              </Route>
+              <Route element={<FeatureRouteGuard feature="learning_path" />}><Route path="/learning-path" element={<LearningPathLivePage />} /></Route>
               <Route element={<FeatureRouteGuard feature="mock_test" />}>
                 <Route path="/practice/runner/:partId" element={<PracticeRunnerPage />} />
                 <Route path="/mock-test" element={<MockTestPage />} />
                 <Route path="/mock-test/exam/:testId" element={<TestExamPage />} />
                 <Route path="/results" element={<TestResultPage />} />
               </Route>
-              <Route element={<FeatureRouteGuard feature="history" />}>
-                <Route path="/history" element={<StudyHistoryPage />} />
-              </Route>
+              <Route element={<FeatureRouteGuard feature="history" />}><Route path="/history" element={<StudyHistoryPage />} /></Route>
               <Route element={<FeatureRouteGuard feature="vocabulary" />}>
-                <Route path="/vocabulary" element={<VocabularyLivePage />} />
+                <Route path="/vocabulary" element={<TopicListPage />} />
+                <Route path="/vocabulary/:topicId" element={<TopicFlashcardPage />} />
               </Route>
-              <Route element={<FeatureRouteGuard feature="grammar" />}>
-                <Route path="/grammar" element={<GrammarLivePage />} />
-              </Route>
-              <Route element={<FeatureRouteGuard feature="mistake_notebook" />}>
-                <Route path="/mistake-notebook" element={<MistakeNotebookLivePage />} />
-              </Route>
-              <Route element={<FeatureRouteGuard feature="ranking" />}>
-                <Route path="/ranking" element={<RankingPage />} />
-              </Route>
-              <Route element={<FeatureRouteGuard feature="homework" />}>
-                <Route path="/homework" element={<StudentHomeworkPage />} />
-              </Route>
+              <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="mistake_notebook" />}><Route path="/mistake-notebook" element={<MistakeNotebookLivePage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="ranking" />}><Route path="/ranking" element={<RankingPage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="homework" />}><Route path="/homework" element={<StudentHomeworkPage />} /></Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
@@ -99,14 +92,14 @@ export const App: React.FC = () => {
               {/* The single teacher account manages every student and class group. */}
               <Route element={<RoleGuard allowedRoles={['admin']} />}>
                 <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
-                <Route path="/admin/overview" element={<AdminOverviewLivePage />} />
+                <Route path="/admin/overview" element={<AdminFeatureRoute route="/admin/overview"><AdminOverviewLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/groups" element={<Navigate to="/admin/classes" replace />} />
-                <Route path="/admin/classes" element={<ClassesManagementPage />} />
+                <Route path="/admin/classes" element={<AdminFeatureRoute route="/admin/classes"><ClassesManagementPage /></AdminFeatureRoute>} />
                 <Route path="/admin/classes/:classId" element={<ClassStudentsLivePage />} />
                 <Route path="/admin/students/:studentId" element={<StudentDetailLivePage />} />
-                <Route path="/admin/homework" element={<AdminHomeworkPage />} />
+                <Route path="/admin/homework" element={<AdminFeatureRoute route="/admin/homework"><AdminHomeworkPage /></AdminFeatureRoute>} />
                 <Route path="/admin/homework/new" element={<Navigate to="/admin/homework" replace />} />
-                <Route path="/admin/accounts" element={<AccountManagementLivePage />} />
+                <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />
               </Route>
             </Route>
@@ -117,6 +110,7 @@ export const App: React.FC = () => {
           </Suspense>
           </BrowserRouter>
           </NotificationProvider>
+        </AdminFeatureStatusProvider>
         </FeatureFlagsProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -11,7 +11,9 @@ import { BrandLogo } from '../common/BrandLogo';
 import { BrandName } from '../common/BrandName';
 import { useAuth } from '../../context/AuthContext';
 import { NavigationItem, studentNavItems } from '../../config/navigation';
+import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { getUserRole } from '../../utils/rbac';
 
 export interface SidebarProps {
   collapsed: boolean;
@@ -154,14 +156,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   contextLabel,
   showGoalCard = true,
 }) => {
+  const { user } = useAuth();
+  const role = getUserRole(user);
+  const { getStatus } = useAdminFeatureStatus();
   const { isFeatureEnabled } = useFeatureFlags();
   const [ripple, setRipple] = useState<RippleState | null>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
   const sidebarWidth = collapsed ? 80 : 280;
-  const visibleItems = useMemo(
-    () => items.filter((item) => !item.featureKey || isFeatureEnabled(item.featureKey)),
-    [isFeatureEnabled, items],
-  );
+  const visibleItems = items;
   const accessibleLabels = useMemo(
     () => visibleItems.map((item) => item.label).join(', '),
     [visibleItems],
@@ -351,9 +353,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -7 }}
                               transition={{ duration: 0.16 }}
-                              className="relative z-10 min-w-0 flex-1 truncate whitespace-nowrap"
+                              className="relative z-10 flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap"
                             >
-                              {item.label}
+                              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                              {(role === 'admin'
+                                ? getStatus(item.path)?.status === 'coming_soon'
+                                : Boolean(item.featureKey && !isFeatureEnabled(item.featureKey))) && (
+                                <span className="shrink-0 rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-accent-strong dark:text-brand-300">
+                                  Sắp có
+                                </span>
+                              )}
                             </motion.span>
                           )}
                         </AnimatePresence>
@@ -369,7 +378,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {showGoalCard ? (
-        isFeatureEnabled('learning_path') ? <GoalCard collapsed={collapsed} /> : null
+        <GoalCard collapsed={collapsed} />
       ) : (
         <div className="border-t border-line p-3">
           <div className={`rounded-2xl border border-accent/20 bg-accent/10 text-accent-strong ${collapsed ? 'grid size-12 place-items-center p-0' : 'p-3'}`}>

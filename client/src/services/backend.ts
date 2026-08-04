@@ -1,5 +1,6 @@
 import { NotificationItem, StudyAttempt, User, VocabularyWord } from '../types';
 import type { HomeworkAssignment } from '../types/management';
+import type { AdminFeatureStatus } from '../config/adminFeatureStatus';
 import type { FeatureKey } from '../config/features';
 
 const getDynamicHost = () => (
@@ -182,37 +183,19 @@ export interface NotificationPreferencesResponse {
   reminderTime: string;
 }
 
-export interface FeatureAdminClass {
-  id: string;
-  name: string;
-  code: string;
-  isActive: boolean;
-}
-
+export interface FeatureAdminClass { id: string; name: string; code: string; isActive: boolean; }
 export interface FeatureAuditLog {
-  id: string;
-  featureKey: FeatureKey;
-  scopeType: 'global' | 'class';
-  classId?: string | null;
-  className?: string | null;
-  previousEnabled: boolean;
-  newEnabled: boolean;
-  actorName: string;
-  actorEmail: string;
-  createdAt: string;
+  id: string; featureKey: FeatureKey; scopeType: 'global' | 'class';
+  classId?: string | null; className?: string | null; previousEnabled: boolean;
+  newEnabled: boolean; actorName: string; actorEmail: string; createdAt: string;
 }
-
 export interface FeatureAdminConfiguration {
   globalFlags: Record<FeatureKey, boolean>;
   classOverrides: Record<string, Partial<Record<FeatureKey, boolean>>>;
   classes: FeatureAdminClass[];
   history: FeatureAuditLog[];
-  impactCounts: {
-    global: Record<FeatureKey, number>;
-    classes: Record<string, Record<FeatureKey, number>>;
-  };
+  impactCounts: { global: Record<FeatureKey, number>; classes: Record<string, Record<FeatureKey, number>> };
 }
-
 export interface EffectiveFeatureConfiguration {
   flags: Record<FeatureKey, boolean>;
   classIds: string[];
@@ -304,35 +287,39 @@ export const backendService = {
     const response = await authFetch<{ data: EffectiveFeatureConfiguration }>('/features/effective');
     return response.data;
   },
-
   async getFeatureConfiguration() {
     const response = await authFetch<{ data: FeatureAdminConfiguration }>('/features/admin');
     return response.data;
   },
-
   async updateGlobalFeature(featureKey: FeatureKey, enabled: boolean, confirmed = false) {
-    return authFetch<{ data: { enabled: boolean; changed: boolean } }>(
-      `/features/global/${encodeURIComponent(featureKey)}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ enabled, confirmed }),
-      },
-    );
+    return authFetch<{ data: { enabled: boolean; changed: boolean } }>(`/features/global/${encodeURIComponent(featureKey)}`, {
+      method: 'PUT', body: JSON.stringify({ enabled, confirmed }),
+    });
   },
-
-  async updateClassFeature(
-    classId: string,
-    featureKey: FeatureKey,
-    enabled: boolean,
-    confirmed = false,
-  ) {
-    return authFetch<{ data: { enabled: boolean; changed: boolean } }>(
-      `/features/classes/${encodeURIComponent(classId)}/${encodeURIComponent(featureKey)}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ enabled, confirmed }),
-      },
-    );
+  async updateClassFeature(classId: string, featureKey: FeatureKey, enabled: boolean, confirmed = false) {
+    return authFetch<{ data: { enabled: boolean; changed: boolean } }>(`/features/classes/${encodeURIComponent(classId)}/${encodeURIComponent(featureKey)}`, {
+      method: 'PUT', body: JSON.stringify({ enabled, confirmed }),
+    });
+  },
+  async getAdminFeatureStatuses() {
+    const response = await authFetch<{ data: Array<{
+      route: string;
+      status: AdminFeatureStatus['status'];
+      title: string;
+      description: string;
+      icon_key: AdminFeatureStatus['iconKey'];
+      action_label?: string | null;
+      action_path?: string | null;
+    }> }>('/admin/feature-status');
+    return response.data.map((item): AdminFeatureStatus => ({
+      route: item.route,
+      status: item.status,
+      title: item.title,
+      description: item.description,
+      iconKey: item.icon_key,
+      actionLabel: item.action_label,
+      actionPath: item.action_path,
+    }));
   },
 
   async getManagedClasses() {

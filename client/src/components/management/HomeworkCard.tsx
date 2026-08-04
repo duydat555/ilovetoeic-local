@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { HomeworkAssignment } from '../../types/management';
 import { ManagedClassRecord, ManagedClassStudent } from '../../services/backend';
+import { getDiceBearAvatar } from '../../utils/avatar';
 
 interface HomeworkCardProps {
   assignment: HomeworkAssignment;
@@ -267,7 +268,7 @@ export const HomeworkCard: React.FC<HomeworkCardProps> = ({
                     className="flex h-11 min-w-0 items-center gap-2 rounded-full border border-line bg-surface py-1 pl-1.5 pr-1.5"
                   >
                     <img
-                      src={student.avatar}
+                      src={student.avatar || getDiceBearAvatar(student.name)}
                       alt=""
                       className="size-8 rounded-full object-cover"
                     />
@@ -286,7 +287,7 @@ export const HomeworkCard: React.FC<HomeworkCardProps> = ({
                     className="flex h-12 items-center gap-2.5 rounded-xl border border-line bg-surface px-2"
                   >
                     <img
-                      src={student.avatar}
+                      src={student.avatar || getDiceBearAvatar(student.name)}
                       alt=""
                       className="size-8 rounded-full object-cover"
                     />

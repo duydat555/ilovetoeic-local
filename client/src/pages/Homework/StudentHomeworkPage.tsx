@@ -10,7 +10,6 @@ import {
 import { Link } from 'react-router-dom';
 import { PageHeader, HomeworkStatusBadge } from '../../components/management/ManagementUI';
 import { useAuth } from '../../context/AuthContext';
-import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { backendService } from '../../services/backend';
 import type { HomeworkAssignment, HomeworkStatus } from '../../types/management';
 import { serializeTestPartScope } from '../../utils/testScope';
@@ -36,7 +35,6 @@ const getAssignmentUrl = (assignment: HomeworkAssignment) => {
 
 export const StudentHomeworkPage: React.FC = () => {
   const { user } = useAuth();
-  const { isFeatureEnabled } = useFeatureFlags();
   const [assignments, setAssignments] = useState<HomeworkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,7 +65,6 @@ export const StudentHomeworkPage: React.FC = () => {
   }, [assignments, user]);
 
   if (!user) return null;
-  const canOpenTests = isFeatureEnabled('mock_test');
 
   return (
     <div className="space-y-6 pb-10">
@@ -137,12 +134,10 @@ export const StudentHomeworkPage: React.FC = () => {
                   <div><dt className="font-semibold text-content-muted">Hạn nộp</dt><dd className="mt-1 font-extrabold text-content">{formatDate(assignment.deadline)}</dd></div>
                 </dl>
                 <div className="mt-auto pt-4">
-                  {canOpenTests && status !== 'submitted' && (!isPastDeadline || assignment.allowLate) ? (
+                  {status !== 'submitted' && (!isPastDeadline || assignment.allowLate) ? (
                     <Link to={getAssignmentUrl(assignment)} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 text-sm font-extrabold text-brand-ink transition hover:bg-brand-300">
                       Làm bài <ArrowRight className="size-4" aria-hidden="true" />
                     </Link>
-                  ) : !canOpenTests && status !== 'submitted' ? (
-                    <p className="rounded-xl bg-surface-elevated p-3 text-center text-xs font-semibold text-content-muted">Đề thi hiện chưa khả dụng.</p>
                   ) : null}
                 </div>
               </article>
@@ -153,4 +148,3 @@ export const StudentHomeworkPage: React.FC = () => {
     </div>
   );
 };
-

@@ -1,17 +1,33 @@
-import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { FeatureKey } from '../../config/features';
+import React, { useEffect, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { FeatureKey, featureDefinitionByKey } from '../../config/features';
 import { useAuth } from '../../context/AuthContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { getUserRole } from '../../utils/rbac';
+import { ComingSoonPage } from '../common/ComingSoonPage';
 
 export const FeatureRouteGuard: React.FC<{ feature: FeatureKey }> = ({ feature }) => {
-  const location = useLocation();
   const { user } = useAuth();
-  const { isFeatureEnabled, isLoading } = useFeatureFlags();
+  const location = useLocation();
+  const { isFeatureEnabled, isLoading, reload } = useFeatureFlags();
+  const isAdmin = getUserRole(user) === 'admin';
+  const [isCheckingRoute, setIsCheckingRoute] = useState(!isAdmin);
 
-  if (getUserRole(user) === 'admin') return <Outlet />;
-  if (isLoading) {
+  useEffect(() => {
+    if (isAdmin) {
+      setIsCheckingRoute(false);
+      return;
+    }
+    let active = true;
+    setIsCheckingRoute(true);
+    void reload().finally(() => {
+      if (active) setIsCheckingRoute(false);
+    });
+    return () => { active = false; };
+  }, [isAdmin, location.pathname, reload]);
+
+  if (isAdmin) return <Outlet />;
+  if (isLoading || isCheckingRoute) {
     return (
       <div className="grid min-h-[45vh] place-items-center" role="status">
         <div className="w-full max-w-lg space-y-3" aria-hidden="true">
@@ -23,16 +39,15 @@ export const FeatureRouteGuard: React.FC<{ feature: FeatureKey }> = ({ feature }
     );
   }
   if (!isFeatureEnabled(feature)) {
-    return (
-      <Navigate
-        to="/dashboard"
-        replace
-        state={{
-          featureUnavailableMessage: 'Tính năng này hiện chưa khả dụng.',
-          blockedPath: location.pathname,
-        }}
-      />
-    );
+    const definition = featureDefinitionByKey.get(feature);
+    if (!definition) return null;
+    return <ComingSoonPage
+      title={definition.name}
+      description={`Trang ${definition.name} hiện đang được Giảng viên tạm đóng và sẽ sớm khả dụng trở lại.`}
+      icon={definition.icon}
+      actionLabel="Quay về Tổng quan"
+      actionPath="/dashboard"
+    />;
   }
   return <Outlet />;
 };

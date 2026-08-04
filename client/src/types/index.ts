@@ -179,6 +179,7 @@ export interface VocabularyWord {
   difficulty?: 'easy' | 'medium' | 'hard';
   source?: 'curated' | 'gemini';
   createdAt?: string;
+  lastReviewedAt?: string;
 }
 
 export type AiSource = 'local' | 'gemini';

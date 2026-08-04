@@ -6,6 +6,7 @@ import { BrandName } from '../common/BrandName';
 import { useAuth } from '../../context/AuthContext';
 import { getMobileNavigationForRole, getNavigationForRole } from '../../config/navigation';
 import { getUserRole } from '../../utils/rbac';
+import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 
 interface MobileNavigationProps {
@@ -16,14 +17,11 @@ interface MobileNavigationProps {
 
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOpen, onClose }) => {
   const { user } = useAuth();
-  const { isFeatureEnabled } = useFeatureFlags();
   const role = getUserRole(user);
-  const navigation = getNavigationForRole(role).filter(
-    (item) => !item.featureKey || isFeatureEnabled(item.featureKey),
-  );
-  const quickNavigation = getMobileNavigationForRole(role).filter(
-    (item) => !item.featureKey || isFeatureEnabled(item.featureKey),
-  );
+  const navigation = getNavigationForRole(role);
+  const quickNavigation = getMobileNavigationForRole(role);
+  const { getStatus } = useAdminFeatureStatus();
+  const { isFeatureEnabled } = useFeatureFlags();
 
   return (
     <>
@@ -63,6 +61,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOp
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
+            const isComingSoon = role === 'admin'
+              ? getStatus(item.path)?.status === 'coming_soon'
+              : Boolean(item.featureKey && !isFeatureEnabled(item.featureKey));
             return (
               <NavLink
                 key={item.path}
@@ -77,7 +78,14 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOp
                 }
               >
                 <Icon className="w-5 h-5 shrink-0" />
-                <span>{item.label}</span>
+                <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                  <span className="truncate">{item.label}</span>
+                  {isComingSoon && (
+                    <span className="shrink-0 rounded-full border border-brand/25 bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-strong">
+                      Sắp có
+                    </span>
+                  )}
+                </span>
               </NavLink>
             );
           })}

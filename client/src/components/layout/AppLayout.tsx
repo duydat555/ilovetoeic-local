@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate, useOutlet } from 'react-router-dom';
+import { Navigate, useLocation, useOutlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNavigation } from './MobileNavigation';
@@ -13,28 +12,14 @@ import { getUserRole } from '../../utils/rbac';
 export const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [featureNotice, setFeatureNotice] = useState('');
   const { user, isAuthenticated, isLoading } = useAuth();
+  const role = getUserRole(user);
   const location = useLocation();
-  const navigate = useNavigate();
   const outlet = useOutlet();
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
-
-  useEffect(() => {
-    const state = location.state as { featureUnavailableMessage?: string } | null;
-    if (!state?.featureUnavailableMessage) return;
-    setFeatureNotice(state.featureUnavailableMessage);
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
-  }, [location.pathname, location.search, location.state, navigate]);
-
-  useEffect(() => {
-    if (!featureNotice) return undefined;
-    const timer = window.setTimeout(() => setFeatureNotice(''), 3600);
-    return () => window.clearTimeout(timer);
-  }, [featureNotice]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -59,7 +44,6 @@ export const AppLayout: React.FC = () => {
   const isTestRunnerPage =
     location.pathname.includes('/mock-test/exam') ||
     location.pathname.includes('/practice/runner');
-  const role = getUserRole(user);
 
   return (
     <div className="app-shell h-screen text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden">
@@ -80,24 +64,6 @@ export const AppLayout: React.FC = () => {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
-        <AnimatePresence>
-          {featureNotice && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18, ease: 'easeOut' }}
-              className="pointer-events-none fixed left-1/2 top-20 z-[70] w-[min(92vw,440px)] -translate-x-1/2"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900 shadow-lg dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
-                <AlertCircle className="size-5 shrink-0" aria-hidden="true" />
-                <span>{featureNotice}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
         <main
           className={
             isTestRunnerPage

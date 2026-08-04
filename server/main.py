@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.routers import (
+    admin_feature_status,
     audio_proxy,
     auth,
     classes,
@@ -46,6 +47,7 @@ app.mount("/media", StaticFiles(directory=str(config.MEDIA_DIR)), name="media")
 
 # Include API Routers
 app.include_router(status.router)
+app.include_router(admin_feature_status.router)
 app.include_router(tests.router)
 app.include_router(practice.router)
 app.include_router(submissions.router)

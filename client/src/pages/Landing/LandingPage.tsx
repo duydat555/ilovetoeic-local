@@ -7,8 +7,11 @@ import {
 } from 'lucide-react';
 import { BrandLogo } from '../../components/common/BrandLogo';
 import { BrandName } from '../../components/common/BrandName';
+import { useAuth } from '../../context/AuthContext';
+import { getRoleHome, getUserRole } from '../../utils/rbac';
 
 export const LandingPage: React.FC = () => {
+  const { user, isAuthenticated } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -18,6 +21,8 @@ export const LandingPage: React.FC = () => {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, []);
+
+  const homeTarget = isAuthenticated && user ? getRoleHome(getUserRole(user)) : '/dashboard';
 
   return (
     <div className="min-h-screen overflow-hidden bg-slate-50 dark:bg-canvas text-slate-800 dark:text-content flex flex-col font-sans">
@@ -37,18 +42,29 @@ export const LandingPage: React.FC = () => {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link
-            to="/login"
-            className="px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-content hover:text-brand-600 transition-colors"
-          >
-            Đăng nhập
-          </Link>
-          <Link
-            to="/register"
-            className="px-5 py-2.5 text-sm font-semibold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl shadow-md shadow-brand-600/20 transition-all transform hover:-translate-y-0.5"
-          >
-            Học miễn phí ngay
-          </Link>
+          {isAuthenticated ? (
+            <Link
+              to={homeTarget}
+              className="px-5 py-2.5 text-sm font-bold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl shadow-md shadow-brand-600/20 transition-all transform hover:-translate-y-0.5 flex items-center gap-2"
+            >
+              Vào học ngay <ArrowRight className="size-4" />
+            </Link>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className="px-5 py-2.5 text-sm font-semibold text-slate-700 dark:text-content hover:text-brand-600 transition-colors"
+              >
+                Đăng nhập
+              </Link>
+              <Link
+                to="/register"
+                className="px-5 py-2.5 text-sm font-semibold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl shadow-md shadow-brand-600/20 transition-all transform hover:-translate-y-0.5"
+              >
+                Học miễn phí ngay
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -69,8 +85,14 @@ export const LandingPage: React.FC = () => {
           <a href="#path" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium">Lộ trình học</a>
           <a href="#testimonials" onClick={() => setMobileMenuOpen(false)} className="text-base font-medium">Đánh giá</a>
           <hr className="border-slate-200 dark:border-line" />
-          <Link to="/login" className="text-center py-2.5 font-semibold text-slate-700 dark:text-content">Đăng nhập</Link>
-          <Link to="/register" className="text-center py-3 font-semibold text-brand-ink bg-brand rounded-xl">Học miễn phí ngay</Link>
+          {isAuthenticated ? (
+            <Link to={homeTarget} className="text-center py-3 font-bold text-brand-ink bg-brand rounded-xl">Vào học ngay</Link>
+          ) : (
+            <>
+              <Link to="/login" className="text-center py-2.5 font-semibold text-slate-700 dark:text-content">Đăng nhập</Link>
+              <Link to="/register" className="text-center py-3 font-semibold text-brand-ink bg-brand rounded-xl">Học miễn phí ngay</Link>
+            </>
+          )}
         </div>
       )}
 
@@ -99,10 +121,10 @@ export const LandingPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
             <Link
-              to="/dashboard"
+              to={homeTarget}
               className="btn-primary min-h-14 rounded-2xl px-8 text-base group"
             >
-              <span>Bắt đầu học miễn phí</span>
+              <span>{isAuthenticated ? 'Vào học ngay' : 'Bắt đầu học miễn phí'}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
@@ -138,185 +160,102 @@ export const LandingPage: React.FC = () => {
           className="relative"
         >
           <div className="absolute -inset-8 bg-gradient-to-r from-brand-500/25 to-brand-400/25 rounded-[40px] blur-3xl" />
-          <div className="relative surface rounded-[32px] p-5 sm:p-7 flex flex-col gap-6">
-            <div className="absolute -right-5 top-14 rounded-2xl border border-white/80 bg-white/90 px-4 py-3 shadow-xl backdrop-blur-xl dark:border-line dark:bg-surface/90 animate-float">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Dự đoán mới</div>
-              <div className="mt-1 text-lg font-extrabold text-emerald-600">+35 điểm</div>
-            </div>
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-line pb-4">
+
+          <div className="relative rounded-3xl border border-white/80 dark:border-line bg-white/90 dark:bg-surface-elevated/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-line pb-5 mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-brand/10 text-brand-600 font-bold flex items-center justify-center">
-                  <Target className="w-5 h-5" />
+                <div className="size-10 rounded-xl bg-brand-500/10 grid place-items-center text-brand-600 dark:text-brand-300 font-bold">
+                  AI
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-slate-800 dark:text-content">Mục tiêu cá nhân</div>
-                  <div className="text-xs text-slate-500">Mục tiêu: 750 / Đạt: 620</div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-content text-base">Phân tích năng lực học tập</h3>
+                  <p className="text-xs text-slate-500 dark:text-content-muted">Cập nhật theo thời gian thực</p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold">
-                +130 điểm
+              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-extrabold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                Đang tăng +45đ
               </span>
             </div>
 
-            <div className="space-y-3">
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tiến độ hôm nay</div>
-              <div className="bg-slate-50 dark:bg-surface-hover/50 p-4 rounded-2xl flex items-center justify-between">
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-slate-50 dark:bg-surface/60 p-4 border border-slate-200/60 dark:border-line flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Headphones className="w-5 h-5 text-brand-600" />
-                  <span className="text-sm font-semibold">Listening Part 2 (WH-Questions)</span>
+                  <Headphones className="size-5 text-brand-600 dark:text-brand-300" />
+                  <div>
+                    <div className="text-xs text-slate-500 dark:text-content-muted">Kỹ năng Nghe (Listening)</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-content">Part 1 - 4: 410 / 495 điểm</div>
+                  </div>
                 </div>
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                <div className="size-2 rounded-full bg-emerald-500" />
               </div>
-              <div className="bg-slate-50 dark:bg-surface-hover/50 p-4 rounded-2xl flex items-center justify-between">
+
+              <div className="rounded-2xl bg-slate-50 dark:bg-surface/60 p-4 border border-slate-200/60 dark:border-line flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <BookOpen className="w-5 h-5 text-brand-600" />
-                  <span className="text-sm font-semibold">Reading Part 5 (Từ loại Noun/Adj)</span>
+                  <BookOpen className="size-5 text-brand-600 dark:text-brand-300" />
+                  <div>
+                    <div className="text-xs text-slate-500 dark:text-content-muted">Kỹ năng Đọc (Reading)</div>
+                    <div className="text-sm font-bold text-slate-900 dark:text-content">Part 5 - 7: 380 / 495 điểm</div>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-brand-600">Đang học</span>
+                <div className="size-2 rounded-full bg-amber-500" />
               </div>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-slate-100 dark:border-line flex items-center justify-between text-xs text-slate-500">
+              <span className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-content">
+                <ShieldCheck className="size-4 text-brand-600 dark:text-brand-300" /> Chuẩn đề thi ETS 2026
+              </span>
+              <span>Dự đoán: 790 TOEIC</span>
             </div>
           </div>
         </motion.div>
       </section>
 
-      {/* Features Section */}
+      {/* Feature Section */}
       <section id="features" className="py-24 bg-white/70 dark:bg-surface/50 px-4 md:px-8 border-y border-white dark:border-line">
-        <div className="max-w-7xl mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-content">
-              Tính năng vượt trội nâng tầm kết quả học tập
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-950 dark:text-content tracking-tight">
+              Tính năng vượt trội cho mục tiêu TOEIC của bạn
             </h2>
-            <p className="text-slate-600 dark:text-content-muted">
-              Được thiết kế chuẩn khung đề thi ETS TOEIC thực tế, giúp bạn rèn luyện phản xạ và tối ưu từng giây làm bài.
+            <p className="text-slate-600 dark:text-content-muted text-base">
+              Đầy đủ công cụ luyện tập từ cơ bản đến nâng cao được tối ưu riêng cho học viên Việt Nam.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { icon: Target, title: 'Lộ trình cá nhân hóa', desc: 'Phân tích trình độ đầu vào để tự động đề xuất danh sách bài học và kỹ năng cần tập trung mỗi ngày.' },
-              { icon: Headphones, title: 'Luyện nghe Listening chuyên sâu', desc: 'Trình phát audio thông minh có transcript chi tiết, dịch nghĩa từng câu và từ vựng trọng tâm.' },
-              { icon: BookOpen, title: 'Kho đề thi ETS phong phú', desc: 'Đề thi đầy đủ 200 câu và Mini Test 60 phút có đồng hồ đếm ngược tự động chấm điểm chính xác.' },
-              { icon: Languages, title: 'Thẻ từ vựng Flashcard 3D', desc: 'Học từ vựng theo chủ đề Office, Business, Finance với hiệu ứng lật 3D và phiên âm IPA chuẩn.' },
-              { icon: BarChart3, title: 'Phân tích điểm mạnh & điểm yếu', desc: 'Biểu đồ Recharts chi tiết tỷ lệ chính xác từng Part giúp phát hiện ngay phần kiến thức bị hổng.' },
-              { icon: Award, title: 'Sổ lỗi sai thông minh', desc: 'Tự động tổng hợp và nhắc nhở ôn tập lại những câu hỏi bạn đã chọn sai để không lặp lại lỗi.' }
-            ].map((f, i) => {
-              const Icon = f.icon;
-              return (
-                <motion.div
-                  key={i}
-                  whileHover={{ y: -7 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  className="surface p-8 group"
-                >
-                  <div className="icon-box mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform">
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-900 dark:text-content mb-3">{f.title}</h3>
-                  <p className="text-slate-600 dark:text-content-muted text-sm leading-relaxed">{f.desc}</p>
-                </motion.div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Learning Path Steps */}
-      <section id="path" className="py-20 px-4 md:px-8 max-w-7xl mx-auto w-full">
-        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-content">
-            5 Bước chinh phục TOEIC thành công
-          </h2>
-          <p className="text-slate-600 dark:text-content-muted">
-            Quy trình chuẩn hóa giúp bạn từng bước tự tin bước vào phòng thi thật.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          {[
-            { step: '01', title: 'Test đầu vào', desc: 'Đánh giá chính xác điểm xuất phát' },
-            { step: '02', title: 'Đặt mục tiêu', desc: 'Thiết lập điểm số mong muốn & ngày thi' },
-            { step: '03', title: 'Nhận lộ trình', desc: 'Hệ thống tự tạo kế hoạch học tập' },
-            { step: '04', title: 'Luyện tập daily', desc: 'Học từ vựng, nghe & đọc mỗi ngày' },
-            { step: '05', title: 'Thi thử ETS', desc: 'Tối ưu tốc độ & điểm số thực tế' }
-          ].map((s, i) => (
-            <div key={i} className="bg-white dark:bg-surface-elevated p-6 rounded-2xl border border-slate-200 dark:border-line relative">
-              <span className="text-3xl font-extrabold text-brand-600/20 dark:text-brand-300/20 block mb-2">{s.step}</span>
-              <h4 className="text-lg font-bold text-slate-900 dark:text-content mb-2">{s.title}</h4>
-              <p className="text-xs text-slate-500 dark:text-content-muted">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section id="testimonials" className="py-20 bg-brand text-brand-ink px-4 md:px-8">
-        <div className="max-w-7xl mx-auto text-center space-y-12">
-          <h2 className="text-3xl sm:text-4xl font-extrabold">Cảm nhận từ học viên đạt 750+ TOEIC</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-slate-800 dark:text-content">
-            {[
-              { name: 'Trần Thu Thảo', score: '880 TOEIC', text: 'Nhờ tính năng sổ lỗi sai và lật từ vựng Flashcard 3D, mình đã tăng từ 550 lên 880 điểm chỉ sau 2 tháng tự học.' },
-              { name: 'Lê Hoàng Nam', score: '820 TOEIC', text: 'Trình phát audio bài Listening có transcript dịch nghĩa chi tiết giúp mình luyện phản xạ Part 3 & Part 4 cực kỳ hiệu quả.' },
-              { name: 'Phạm Đức Anh', score: '795 TOEIC', text: 'Giao diện cực kỳ hiện đại, không quảng cáo làm phiền và biểu đồ điểm số phân tích điểm yếu rất trực quan.' }
-            ].map((t, i) => (
-              <div key={i} className="bg-white dark:bg-surface-elevated p-8 rounded-3xl shadow-xl flex flex-col justify-between text-left">
-                <div className="space-y-4">
-                  <div className="flex gap-1 text-amber-400">
-                    {[...Array(5)].map((_, j) => (
-                      <Star key={j} className="w-5 h-5 fill-amber-400" />
-                    ))}
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-content-muted italic">"{t.text}"</p>
-                </div>
-                <div className="pt-6 border-t border-slate-100 dark:border-line flex items-center justify-between mt-6">
-                  <span className="font-bold text-slate-900 dark:text-content">{t.name}</span>
-                  <span className="px-3 py-1 bg-brand-100 dark:bg-brand-900/50 text-brand-600 dark:text-brand-200 rounded-full text-xs font-bold">
-                    {t.score}
-                  </span>
-                </div>
+            <div className="rounded-3xl border border-slate-200 dark:border-line bg-white dark:bg-surface-elevated p-7 space-y-4 hover:shadow-xl transition-all">
+              <div className="size-12 rounded-2xl bg-brand-500/10 grid place-items-center text-brand-600 dark:text-brand-300">
+                <Languages className="size-6" />
               </div>
-            ))}
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-content">Thẻ từ vựng Flashcard AI</h3>
+              <p className="text-sm text-slate-600 dark:text-content-muted leading-relaxed">
+                Học từ vựng qua âm thanh chuẩn, ví dụ thực tế và giải thích chi tiết. Thuật toán Lặp lại ngắt quãng giúp nhớ từ vựng lâu gấp 3 lần.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 dark:border-line bg-white dark:bg-surface-elevated p-7 space-y-4 hover:shadow-xl transition-all">
+              <div className="size-12 rounded-2xl bg-brand-500/10 grid place-items-center text-brand-600 dark:text-brand-300">
+                <BarChart3 className="size-6" />
+              </div>
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-content">Thi thử ETS thời gian thực</h3>
+              <p className="text-sm text-slate-600 dark:text-content-muted leading-relaxed">
+                Giao diện và áp lực thời gian mô phỏng 100% kỳ thi thật tại IIG. Chấm điểm ngay kèm đáp án chi tiết và phân tích câu sai.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-slate-200 dark:border-line bg-white dark:bg-surface-elevated p-7 space-y-4 hover:shadow-xl transition-all">
+              <div className="size-12 rounded-2xl bg-brand-500/10 grid place-items-center text-brand-600 dark:text-brand-300">
+                <Target className="size-6" />
+              </div>
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-content">Luyện tập theo dạng bài</h3>
+              <p className="text-sm text-slate-600 dark:text-content-muted leading-relaxed">
+                Tập trung chinh phục từng Part từ 1 đến 7. Hệ thống tự động phát hiện lỗ hổng kiến thức để bổ sung bài tập cải thiện ngay.
+              </p>
+            </div>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-12 px-4 md:px-8 border-t border-slate-800 mt-auto">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 text-white">
-              <BrandLogo className="size-10 rounded-xl" />
-              <BrandName className="rounded-md bg-white px-1.5 text-lg font-bold" />
-            </div>
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Nền tảng luyện thi TOEIC trực tuyến hàng đầu giúp học viên tự tin chinh phục mục tiêu điểm số cao nhất.
-            </p>
-          </div>
-          <div>
-            <h5 className="text-sm font-semibold text-white mb-4">Sản phẩm</h5>
-            <ul className="space-y-2 text-xs">
-              <li><Link to="/mock-test" className="hover:text-white">Luyện tập theo đề TOEIC</Link></li>
-              <li><Link to="/mock-test" className="hover:text-white">Đề thi thử ETS</Link></li>
-              <li><Link to="/vocabulary" className="hover:text-white">Từ vựng Flashcards</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-sm font-semibold text-white mb-4">Hỗ trợ</h5>
-            <ul className="space-y-2 text-xs">
-              <li><a href="#" className="hover:text-white">Hướng dẫn học tập</a></li>
-              <li><a href="#" className="hover:text-white">Câu hỏi thường gặp</a></li>
-              <li><a href="#" className="hover:text-white">Chính sách bảo mật</a></li>
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-sm font-semibold text-white mb-4">Liên hệ</h5>
-            <p className="text-xs text-slate-500">Email: support@ilovetoeic.edu.vn</p>
-            <p className="text-xs text-slate-500 mt-1">Hotline: 1900 6789</p>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto border-t border-slate-800 mt-8 pt-8 text-center text-xs text-slate-600">
-          © 2026 <BrandName className="font-semibold" />. Tất cả quyền được bảo lưu.
-        </div>
-      </footer>
     </div>
   );
 };

@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getRoleHome } from '../../utils/rbac';
+import { getRoleHome, getUserRole } from '../../utils/rbac';
 
 const fieldClassName =
   'h-12 w-full rounded-xl border border-slate-300 bg-white pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm transition-[border-color,box-shadow,background-color] duration-200 hover:border-slate-400 focus:border-[#e5ad00] focus:bg-white focus:outline-none focus:ring-4 focus:ring-[#ffc72c]/15 dark:border-white/10 dark:bg-gray-900/90 dark:text-gray-100 dark:placeholder:text-gray-500 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.025)] dark:hover:border-white/15 dark:focus:border-[#ffc72c]/70 dark:focus:bg-gray-900 dark:focus:ring-[#ffc72c]/10';
@@ -17,8 +17,14 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, loginWithGoogle } = useAuth();
+  const { user, isAuthenticated, isLoading, login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user) {
+      navigate(getRoleHome(getUserRole(user)), { replace: true });
+    }
+  }, [isAuthenticated, isLoading, user, navigate]);
 
   const getErrorMessage = (err: unknown) => {
     const message = err instanceof Error ? err.message : '';

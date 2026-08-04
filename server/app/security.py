@@ -90,13 +90,23 @@ def get_current_user(
         SELECT u.*
         FROM user_sessions s
         JOIN users u ON u.id = s.user_id
-        WHERE s.token_hash = ? AND s.expires_at > UTC_TIMESTAMP()
+        WHERE s.token_hash = ?
         """,
         (token_hash(credentials.credentials),),
         use_cache=False,
     )
     if not user:
         raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn.")
+
+    # Tự động gia hạn phiên đăng nhập trong DB lên 10 năm liên tục mỗi khi người dùng truy cập
+    try:
+        db.execute(
+            "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE token_hash = ?",
+            (token_hash(credentials.credentials),),
+        )
+    except Exception:
+        pass
+
     return user
 
 

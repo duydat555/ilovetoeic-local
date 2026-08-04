@@ -319,10 +319,10 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
                     google_sub,
                 ),
             )
-        session_token = create_session(user_id, bool(state_data.get("remember", True)))
+        session_token = create_session(user_id, remember=True)
         fragment = urlencode({
             "token": session_token,
-            "remember": "1" if state_data.get("remember", True) else "0",
+            "remember": "1",
         })
         return RedirectResponse(f"{callback_url}#{fragment}")
     except Exception as callback_error:

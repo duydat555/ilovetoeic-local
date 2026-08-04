@@ -1,5 +1,13 @@
 -- Feature visibility configuration for student-facing pages.
 
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS feature_flags (
     feature_key VARCHAR(64) PRIMARY KEY,
     is_enabled TINYINT(1) NOT NULL DEFAULT 1,

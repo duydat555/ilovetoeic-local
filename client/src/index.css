@@ -1,0 +1,400 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --color-bg-canvas: 248 250 252;
+    --color-bg-sidebar: 255 255 255;
+    --color-bg-surface: 255 255 255;
+    --color-bg-elevated: 241 245 249;
+    --color-bg-hover: 226 232 240;
+    --color-text-primary: 15 23 42;
+    --color-text-secondary: 71 85 105;
+    --color-brand-primary: 255 199 44;
+    --color-brand-hover: 229 173 0;
+    --color-brand-strong: 138 94 21;
+    --color-brand-ink: 27 42 74;
+    --color-accent-green: 5 150 105;
+    --color-accent-red: 220 38 38;
+    --color-border-subtle: 226 232 240;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --color-bg-canvas: 15 17 21;
+    --color-bg-sidebar: 11 15 23;
+    --color-bg-surface: 26 29 35;
+    --color-bg-elevated: 32 36 44;
+    --color-bg-hover: 40 45 54;
+    --color-text-primary: 232 232 232;
+    --color-text-secondary: 156 163 175;
+    --color-brand-primary: 255 199 44;
+    --color-brand-hover: 255 209 63;
+    --color-brand-strong: 255 220 102;
+    --color-brand-ink: 27 42 74;
+    --color-accent-green: 52 211 153;
+    --color-accent-red: 248 113 113;
+    --color-border-subtle: 45 50 60;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: rgb(var(--color-bg-canvas));
+  }
+
+  body {
+    font-family: 'Inter', 'Be Vietnam Pro', sans-serif;
+    @apply bg-canvas text-content antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  select,
+  textarea {
+    @apply text-content placeholder:text-content-muted;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-950 dark:bg-brand-500/80 dark:text-brand-ink;
+  }
+
+  /* Disable per-node transitions while the browser cross-fades two snapshots.
+     This avoids hundreds of simultaneous color animations on dense pages. */
+  .theme-switching *,
+  .theme-switching *::before,
+  .theme-switching *::after {
+    transition: none !important;
+  }
+}
+
+@keyframes theme-snapshot-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes theme-snapshot-in {
+  from { opacity: 0.15; }
+  to { opacity: 1; }
+}
+
+::view-transition-old(root) {
+  animation: theme-snapshot-out 140ms ease-out both;
+}
+
+::view-transition-new(root) {
+  animation: theme-snapshot-in 180ms ease-out both;
+}
+
+@layer components {
+  .app-shell {
+    background:
+      radial-gradient(circle at 78% -10%, rgb(255 244 204 / 72%), transparent 34rem),
+      radial-gradient(circle at 15% 75%, rgb(255 231 153 / 36%), transparent 30rem),
+      rgb(var(--color-bg-canvas));
+  }
+
+  .dark .app-shell {
+    background:
+      radial-gradient(circle at 78% -10%, rgb(255 199 44 / 13%), transparent 34rem),
+      radial-gradient(circle at 15% 75%, rgb(138 94 21 / 9%), transparent 30rem),
+      rgb(var(--color-bg-canvas));
+  }
+
+  .surface {
+    @apply rounded-3xl border border-line bg-surface/95 shadow-[0_12px_40px_-24px_rgba(15,23,42,.28)] backdrop-blur-xl dark:shadow-none;
+  }
+
+  .surface-hover {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:border-brand-300 hover:bg-surface-hover hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,.32)] dark:hover:border-brand-500/40 dark:hover:shadow-none;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-accent/35 bg-accent/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.14em] text-accent-strong dark:text-brand-300;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-contrast shadow-lg shadow-brand-600/15 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-xl hover:shadow-brand-600/20 active:translate-y-0 active:scale-[.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-5 py-2.5 text-sm font-bold text-content shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/60 hover:bg-brand-50 hover:text-brand-700 hover:shadow-md active:translate-y-0 active:scale-[.98] dark:hover:bg-brand-500/10 dark:hover:text-brand-300 dark:shadow-none;
+  }
+
+  .icon-box {
+    @apply flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent/15 text-accent-strong ring-1 ring-accent/25 dark:text-brand-300;
+  }
+
+  /* Shared selection language for mode tabs and Part options. */
+  .option-default {
+    @apply border-gray-200 bg-white text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+  }
+
+  .option-hover {
+    @apply hover:border-gray-300 hover:bg-gray-50 dark:hover:border-slate-600 dark:hover:bg-slate-800;
+  }
+
+  .option-selected {
+    @apply border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-400/60 dark:bg-amber-400/15 dark:text-amber-200;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400 dark:bg-slate-600;
+}
+
+/* 3D Flashcard Flip Animation */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Practice reading annotations */
+.practice-annotation-highlight {
+  border-radius: 0.2rem;
+  background: rgb(255 231 153 / 70%);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.practice-annotation-underline {
+  text-decoration: underline 2px rgb(138 94 21);
+  text-underline-offset: 0.2rem;
+  text-decoration-skip-ink: none;
+}
+
+.dark .practice-annotation-highlight {
+  background: rgb(255 199 44 / 28%);
+}
+
+.dark .practice-annotation-underline {
+  text-decoration-color: rgb(255 220 102);
+}
+
+/* Smooth Focus Rings for Accessibility */
+*:focus-visible {
+  @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-canvas;
+}
+
+/* Micro-interaction & Animation Keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.btn-interactive {
+  @apply transition-all duration-200 active:scale-[.98] hover:shadow-lg hover:-translate-y-0.5;
+}
+
+.card-interactive {
+  @apply transition-all duration-300 hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,.32)] hover:-translate-y-1 hover:border-brand-300 dark:hover:border-brand-500/60;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Custom audio controls */
+.audio-progress {
+  height: 0.45rem;
+  appearance: none;
+  border-radius: 9999px;
+  transition: height 150ms ease;
+}
+
+.audio-progress:hover {
+  height: 0.6rem;
+}
+
+.audio-progress::-webkit-slider-runnable-track {
+  height: 100%;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.audio-progress::-webkit-slider-thumb {
+  width: 1rem;
+  height: 1rem;
+  margin-top: calc((0.45rem - 1rem) / 2);
+  appearance: none;
+  border: 3px solid white;
+  border-radius: 9999px;
+  background: #ffc72c;
+  box-shadow: 0 2px 8px rgb(138 94 21 / 30%);
+  transition: transform 150ms ease;
+}
+
+.audio-progress:hover::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+
+.audio-progress::-moz-range-track {
+  height: 100%;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.audio-progress::-moz-range-thumb {
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 3px solid white;
+  border-radius: 9999px;
+  background: #ffc72c;
+  box-shadow: 0 2px 8px rgb(138 94 21 / 30%);
+}
+
+.audio-control {
+  @apply flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-full bg-white px-2 text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-300;
+}
+
+kbd {
+  @apply inline-flex min-w-5 items-center justify-center rounded border border-slate-300 bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200;
+}
+
+/* TOEIC passages keep the source document's own HTML/CSS. These rules only
+   provide a theme-aware outer panel, semantic browser defaults and overflow safety. */
+.toeic-passage-panel {
+  @apply rounded-2xl border border-line bg-surface-elevated/60 p-5 text-sm leading-relaxed text-content;
+}
+
+.toeic-passage {
+  @apply mx-auto w-full max-w-4xl text-content;
+  position: relative;
+  isolation: isolate;
+  overflow-x: auto;
+  overflow-wrap: anywhere;
+}
+
+.toeic-passage > :first-child {
+  margin-top: 0;
+}
+
+.toeic-passage > :last-child {
+  margin-bottom: 0;
+}
+
+.toeic-passage p {
+  margin: 0.65rem 0;
+}
+
+.toeic-passage h1,
+.toeic-passage h2,
+.toeic-passage h3,
+.toeic-passage h4 {
+  margin: 0.9rem 0 0.55rem;
+  color: inherit;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.toeic-passage h1 { font-size: 1.35em; }
+.toeic-passage h2 { font-size: 1.25em; }
+.toeic-passage h3 { font-size: 1.15em; }
+
+.toeic-passage ul,
+.toeic-passage ol {
+  margin: 0.7rem 0;
+  padding-left: 1.5rem;
+}
+
+.toeic-passage ul { list-style: disc; }
+.toeic-passage ol { list-style: decimal; }
+.toeic-passage li + li { margin-top: 0.3rem; }
+
+.toeic-passage table {
+  max-width: 100%;
+}
+
+.toeic-passage blockquote {
+  margin: 1rem 2.5rem;
+}
+
+.dark .toeic-passage :where(
+  [style*="color:black" i],
+  [style*="color: black" i],
+  [style*="color:#000" i],
+  [style*="color: #000" i]
+) {
+  color: rgb(var(--color-text-primary)) !important;
+}
+
+.dark .toeic-passage :where(
+  [bgcolor="white" i],
+  [bgcolor="#fff" i],
+  [bgcolor="#ffffff" i],
+  [style*="background:white" i],
+  [style*="background: white" i],
+  [style*="background:#fff" i],
+  [style*="background: #fff" i],
+  [style*="background-color:white" i],
+  [style*="background-color: white" i],
+  [style*="background-color:#fff" i],
+  [style*="background-color: #fff" i]
+) {
+  color: #0f172a !important;
+}
+
+@media (max-width: 640px) {
+  .toeic-passage [style*="column-count"] {
+    column-count: 1 !important;
+  }
+}

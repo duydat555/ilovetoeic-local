@@ -1,0 +1,79 @@
+import uvicorn
+from pathlib import Path
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+
+from app import config
+from app.routers import (
+    audio_proxy,
+    auth,
+    classes,
+    features,
+    gemini,
+    homework,
+    leaderboard,
+    notifications,
+    practice,
+    status,
+    submissions,
+    tests,
+    user_data,
+)
+
+app = FastAPI(
+    title="TOEIC Practice REST API Server",
+    description="REST API Server cho Website/App Học TOEIC dùng MySQL",
+    version="2.0.0"
+)
+
+# Enable GZip Compression (Giảm dung lượng response truyền qua LAN/Internet)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Enable CORS for cross-origin requests from Web/App clients on LAN
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static file serving for audio MP3 and images
+config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(config.MEDIA_DIR)), name="media")
+
+# Include API Routers
+app.include_router(status.router)
+app.include_router(tests.router)
+app.include_router(practice.router)
+app.include_router(submissions.router)
+app.include_router(audio_proxy.router)
+app.include_router(gemini.router)
+app.include_router(homework.router)
+app.include_router(auth.router)
+app.include_router(classes.router)
+app.include_router(features.router)
+app.include_router(user_data.router)
+app.include_router(leaderboard.router)
+app.include_router(notifications.router)
+
+
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "Chào mừng tới TOEIC Practice REST API Server!",
+        "documentation": "/docs",
+        "status_endpoint": "/api/v1/status"
+    }
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("TOEIC REST API SERVER - STARTING")
+    print(f"Server host: {config.HOST}:{config.PORT}")
+    print(f"Swagger API Docs: http://127.0.0.1:{config.PORT}/docs")
+    print("=" * 60)
+    uvicorn.run("main:app", host=config.HOST, port=config.PORT, reload=True)

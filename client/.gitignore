@@ -1,0 +1,18 @@
+# Environment files (keep documented example)
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+*.log
+
+# Python/tooling artifacts, if introduced locally
+__pycache__/
+venv/
+.venv/
+backups/
+
+.DS_Store

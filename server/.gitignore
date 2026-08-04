@@ -1,0 +1,22 @@
+# Environment files (keep documented example)
+.env
+.env.*
+!.env.example
+
+# Python environments and caches
+__pycache__/
+venv/
+.venv/
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+*.log
+logs/
+backups/
+*.db
+*.sqlite
+*.sqlite3
+
+.DS_Store

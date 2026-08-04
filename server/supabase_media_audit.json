@@ -1,0 +1,16 @@
+{
+  "summary": {
+    "tests": 75,
+    "passages": 3234,
+    "questions": 15000,
+    "unique_media_urls": 4615,
+    "healthy_urls": 4615,
+    "broken_urls": 0,
+    "missing_expected_references": 0,
+    "affected_tests": 0,
+    "broken_status_counts": {},
+    "broken_host_counts": {}
+  },
+  "affected_tests": {},
+  "broken_urls": []
+}

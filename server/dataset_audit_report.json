@@ -1,0 +1,2398 @@
+{
+  "generatedAt": "2026-08-02T16:17:16.852Z",
+  "sourceRoot": "C:/android-server/dautoeic/mock_test_data/downloads",
+  "apiBase": "http://127.0.0.1:8000/api/v1",
+  "summary": {
+    "sourceTests": 75,
+    "sourceQuestions": 15000,
+    "sourcePassages": 3234,
+    "apiQuestions": 15000,
+    "apiPassages": 3234,
+    "mediaReferences": 4875,
+    "uniqueMediaKeys": 4875,
+    "optionValuesAffectedByFrontendPrefixRegex": 20,
+    "optionArticlesDroppedByFrontendPrefixRegex": 0,
+    "bareAArticleOptionsProtectedByFrontendRegex": 1507,
+    "explicitOptionLabelsHandledByFrontendPrefixRegex": 20,
+    "remoteUrlsChecked": 0,
+    "remoteRateLimited": 0,
+    "remoteHeadFailures": 0,
+    "remoteMappingLengthMismatches": 0,
+    "remoteObjectLengthMismatches": 0,
+    "remoteHashSamples": 150,
+    "remoteMappingHashMismatches": 0,
+    "remoteObjectHashMismatches": 0,
+    "contentMismatches": 0,
+    "mediaKeyMismatches": 0,
+    "misassignedMediaReferences": 0,
+    "missingMediaReferences": 0,
+    "missingLocalMedia": 0,
+    "missingR2State": 0,
+    "unverifiedR2State": 0,
+    "localStateSignatureMismatches": 0,
+    "passageRangeIssues": 0
+  },
+  "testCountIssues": [],
+  "missingApiTests": [],
+  "missingApiRows": [],
+  "unexpectedApiRows": [],
+  "contentMismatches": [],
+  "mediaKeyMismatches": [],
+  "missingLocalMedia": [],
+  "missingR2State": [],
+  "unverifiedR2State": [],
+  "localStateSignatureMismatches": [],
+  "passageRangeIssues": [],
+  "optionPrefixExamples": [
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 1,
+      "field": "option_b",
+      "before": "(B) They're writing on a blackboard.",
+      "after": "They're writing on a blackboard."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 1,
+      "field": "option_c",
+      "before": "(C) They're looking at a book.",
+      "after": "They're looking at a book."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 1,
+      "field": "option_d",
+      "before": "(D) They're opening a box.",
+      "after": "They're opening a box."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 2,
+      "field": "option_b",
+      "before": "(B) There are some cups stacked on a tray.",
+      "after": "There are some cups stacked on a tray."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 2,
+      "field": "option_c",
+      "before": "(C) He's washing a knife in a sink.",
+      "after": "He's washing a knife in a sink."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 2,
+      "field": "option_d",
+      "before": "(D) He's stirring a pot on a stove.",
+      "after": "He's stirring a pot on a stove."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 3,
+      "field": "option_b",
+      "before": "(B) One of the women is closing a door.",
+      "after": "One of the women is closing a door."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 3,
+      "field": "option_c",
+      "before": "(C) The women are paying for some umbrellas.",
+      "after": "The women are paying for some umbrellas."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 3,
+      "field": "option_d",
+      "before": "(D) The women are standing near some chairs.",
+      "after": "The women are standing near some chairs."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 4,
+      "field": "option_b",
+      "before": "(B) Some papers are posted on a bulletin board.",
+      "after": "Some papers are posted on a bulletin board."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 4,
+      "field": "option_c",
+      "before": "(C) Some magazine racks are being emptied.",
+      "after": "Some magazine racks are being emptied."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 4,
+      "field": "option_d",
+      "before": "(D) Some containers are being carried to a corner.",
+      "after": "Some containers are being carried to a corner."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 5,
+      "field": "option_b",
+      "before": "(B) One of the women is making a phone call.",
+      "after": "One of the women is making a phone call."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 5,
+      "field": "option_c",
+      "before": "(C) The women are across the desk from each other.",
+      "after": "The women are across the desk from each other."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 5,
+      "field": "option_d",
+      "before": "(D) The women are shaking hands.",
+      "after": "The women are shaking hands."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 6,
+      "field": "option_b",
+      "before": "(B) Some trees are lining a walkway.",
+      "after": "Some trees are lining a walkway."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 6,
+      "field": "option_c",
+      "before": "(C) Some vehicles are stuck in traffic.",
+      "after": "Some vehicles are stuck in traffic."
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "question": 6,
+      "field": "option_d",
+      "before": "(D) Some benches are being installed in a park.",
+      "after": "Some benches are being installed in a park."
+    },
+    {
+      "year": 2023,
+      "test": "Test 2",
+      "question": 176,
+      "field": "option_b",
+      "before": "B. Directions to a company’s office",
+      "after": "Directions to a company’s office"
+    },
+    {
+      "year": 2023,
+      "test": "Test 5",
+      "question": 141,
+      "field": "option_b",
+      "before": "B. Our auctions used to be held at a historic hotel called The Faremount Rose.",
+      "after": "Our auctions used to be held at a historic hotel called The Faremount Rose."
+    }
+  ],
+  "perTest": [
+    {
+      "year": 2019,
+      "test": "Test 1",
+      "id": "66459c57-e764-4431-8876-6d76078963c7",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 2",
+      "id": "cfa7477f-7148-4b26-959c-3a62df37da5c",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 3",
+      "id": "206c1a71-e761-45ca-9c22-213d2ae8756f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2019,
+      "test": "Test 4",
+      "id": "d8b10a59-a6e8-4d39-bd3e-8e7e8d43717a",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 5",
+      "id": "be5beb40-dc59-4a86-80b0-22fbb7f85e8c",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 6",
+      "id": "8d6d99db-23b3-47d3-a1ea-ccbe5873193d",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 7",
+      "id": "f4edc8ab-ea49-42d3-a01f-5c35b552fc38",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 8",
+      "id": "189e6a8a-7de5-4bc2-9c4f-5ed47a4b1e3d",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2019,
+      "test": "Test 9",
+      "id": "72b257f6-8167-4840-8c0e-bd314a45ce8a",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2019,
+      "test": "Test 10",
+      "id": "7b87381f-5b49-4b93-a6ad-5ebe57285871",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 1",
+      "id": "2f01bddc-13d1-4e82-be78-0a444d5e8341",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 2",
+      "id": "338b4883-903b-4324-8605-1c02acc2b008",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 3",
+      "id": "975638db-a709-4064-83da-eb03268d8d63",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2020,
+      "test": "Test 4",
+      "id": "824a88ac-4963-4a33-a446-3fd1e6b2d990",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 5",
+      "id": "141a7a18-cbdc-4368-bb98-4239e10211d8",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 6",
+      "id": "6cc7edc5-10d2-4722-ae18-c4fd948fb509",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2020,
+      "test": "Test 7",
+      "id": "6e5fc7fa-8b9b-4c72-9988-2ecfb2be24cc",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2020,
+      "test": "Test 8",
+      "id": "f327f3e3-0e41-406e-af2b-d82cb5d12d31",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2020,
+      "test": "Test 9",
+      "id": "5b70683f-dafa-4494-8b4f-e5e1eb9b1069",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2020,
+      "test": "Test 10",
+      "id": "4929b2c4-977f-4447-80af-fc436bfa9d57",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2021,
+      "test": "Test 1",
+      "id": "5459ecfe-21f8-4ae3-9bc5-6252390b45e6",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2021,
+      "test": "Test 2",
+      "id": "5b05bb98-0414-4c94-a3ce-fafd3c52ad2f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2021,
+      "test": "Test 3",
+      "id": "b0953444-f5e2-45f5-ab49-4b0183ecd61e",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2021,
+      "test": "Test 4",
+      "id": "d7f3156f-868c-4672-b643-694f29a00c0d",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2021,
+      "test": "Test 5",
+      "id": "f999365e-fbd4-4906-adff-68740fe1fdf2",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2022,
+      "test": "Test 1",
+      "id": "ed2a4488-cdfb-47d6-8fe9-b42df2277bc4",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 2",
+      "id": "cb202c26-95b4-4a52-a018-db422ef021f9",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 3",
+      "id": "8e2ed554-6cbc-4a10-8dbb-992d5dc8bcc8",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 4",
+      "id": "8d95af2c-8e4e-4394-bd02-2231122e4314",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 5",
+      "id": "06ef9c29-b9fa-4a36-988e-4713b37bb8d3",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 6",
+      "id": "72e1a9ec-7acb-43cd-ab1d-48aa91cfc8b1",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 7",
+      "id": "36667f41-a469-474c-96c6-9f31b616eb24",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 8",
+      "id": "5b5ceb32-547f-4aee-bec1-c5ac558ddd65",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 9",
+      "id": "ad6fe276-eb23-49ae-8f9e-f34efed4d24b",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2022,
+      "test": "Test 10",
+      "id": "e0d00dbb-ab57-4031-a477-98dfecbb9d2c",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 1",
+      "id": "5808a825-0b4a-47d3-b99b-3a39d7e67873",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 2",
+      "id": "7ae2ba6a-fecb-4e3a-93d5-f657f5ff8eeb",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 3",
+      "id": "e112edbd-feee-484e-8327-aa6a83128a38",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 4",
+      "id": "cb3f73df-7f09-4f6b-a381-140cf890273f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 5",
+      "id": "e361b9c0-3307-407d-83d0-ad1914c61030",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 6",
+      "id": "45eeef87-cc67-494c-957d-71f548b91834",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 7",
+      "id": "e5f8efa8-8a61-46e1-9a49-23040e52e607",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 8",
+      "id": "34b0c444-a938-4277-b79b-999c300c4701",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 9",
+      "id": "8041e3b3-22a1-4a81-bffb-1b4a0e892f28",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2023,
+      "test": "Test 10",
+      "id": "7b1be3ae-2417-47de-bd22-e844e7840886",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 1",
+      "id": "e31e0a11-0010-4990-8254-cd7d0a9dce3e",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 2",
+      "id": "0f0e57d5-8618-4703-9d9e-6e51cb56fff1",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 3",
+      "id": "38b83b25-3a63-44f8-955c-bdc0bc986c73",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 4",
+      "id": "be7148aa-5afc-4a93-bfd1-d8691010b917",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 5",
+      "id": "a933692e-22a7-4d2f-9421-920c518eb8b0",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 69,
+      "apiPassages": 69
+    },
+    {
+      "year": 2024,
+      "test": "Test 6",
+      "id": "38026c3a-150b-4473-bccc-c33ea9b2cd96",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 7",
+      "id": "c8b8f328-03ad-46f9-a7fe-ab83e8a5bb11",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 8",
+      "id": "7bd0db25-879d-4222-9471-9baeaab886f0",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 9",
+      "id": "54a8dc52-8816-4b02-93f1-6c482406ff2d",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2024,
+      "test": "Test 10",
+      "id": "2c839c08-e9b8-4aae-8390-00f79df973fa",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2025,
+      "test": "Test 1",
+      "id": "7e4b358b-5f4d-4284-938b-83ae39559e5a",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2025,
+      "test": "Test 2",
+      "id": "615ca377-cb37-4215-a47c-22160be1864a",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2025,
+      "test": "Test 3",
+      "id": "87eaa094-a887-4acc-86e5-d6996562b0f3",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2025,
+      "test": "Test 4",
+      "id": "cfcf0ebc-7d5c-427b-b79b-0419a31a89f0",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2025,
+      "test": "Test 5",
+      "id": "5ef102b7-585d-4b20-9ffe-bea587fdcb7f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2025,
+      "test": "Test 6",
+      "id": "d8ed41de-185b-447f-ac22-0272769bbf6f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2025,
+      "test": "Test 7",
+      "id": "5a412af3-3819-4741-a543-764bd38a761f",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 43,
+      "apiPassages": 43
+    },
+    {
+      "year": 2025,
+      "test": "Test 8",
+      "id": "b0e3df06-1458-4f4e-b4d9-05130a00b9c8",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2025,
+      "test": "Test 9",
+      "id": "68bd1e77-5f5b-498f-b804-8de89eeadc20",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2025,
+      "test": "Test 10",
+      "id": "9199be18-1372-49c7-9585-523e7a84a7e9",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 44,
+      "apiPassages": 44
+    },
+    {
+      "year": 2026,
+      "test": "Test 1",
+      "id": "ad780150-f675-42b9-8ced-246862b0d0a8",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 2",
+      "id": "388d2017-2c3b-4b41-ac2f-7fa914df4cd3",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 3",
+      "id": "1d685728-3d21-4716-b116-c67b42b31e49",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 4",
+      "id": "9e2fee48-b79b-464b-b347-43f3fddc1536",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 5",
+      "id": "c9de578e-d69b-4993-9dd4-061cc6f55ae6",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 6",
+      "id": "6b2e9a8a-556e-4366-85ef-78c560195e5a",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 7",
+      "id": "a16befda-4ee7-4555-aabd-154d84719f19",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 8",
+      "id": "cf08d7bb-79a2-41c9-9e28-769c99871f94",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 9",
+      "id": "a0f1ce4f-91f3-48ca-adf2-1c99de815af3",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    },
+    {
+      "year": 2026,
+      "test": "Test 10",
+      "id": "d225e87c-fa3a-4ff0-bb93-0ce902af5bc9",
+      "sourceQuestions": 200,
+      "apiQuestions": 200,
+      "sourcePassages": 42,
+      "apiPassages": 42
+    }
+  ],
+  "remote": {
+    "headSummary": {
+      "checked": 0,
+      "statusCounts": {},
+      "rateLimited": 0,
+      "failuresExcludingRateLimit": 0,
+      "mappingLengthMismatches": 0,
+      "servedObjectLengthMismatches": 0
+    },
+    "headIssueExamples": [],
+    "hashSamples": [
+      {
+        "key": "2019/Test 1/audio/7.mp3",
+        "servedKey": "2019/Test 1/audio/7.mp3",
+        "status": 200,
+        "sha256": "99c71bc8e881c1f20e08a178090f6315508d77f493512c88341473256b929b01",
+        "expectedSha256": "99c71bc8e881c1f20e08a178090f6315508d77f493512c88341473256b929b01",
+        "servedExpectedSha256": "99c71bc8e881c1f20e08a178090f6315508d77f493512c88341473256b929b01",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 1/images/1.png",
+        "servedKey": "2019/Test 1/images/1.png",
+        "status": 200,
+        "sha256": "85a41f49ffcb52b2408e089c91c5df9d5a0db00c0515faac7411f407ce8e688d",
+        "expectedSha256": "85a41f49ffcb52b2408e089c91c5df9d5a0db00c0515faac7411f407ce8e688d",
+        "servedExpectedSha256": "85a41f49ffcb52b2408e089c91c5df9d5a0db00c0515faac7411f407ce8e688d",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 2/audio/1.mp3",
+        "servedKey": "2019/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "646a8a4d0916a67044cca23e6eb9eb081a22dcb441bd2d54737cd98ffea1f7a8",
+        "expectedSha256": "646a8a4d0916a67044cca23e6eb9eb081a22dcb441bd2d54737cd98ffea1f7a8",
+        "servedExpectedSha256": "646a8a4d0916a67044cca23e6eb9eb081a22dcb441bd2d54737cd98ffea1f7a8",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 2/images/1.png",
+        "servedKey": "2019/Test 2/images/1.png",
+        "status": 200,
+        "sha256": "f3f9bba0f4883994dda26ace169fa1437da9b6c1b81431dcb0abbe6bdb0180f3",
+        "expectedSha256": "f3f9bba0f4883994dda26ace169fa1437da9b6c1b81431dcb0abbe6bdb0180f3",
+        "servedExpectedSha256": "f3f9bba0f4883994dda26ace169fa1437da9b6c1b81431dcb0abbe6bdb0180f3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 3/audio/1.mp3",
+        "servedKey": "2019/Test 3/audio/1.mp3",
+        "status": 200,
+        "sha256": "3f55695370acdabbe642715d469c7cd59ae00813e2054d5a4aee4d5b90856378",
+        "expectedSha256": "3f55695370acdabbe642715d469c7cd59ae00813e2054d5a4aee4d5b90856378",
+        "servedExpectedSha256": "3f55695370acdabbe642715d469c7cd59ae00813e2054d5a4aee4d5b90856378",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 3/images/1.png",
+        "servedKey": "2019/Test 3/images/1.png",
+        "status": 200,
+        "sha256": "821193164f8a708512362a342ffae6334343c72a866a61167d20d8ec7c7d72fd",
+        "expectedSha256": "821193164f8a708512362a342ffae6334343c72a866a61167d20d8ec7c7d72fd",
+        "servedExpectedSha256": "821193164f8a708512362a342ffae6334343c72a866a61167d20d8ec7c7d72fd",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 4/audio/1.mp3",
+        "servedKey": "2019/Test 4/audio/1.mp3",
+        "status": 200,
+        "sha256": "59875d83b9512cecba2bbf323cd30c07181bf9d83a7bdd9d995a5ca7672c721b",
+        "expectedSha256": "59875d83b9512cecba2bbf323cd30c07181bf9d83a7bdd9d995a5ca7672c721b",
+        "servedExpectedSha256": "59875d83b9512cecba2bbf323cd30c07181bf9d83a7bdd9d995a5ca7672c721b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 4/images/1.png",
+        "servedKey": "2019/Test 4/images/1.png",
+        "status": 200,
+        "sha256": "dfe87823b56f790e4cfd6a971a832134b571ab96edea93361696c9cb842096bc",
+        "expectedSha256": "dfe87823b56f790e4cfd6a971a832134b571ab96edea93361696c9cb842096bc",
+        "servedExpectedSha256": "dfe87823b56f790e4cfd6a971a832134b571ab96edea93361696c9cb842096bc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 5/audio/1.mp3",
+        "servedKey": "2019/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "17d57655767f0ce75455679acfc251e91cce18b4f0b3619617f05752b748143f",
+        "expectedSha256": "17d57655767f0ce75455679acfc251e91cce18b4f0b3619617f05752b748143f",
+        "servedExpectedSha256": "17d57655767f0ce75455679acfc251e91cce18b4f0b3619617f05752b748143f",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 5/images/1.png",
+        "servedKey": "2019/Test 5/images/1.png",
+        "status": 200,
+        "sha256": "0eeee4b61f634267953d4f6ed065b1e91e03d9b350ad6c71c8487fb758a53fab",
+        "expectedSha256": "0eeee4b61f634267953d4f6ed065b1e91e03d9b350ad6c71c8487fb758a53fab",
+        "servedExpectedSha256": "0eeee4b61f634267953d4f6ed065b1e91e03d9b350ad6c71c8487fb758a53fab",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 6/audio/1.mp3",
+        "servedKey": "2019/Test 6/audio/1.mp3",
+        "status": 200,
+        "sha256": "01706bf7910e1fe04c1a289a33d2ccead8789d2eb0006693eaf45908f993fc55",
+        "expectedSha256": "01706bf7910e1fe04c1a289a33d2ccead8789d2eb0006693eaf45908f993fc55",
+        "servedExpectedSha256": "01706bf7910e1fe04c1a289a33d2ccead8789d2eb0006693eaf45908f993fc55",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 6/images/1.png",
+        "servedKey": "2019/Test 6/images/1.png",
+        "status": 200,
+        "sha256": "b90ff2e5b6d07d802d85540d462ea4a07a433a006a6c58f28a3ed9745c65cf1e",
+        "expectedSha256": "b90ff2e5b6d07d802d85540d462ea4a07a433a006a6c58f28a3ed9745c65cf1e",
+        "servedExpectedSha256": "b90ff2e5b6d07d802d85540d462ea4a07a433a006a6c58f28a3ed9745c65cf1e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 7/audio/1.mp3",
+        "servedKey": "2019/Test 7/audio/1.mp3",
+        "status": 200,
+        "sha256": "e57a9d5a0288464cde2988f2353f63eb4e9359f7e3c070ffff94c75e8696b311",
+        "expectedSha256": "e57a9d5a0288464cde2988f2353f63eb4e9359f7e3c070ffff94c75e8696b311",
+        "servedExpectedSha256": "e57a9d5a0288464cde2988f2353f63eb4e9359f7e3c070ffff94c75e8696b311",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 7/images/1.png",
+        "servedKey": "2019/Test 7/images/1.png",
+        "status": 200,
+        "sha256": "904a672c0058a92ea2e388af5448caa9470cff11fa07386363e3883c93aad4de",
+        "expectedSha256": "904a672c0058a92ea2e388af5448caa9470cff11fa07386363e3883c93aad4de",
+        "servedExpectedSha256": "904a672c0058a92ea2e388af5448caa9470cff11fa07386363e3883c93aad4de",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 8/audio/7.mp3",
+        "servedKey": "2019/Test 8/audio/7.mp3",
+        "status": 200,
+        "sha256": "6c1efd231a4b5a6fe15c2ee804ed525201fa0b2f38e2f51d07dfe4ea105fb6a5",
+        "expectedSha256": "6c1efd231a4b5a6fe15c2ee804ed525201fa0b2f38e2f51d07dfe4ea105fb6a5",
+        "servedExpectedSha256": "6c1efd231a4b5a6fe15c2ee804ed525201fa0b2f38e2f51d07dfe4ea105fb6a5",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 8/images/1.png",
+        "servedKey": "2019/Test 8/images/1.png",
+        "status": 200,
+        "sha256": "d30d4727e0e4e64f7554883f3f783069885c1c760379c62aca3c903be7af9948",
+        "expectedSha256": "d30d4727e0e4e64f7554883f3f783069885c1c760379c62aca3c903be7af9948",
+        "servedExpectedSha256": "d30d4727e0e4e64f7554883f3f783069885c1c760379c62aca3c903be7af9948",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 9/audio/7.mp3",
+        "servedKey": "2019/Test 9/audio/7.mp3",
+        "status": 200,
+        "sha256": "270cd9105738c57da56c240b87a3d57fb2ea8dd7ab3956aca8b9f5474e6c5126",
+        "expectedSha256": "270cd9105738c57da56c240b87a3d57fb2ea8dd7ab3956aca8b9f5474e6c5126",
+        "servedExpectedSha256": "270cd9105738c57da56c240b87a3d57fb2ea8dd7ab3956aca8b9f5474e6c5126",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 9/images/1.png",
+        "servedKey": "2019/Test 9/images/1.png",
+        "status": 200,
+        "sha256": "74512375f17c15b50fedf8447bc7140c94fcd937a4cf0f376563b78a9b03ac4c",
+        "expectedSha256": "74512375f17c15b50fedf8447bc7140c94fcd937a4cf0f376563b78a9b03ac4c",
+        "servedExpectedSha256": "74512375f17c15b50fedf8447bc7140c94fcd937a4cf0f376563b78a9b03ac4c",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 10/audio/1.mp3",
+        "servedKey": "2019/Test 10/audio/1.mp3",
+        "status": 200,
+        "sha256": "2d9c1b718ad029617a43f0feeb6d578ed53fc998704e6da5805fe781726b6bb7",
+        "expectedSha256": "2d9c1b718ad029617a43f0feeb6d578ed53fc998704e6da5805fe781726b6bb7",
+        "servedExpectedSha256": "2d9c1b718ad029617a43f0feeb6d578ed53fc998704e6da5805fe781726b6bb7",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2019/Test 10/images/1.png",
+        "servedKey": "2019/Test 10/images/1.png",
+        "status": 200,
+        "sha256": "16b007716d8858a99670d2a04632ac813e6db02ede6d5c695127e56b81cdad01",
+        "expectedSha256": "16b007716d8858a99670d2a04632ac813e6db02ede6d5c695127e56b81cdad01",
+        "servedExpectedSha256": "16b007716d8858a99670d2a04632ac813e6db02ede6d5c695127e56b81cdad01",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 1/audio/7.mp3",
+        "servedKey": "2020/Test 1/audio/7.mp3",
+        "status": 200,
+        "sha256": "8b233f55cf8c6e6bbe4396069c0b1670ffd94042bbf8d76ad3e35cfa5e27bf4c",
+        "expectedSha256": "8b233f55cf8c6e6bbe4396069c0b1670ffd94042bbf8d76ad3e35cfa5e27bf4c",
+        "servedExpectedSha256": "8b233f55cf8c6e6bbe4396069c0b1670ffd94042bbf8d76ad3e35cfa5e27bf4c",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 1/images/1.png",
+        "servedKey": "2020/Test 1/images/1.png",
+        "status": 200,
+        "sha256": "f36255a0e6360f434990ea1b03bd0c16f0a01411d517148a114600d858f9c48b",
+        "expectedSha256": "f36255a0e6360f434990ea1b03bd0c16f0a01411d517148a114600d858f9c48b",
+        "servedExpectedSha256": "f36255a0e6360f434990ea1b03bd0c16f0a01411d517148a114600d858f9c48b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 2/audio/1.mp3",
+        "servedKey": "2020/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "ef3ca0975d10021ba9b078393565b8ef96ad63510a9e0018265af547cf58af42",
+        "expectedSha256": "ef3ca0975d10021ba9b078393565b8ef96ad63510a9e0018265af547cf58af42",
+        "servedExpectedSha256": "ef3ca0975d10021ba9b078393565b8ef96ad63510a9e0018265af547cf58af42",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 2/images/1.png",
+        "servedKey": "2020/Test 2/images/1.png",
+        "status": 200,
+        "sha256": "deff29ce5862a08e21ac7c91bec19b97e34afcf73eb7ae94539c89e80db9c131",
+        "expectedSha256": "deff29ce5862a08e21ac7c91bec19b97e34afcf73eb7ae94539c89e80db9c131",
+        "servedExpectedSha256": "deff29ce5862a08e21ac7c91bec19b97e34afcf73eb7ae94539c89e80db9c131",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 3/audio/7.mp3",
+        "servedKey": "2020/Test 3/audio/7.mp3",
+        "status": 200,
+        "sha256": "46e4d51972cd48fec698fc89c098a7c1b6b253d52864f4e75c279018e5b41768",
+        "expectedSha256": "46e4d51972cd48fec698fc89c098a7c1b6b253d52864f4e75c279018e5b41768",
+        "servedExpectedSha256": "46e4d51972cd48fec698fc89c098a7c1b6b253d52864f4e75c279018e5b41768",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 3/images/1.png",
+        "servedKey": "2020/Test 3/images/1.png",
+        "status": 200,
+        "sha256": "8f3ab3b13219b6e05a2a8f240181d66e8d75529e2c754e29910780a2844a5b3a",
+        "expectedSha256": "8f3ab3b13219b6e05a2a8f240181d66e8d75529e2c754e29910780a2844a5b3a",
+        "servedExpectedSha256": "8f3ab3b13219b6e05a2a8f240181d66e8d75529e2c754e29910780a2844a5b3a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 4/audio/1.mp3",
+        "servedKey": "2020/Test 4/audio/1.mp3",
+        "status": 200,
+        "sha256": "dea0a3dfc6783db531b31521e7788bcee9c48e7d715a8f9a30a93fb8f26bd32a",
+        "expectedSha256": "dea0a3dfc6783db531b31521e7788bcee9c48e7d715a8f9a30a93fb8f26bd32a",
+        "servedExpectedSha256": "dea0a3dfc6783db531b31521e7788bcee9c48e7d715a8f9a30a93fb8f26bd32a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 4/images/1.png",
+        "servedKey": "2020/Test 4/images/1.png",
+        "status": 200,
+        "sha256": "f15550de548f4e59d838c659df99dc8642cde8bc86aa78a74ea734285c50dfe8",
+        "expectedSha256": "f15550de548f4e59d838c659df99dc8642cde8bc86aa78a74ea734285c50dfe8",
+        "servedExpectedSha256": "f15550de548f4e59d838c659df99dc8642cde8bc86aa78a74ea734285c50dfe8",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 5/audio/1.mp3",
+        "servedKey": "2020/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "75008175efabe91091fc0a734c923c40ad18dd7089579b7678ec38fc8ab259c8",
+        "expectedSha256": "75008175efabe91091fc0a734c923c40ad18dd7089579b7678ec38fc8ab259c8",
+        "servedExpectedSha256": "75008175efabe91091fc0a734c923c40ad18dd7089579b7678ec38fc8ab259c8",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 5/images/1.png",
+        "servedKey": "2020/Test 5/images/1.png",
+        "status": 200,
+        "sha256": "d8fe64ad6247fa21f160d4792e810fa92f2aef03634a3a1d7f0f2b71011fbd96",
+        "expectedSha256": "d8fe64ad6247fa21f160d4792e810fa92f2aef03634a3a1d7f0f2b71011fbd96",
+        "servedExpectedSha256": "d8fe64ad6247fa21f160d4792e810fa92f2aef03634a3a1d7f0f2b71011fbd96",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 6/audio/1.mp3",
+        "servedKey": "2020/Test 6/audio/1.mp3",
+        "status": 200,
+        "sha256": "647bba1e5e32e739b08930d726595c0b7ba02ffab44b1858c0d8d83d10455b93",
+        "expectedSha256": "647bba1e5e32e739b08930d726595c0b7ba02ffab44b1858c0d8d83d10455b93",
+        "servedExpectedSha256": "647bba1e5e32e739b08930d726595c0b7ba02ffab44b1858c0d8d83d10455b93",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 6/images/1.png",
+        "servedKey": "2020/Test 6/images/1.png",
+        "status": 200,
+        "sha256": "7d961857b95d6a0005134ac5a78f747270d14158c5d1ff890946d81e3ac820c4",
+        "expectedSha256": "7d961857b95d6a0005134ac5a78f747270d14158c5d1ff890946d81e3ac820c4",
+        "servedExpectedSha256": "7d961857b95d6a0005134ac5a78f747270d14158c5d1ff890946d81e3ac820c4",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 7/audio/1.mp3",
+        "servedKey": "2020/Test 7/audio/1.mp3",
+        "status": 200,
+        "sha256": "124969db9117772e79186da1820dcb305a539b739de2172c9d7263a39b115b41",
+        "expectedSha256": "124969db9117772e79186da1820dcb305a539b739de2172c9d7263a39b115b41",
+        "servedExpectedSha256": "124969db9117772e79186da1820dcb305a539b739de2172c9d7263a39b115b41",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 7/images/1.png",
+        "servedKey": "2020/Test 7/images/1.png",
+        "status": 200,
+        "sha256": "4b554aef4661925ce7327d8821a63e3c4de4ef96877ee9d60e56b9664ac407c5",
+        "expectedSha256": "4b554aef4661925ce7327d8821a63e3c4de4ef96877ee9d60e56b9664ac407c5",
+        "servedExpectedSha256": "4b554aef4661925ce7327d8821a63e3c4de4ef96877ee9d60e56b9664ac407c5",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 8/audio/1.mp3",
+        "servedKey": "2020/Test 8/audio/1.mp3",
+        "status": 200,
+        "sha256": "99aa953746b3c61bd14ecf21d0423592a64587a88366aa42486c7c3e1bc5a0b8",
+        "expectedSha256": "99aa953746b3c61bd14ecf21d0423592a64587a88366aa42486c7c3e1bc5a0b8",
+        "servedExpectedSha256": "99aa953746b3c61bd14ecf21d0423592a64587a88366aa42486c7c3e1bc5a0b8",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 8/images/1.png",
+        "servedKey": "2020/Test 8/images/1.png",
+        "status": 200,
+        "sha256": "9ee78637a405cf277215179cc29eda2f91925b2649dc6797bbc450ec46ad658d",
+        "expectedSha256": "9ee78637a405cf277215179cc29eda2f91925b2649dc6797bbc450ec46ad658d",
+        "servedExpectedSha256": "9ee78637a405cf277215179cc29eda2f91925b2649dc6797bbc450ec46ad658d",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 9/audio/1.mp3",
+        "servedKey": "2020/Test 9/audio/1.mp3",
+        "status": 200,
+        "sha256": "61713f979346a26316f7c7fe532b85932de7ad596c414222ed431771ad11a9a4",
+        "expectedSha256": "61713f979346a26316f7c7fe532b85932de7ad596c414222ed431771ad11a9a4",
+        "servedExpectedSha256": "61713f979346a26316f7c7fe532b85932de7ad596c414222ed431771ad11a9a4",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 9/images/1.png",
+        "servedKey": "2020/Test 9/images/1.png",
+        "status": 200,
+        "sha256": "c734d651e12ab11edc8b71c53bd522a8bec244029bfcbb826574c515d29b3ba7",
+        "expectedSha256": "c734d651e12ab11edc8b71c53bd522a8bec244029bfcbb826574c515d29b3ba7",
+        "servedExpectedSha256": "c734d651e12ab11edc8b71c53bd522a8bec244029bfcbb826574c515d29b3ba7",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 10/audio/7.mp3",
+        "servedKey": "2020/Test 10/audio/7.mp3",
+        "status": 200,
+        "sha256": "3a4e78ad2b0d2172843263b95ee4532193dc8f186c3a3f199b50ea2124a8ac84",
+        "expectedSha256": "3a4e78ad2b0d2172843263b95ee4532193dc8f186c3a3f199b50ea2124a8ac84",
+        "servedExpectedSha256": "3a4e78ad2b0d2172843263b95ee4532193dc8f186c3a3f199b50ea2124a8ac84",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2020/Test 10/images/1.png",
+        "servedKey": "2020/Test 10/images/1.png",
+        "status": 200,
+        "sha256": "81c9d2ee8a403c67f879e3534caf738d3562e2248b99474a9d52bc7b3f231c50",
+        "expectedSha256": "81c9d2ee8a403c67f879e3534caf738d3562e2248b99474a9d52bc7b3f231c50",
+        "servedExpectedSha256": "81c9d2ee8a403c67f879e3534caf738d3562e2248b99474a9d52bc7b3f231c50",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 1/audio/1.mp3",
+        "servedKey": "2021/Test 1/audio/1.mp3",
+        "status": 200,
+        "sha256": "88db2b13c3c1e92cf8d335c44d6f7fd63674a2e2255040034c1ce93b23ba1131",
+        "expectedSha256": "88db2b13c3c1e92cf8d335c44d6f7fd63674a2e2255040034c1ce93b23ba1131",
+        "servedExpectedSha256": "88db2b13c3c1e92cf8d335c44d6f7fd63674a2e2255040034c1ce93b23ba1131",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 1/images/1.png",
+        "servedKey": "2021/Test 1/images/1.png",
+        "status": 200,
+        "sha256": "96536e148e8cdeb798dbed58504a833dc60765cb5e871032d2407d483d293f99",
+        "expectedSha256": "96536e148e8cdeb798dbed58504a833dc60765cb5e871032d2407d483d293f99",
+        "servedExpectedSha256": "96536e148e8cdeb798dbed58504a833dc60765cb5e871032d2407d483d293f99",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 2/audio/1.mp3",
+        "servedKey": "2021/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "53a09143a1fa9204d3e156481b03aa563f62926c1ffa81559b30383e3dd51e6a",
+        "expectedSha256": "53a09143a1fa9204d3e156481b03aa563f62926c1ffa81559b30383e3dd51e6a",
+        "servedExpectedSha256": "53a09143a1fa9204d3e156481b03aa563f62926c1ffa81559b30383e3dd51e6a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 2/images/1.png",
+        "servedKey": "2021/Test 2/images/1.png",
+        "status": 200,
+        "sha256": "ecdce73c5f5d07d5ab4e471456dbea460b9c32d0b876deb47ed4432c7271300e",
+        "expectedSha256": "ecdce73c5f5d07d5ab4e471456dbea460b9c32d0b876deb47ed4432c7271300e",
+        "servedExpectedSha256": "ecdce73c5f5d07d5ab4e471456dbea460b9c32d0b876deb47ed4432c7271300e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 3/audio/7.mp3",
+        "servedKey": "2021/Test 3/audio/7.mp3",
+        "status": 200,
+        "sha256": "17fa3bd04b606ceaa44214361fe5723742c206ebbb75bb6938e2085bbac97909",
+        "expectedSha256": "17fa3bd04b606ceaa44214361fe5723742c206ebbb75bb6938e2085bbac97909",
+        "servedExpectedSha256": "17fa3bd04b606ceaa44214361fe5723742c206ebbb75bb6938e2085bbac97909",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 3/images/1.png",
+        "servedKey": "2021/Test 3/images/1.png",
+        "status": 200,
+        "sha256": "c86e801a15d50260b887a7895f67959456caac26844916a553b10744747a5117",
+        "expectedSha256": "c86e801a15d50260b887a7895f67959456caac26844916a553b10744747a5117",
+        "servedExpectedSha256": "c86e801a15d50260b887a7895f67959456caac26844916a553b10744747a5117",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 4/audio/7.mp3",
+        "servedKey": "2021/Test 4/audio/7.mp3",
+        "status": 200,
+        "sha256": "6f4317db387ba091439a2bfc43bdf86aa5f35d1cc29bb21eb69313dd83c64299",
+        "expectedSha256": "6f4317db387ba091439a2bfc43bdf86aa5f35d1cc29bb21eb69313dd83c64299",
+        "servedExpectedSha256": "6f4317db387ba091439a2bfc43bdf86aa5f35d1cc29bb21eb69313dd83c64299",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 4/images/1.png",
+        "servedKey": "2021/Test 4/images/1.png",
+        "status": 200,
+        "sha256": "6779579fe8f3387006494742cb98085b532e0b8a72333f8755bcb8f02988c368",
+        "expectedSha256": "6779579fe8f3387006494742cb98085b532e0b8a72333f8755bcb8f02988c368",
+        "servedExpectedSha256": "6779579fe8f3387006494742cb98085b532e0b8a72333f8755bcb8f02988c368",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 5/audio/1.mp3",
+        "servedKey": "2021/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "861d780c699b30b4724841c2b04f1ffba4d81056ac7019196f450b0ce9483967",
+        "expectedSha256": "861d780c699b30b4724841c2b04f1ffba4d81056ac7019196f450b0ce9483967",
+        "servedExpectedSha256": "861d780c699b30b4724841c2b04f1ffba4d81056ac7019196f450b0ce9483967",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2021/Test 5/images/1.png",
+        "servedKey": "2021/Test 5/images/1.png",
+        "status": 200,
+        "sha256": "45fa8aecdadac556f3e909ee227863fd05dfd1d356ee22e6932c56db66f9ed6d",
+        "expectedSha256": "45fa8aecdadac556f3e909ee227863fd05dfd1d356ee22e6932c56db66f9ed6d",
+        "servedExpectedSha256": "45fa8aecdadac556f3e909ee227863fd05dfd1d356ee22e6932c56db66f9ed6d",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 1/audio/1.mp3",
+        "servedKey": "2022/Test 1/audio/1.mp3",
+        "status": 200,
+        "sha256": "aeeab8dad7d78dea13bf36814ab70b05f9df8f7bca33b07305224259aeaa36ea",
+        "expectedSha256": "aeeab8dad7d78dea13bf36814ab70b05f9df8f7bca33b07305224259aeaa36ea",
+        "servedExpectedSha256": "aeeab8dad7d78dea13bf36814ab70b05f9df8f7bca33b07305224259aeaa36ea",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 1/images/1.png",
+        "servedKey": "2022/Test 1/images/1.png",
+        "status": 200,
+        "sha256": "dde30d0858eb0ce6b6de1a67852097d89f4008db1525614d7eee068489b55a95",
+        "expectedSha256": "dde30d0858eb0ce6b6de1a67852097d89f4008db1525614d7eee068489b55a95",
+        "servedExpectedSha256": "dde30d0858eb0ce6b6de1a67852097d89f4008db1525614d7eee068489b55a95",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 2/audio/1.mp3",
+        "servedKey": "2022/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "93a65782d71d06a8f0aaf7b40ce94a32775fe2bb5f796dcdf831f6f3bccb21c1",
+        "expectedSha256": "93a65782d71d06a8f0aaf7b40ce94a32775fe2bb5f796dcdf831f6f3bccb21c1",
+        "servedExpectedSha256": "93a65782d71d06a8f0aaf7b40ce94a32775fe2bb5f796dcdf831f6f3bccb21c1",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 2/images/1.png",
+        "servedKey": "2022/Test 2/images/1.png",
+        "status": 200,
+        "sha256": "434d655ec89a9ac6d0d6e4a30e69950ac196dcb39141f75632cab40a9b6c2682",
+        "expectedSha256": "434d655ec89a9ac6d0d6e4a30e69950ac196dcb39141f75632cab40a9b6c2682",
+        "servedExpectedSha256": "434d655ec89a9ac6d0d6e4a30e69950ac196dcb39141f75632cab40a9b6c2682",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 3/audio/7.mp3",
+        "servedKey": "2022/Test 3/audio/7.mp3",
+        "status": 200,
+        "sha256": "5718f71694a4ccd7c5771d10fee7062fa7f2b754118bdb70964de320eb4cf408",
+        "expectedSha256": "5718f71694a4ccd7c5771d10fee7062fa7f2b754118bdb70964de320eb4cf408",
+        "servedExpectedSha256": "5718f71694a4ccd7c5771d10fee7062fa7f2b754118bdb70964de320eb4cf408",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 3/images/1.png",
+        "servedKey": "2022/Test 3/images/1.png",
+        "status": 200,
+        "sha256": "6b5c9e522bb8a586c5082e9576bdfe4921be4cc54f34f139e19c23cebf63931a",
+        "expectedSha256": "6b5c9e522bb8a586c5082e9576bdfe4921be4cc54f34f139e19c23cebf63931a",
+        "servedExpectedSha256": "6b5c9e522bb8a586c5082e9576bdfe4921be4cc54f34f139e19c23cebf63931a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 4/audio/7.mp3",
+        "servedKey": "2022/Test 4/audio/7.mp3",
+        "status": 200,
+        "sha256": "5e60e1dd7e7a0042623fa4aaec0aebd89f2a7cbd113d8895b1dfbe7ad47579e6",
+        "expectedSha256": "5e60e1dd7e7a0042623fa4aaec0aebd89f2a7cbd113d8895b1dfbe7ad47579e6",
+        "servedExpectedSha256": "5e60e1dd7e7a0042623fa4aaec0aebd89f2a7cbd113d8895b1dfbe7ad47579e6",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 4/images/1.png",
+        "servedKey": "2022/Test 4/images/1.png",
+        "status": 200,
+        "sha256": "ac491c23f0bcc75a38363746d245d8391b7b3d59bddfbf63b5965e39392cfdf3",
+        "expectedSha256": "ac491c23f0bcc75a38363746d245d8391b7b3d59bddfbf63b5965e39392cfdf3",
+        "servedExpectedSha256": "ac491c23f0bcc75a38363746d245d8391b7b3d59bddfbf63b5965e39392cfdf3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 5/audio/1.mp3",
+        "servedKey": "2022/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "e71fa72c54b7ea56d0601baa36242efd99aaf3680de59f0b89d293eae10d403a",
+        "expectedSha256": "e71fa72c54b7ea56d0601baa36242efd99aaf3680de59f0b89d293eae10d403a",
+        "servedExpectedSha256": "e71fa72c54b7ea56d0601baa36242efd99aaf3680de59f0b89d293eae10d403a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 5/images/1.png",
+        "servedKey": "2022/Test 5/images/1.png",
+        "status": 200,
+        "sha256": "cc43b9afee8729988e8d46c3fc5ee179659d0fd067bcf2838f032c0a652980f3",
+        "expectedSha256": "cc43b9afee8729988e8d46c3fc5ee179659d0fd067bcf2838f032c0a652980f3",
+        "servedExpectedSha256": "cc43b9afee8729988e8d46c3fc5ee179659d0fd067bcf2838f032c0a652980f3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 6/audio/7.mp3",
+        "servedKey": "2022/Test 6/audio/7.mp3",
+        "status": 200,
+        "sha256": "b4fdbbb4e3768a770e7d6d9a662fa03a382f7c258f61798c9b22a27c0eba371e",
+        "expectedSha256": "b4fdbbb4e3768a770e7d6d9a662fa03a382f7c258f61798c9b22a27c0eba371e",
+        "servedExpectedSha256": "b4fdbbb4e3768a770e7d6d9a662fa03a382f7c258f61798c9b22a27c0eba371e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 6/images/1.png",
+        "servedKey": "2022/Test 6/images/1.png",
+        "status": 200,
+        "sha256": "221c0045e56932513a05be1e81bb2e5ee06c2873cedd97a36048abb444335103",
+        "expectedSha256": "221c0045e56932513a05be1e81bb2e5ee06c2873cedd97a36048abb444335103",
+        "servedExpectedSha256": "221c0045e56932513a05be1e81bb2e5ee06c2873cedd97a36048abb444335103",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 7/audio/1.mp3",
+        "servedKey": "2022/Test 7/audio/1.mp3",
+        "status": 200,
+        "sha256": "ba8183e6eed3e3a9c9400e28429ee042d9790c3be2376f2be3de1fc66e3b5326",
+        "expectedSha256": "ba8183e6eed3e3a9c9400e28429ee042d9790c3be2376f2be3de1fc66e3b5326",
+        "servedExpectedSha256": "ba8183e6eed3e3a9c9400e28429ee042d9790c3be2376f2be3de1fc66e3b5326",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 7/images/1.png",
+        "servedKey": "2022/Test 7/images/1.png",
+        "status": 200,
+        "sha256": "7ddd3e17159ff62d8cff8c1785822237f4c221f5fd0d8ded3deace8146399ee3",
+        "expectedSha256": "7ddd3e17159ff62d8cff8c1785822237f4c221f5fd0d8ded3deace8146399ee3",
+        "servedExpectedSha256": "7ddd3e17159ff62d8cff8c1785822237f4c221f5fd0d8ded3deace8146399ee3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 8/audio/7.mp3",
+        "servedKey": "2022/Test 8/audio/7.mp3",
+        "status": 200,
+        "sha256": "f693ac41f02d6f2e08adab7d8055b75ce3cf61eab29398dc6dbfc38968cd4537",
+        "expectedSha256": "f693ac41f02d6f2e08adab7d8055b75ce3cf61eab29398dc6dbfc38968cd4537",
+        "servedExpectedSha256": "f693ac41f02d6f2e08adab7d8055b75ce3cf61eab29398dc6dbfc38968cd4537",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 8/images/1.png",
+        "servedKey": "2022/Test 8/images/1.png",
+        "status": 200,
+        "sha256": "fcb9ca2ff9a3d16a44a4007ac72f2fb973fcde1d3e69d8c7c4965da961e30837",
+        "expectedSha256": "fcb9ca2ff9a3d16a44a4007ac72f2fb973fcde1d3e69d8c7c4965da961e30837",
+        "servedExpectedSha256": "fcb9ca2ff9a3d16a44a4007ac72f2fb973fcde1d3e69d8c7c4965da961e30837",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 9/audio/7.mp3",
+        "servedKey": "2022/Test 9/audio/7.mp3",
+        "status": 200,
+        "sha256": "5e9a862296f2af21e5e4f26cefa708be48a3562741d1032adc178f9f3d7a9896",
+        "expectedSha256": "5e9a862296f2af21e5e4f26cefa708be48a3562741d1032adc178f9f3d7a9896",
+        "servedExpectedSha256": "5e9a862296f2af21e5e4f26cefa708be48a3562741d1032adc178f9f3d7a9896",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 9/images/1.png",
+        "servedKey": "2022/Test 9/images/1.png",
+        "status": 200,
+        "sha256": "21f01394151680007932cbf02f844dd3cfd9fcc5b9cc671d45c45d8f5032718b",
+        "expectedSha256": "21f01394151680007932cbf02f844dd3cfd9fcc5b9cc671d45c45d8f5032718b",
+        "servedExpectedSha256": "21f01394151680007932cbf02f844dd3cfd9fcc5b9cc671d45c45d8f5032718b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 10/audio/1.mp3",
+        "servedKey": "2022/Test 10/audio/1.mp3",
+        "status": 200,
+        "sha256": "60c31fdb345e9e6142fe13c8291acde62d0cda54395681d466770bf29878d21d",
+        "expectedSha256": "60c31fdb345e9e6142fe13c8291acde62d0cda54395681d466770bf29878d21d",
+        "servedExpectedSha256": "60c31fdb345e9e6142fe13c8291acde62d0cda54395681d466770bf29878d21d",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2022/Test 10/images/1.png",
+        "servedKey": "2022/Test 10/images/1.png",
+        "status": 200,
+        "sha256": "612e7321cc72480a10fd71de72d313a3e63f43273770c6fb4c1f43f849f32d5e",
+        "expectedSha256": "612e7321cc72480a10fd71de72d313a3e63f43273770c6fb4c1f43f849f32d5e",
+        "servedExpectedSha256": "612e7321cc72480a10fd71de72d313a3e63f43273770c6fb4c1f43f849f32d5e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 1/audio/1.mp3",
+        "servedKey": "2023/Test 1/audio/1.mp3",
+        "status": 200,
+        "sha256": "d2a69358463602b9caff0d8d6aad8b508106097b99706a177e5f63395c7eddb3",
+        "expectedSha256": "d2a69358463602b9caff0d8d6aad8b508106097b99706a177e5f63395c7eddb3",
+        "servedExpectedSha256": "d2a69358463602b9caff0d8d6aad8b508106097b99706a177e5f63395c7eddb3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 1/images/1.webp",
+        "servedKey": "2023/Test 1/images/1.webp",
+        "status": 200,
+        "sha256": "6173e7529c7c957a99b953d0ba15de28a9dcabb9b0ef7e9388a2cd60c27bd4af",
+        "expectedSha256": "6173e7529c7c957a99b953d0ba15de28a9dcabb9b0ef7e9388a2cd60c27bd4af",
+        "servedExpectedSha256": "6173e7529c7c957a99b953d0ba15de28a9dcabb9b0ef7e9388a2cd60c27bd4af",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 2/audio/1.mp3",
+        "servedKey": "2023/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "fcb815048647f954e270d7d6f6f71c0942f2bf9b3b69d8a54c612f8a5920bff4",
+        "expectedSha256": "fcb815048647f954e270d7d6f6f71c0942f2bf9b3b69d8a54c612f8a5920bff4",
+        "servedExpectedSha256": "fcb815048647f954e270d7d6f6f71c0942f2bf9b3b69d8a54c612f8a5920bff4",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 2/images/1.webp",
+        "servedKey": "2023/Test 2/images/1.webp",
+        "status": 200,
+        "sha256": "2ffa30f8dd77d8fc835403f92c571f6035d5d34f713b0eed8114b0e8a5b3d0c4",
+        "expectedSha256": "2ffa30f8dd77d8fc835403f92c571f6035d5d34f713b0eed8114b0e8a5b3d0c4",
+        "servedExpectedSha256": "2ffa30f8dd77d8fc835403f92c571f6035d5d34f713b0eed8114b0e8a5b3d0c4",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 3/audio/1.mp3",
+        "servedKey": "2023/Test 3/audio/1.mp3",
+        "status": 200,
+        "sha256": "34651ba21d0b59abc5bb0466d1761c167fcf772ae3f4f2ab9adebf7fd4e39fcc",
+        "expectedSha256": "34651ba21d0b59abc5bb0466d1761c167fcf772ae3f4f2ab9adebf7fd4e39fcc",
+        "servedExpectedSha256": "34651ba21d0b59abc5bb0466d1761c167fcf772ae3f4f2ab9adebf7fd4e39fcc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 3/images/1.webp",
+        "servedKey": "2023/Test 3/images/1.webp",
+        "status": 200,
+        "sha256": "ba34093e3a6756307e29e2f4567e02b6eab473911ab7211b381a3e0500b35469",
+        "expectedSha256": "ba34093e3a6756307e29e2f4567e02b6eab473911ab7211b381a3e0500b35469",
+        "servedExpectedSha256": "ba34093e3a6756307e29e2f4567e02b6eab473911ab7211b381a3e0500b35469",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 4/audio/7.mp3",
+        "servedKey": "2023/Test 4/audio/7.mp3",
+        "status": 200,
+        "sha256": "899a1f938a647a1e1470a29fbbf1a97d243022b88fb265aca26bfb43292fb112",
+        "expectedSha256": "899a1f938a647a1e1470a29fbbf1a97d243022b88fb265aca26bfb43292fb112",
+        "servedExpectedSha256": "899a1f938a647a1e1470a29fbbf1a97d243022b88fb265aca26bfb43292fb112",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 4/images/1.webp",
+        "servedKey": "2023/Test 4/images/1.webp",
+        "status": 200,
+        "sha256": "0790ff5bc49d55fcac96c828845dc7803079e003456f95740c93bc7ec5dfb37c",
+        "expectedSha256": "0790ff5bc49d55fcac96c828845dc7803079e003456f95740c93bc7ec5dfb37c",
+        "servedExpectedSha256": "0790ff5bc49d55fcac96c828845dc7803079e003456f95740c93bc7ec5dfb37c",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 5/audio/1.mp3",
+        "servedKey": "2023/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "72b6f83ef1636a2862ada32c343eff8db8e5ec091c59e787b2a6e6ca849bbc80",
+        "expectedSha256": "72b6f83ef1636a2862ada32c343eff8db8e5ec091c59e787b2a6e6ca849bbc80",
+        "servedExpectedSha256": "72b6f83ef1636a2862ada32c343eff8db8e5ec091c59e787b2a6e6ca849bbc80",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 5/images/1.webp",
+        "servedKey": "2023/Test 5/images/1.webp",
+        "status": 200,
+        "sha256": "dce8a557f8a77e4d9c8336191bc639ac83ea57b71fa3e5c67035bd6a18549bde",
+        "expectedSha256": "dce8a557f8a77e4d9c8336191bc639ac83ea57b71fa3e5c67035bd6a18549bde",
+        "servedExpectedSha256": "dce8a557f8a77e4d9c8336191bc639ac83ea57b71fa3e5c67035bd6a18549bde",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 6/audio/7.mp3",
+        "servedKey": "2023/Test 6/audio/7.mp3",
+        "status": 200,
+        "sha256": "1ca99d5931fed11685cadd3ee69fd8a0f7a673ba7f5eae1a767b1f4202815ab3",
+        "expectedSha256": "1ca99d5931fed11685cadd3ee69fd8a0f7a673ba7f5eae1a767b1f4202815ab3",
+        "servedExpectedSha256": "1ca99d5931fed11685cadd3ee69fd8a0f7a673ba7f5eae1a767b1f4202815ab3",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 6/images/1.webp",
+        "servedKey": "2023/Test 6/images/1.webp",
+        "status": 200,
+        "sha256": "f1512583e0e0f4be768af59ac44a8d5e621988a8a30d071fa7e9ca9613956fc0",
+        "expectedSha256": "f1512583e0e0f4be768af59ac44a8d5e621988a8a30d071fa7e9ca9613956fc0",
+        "servedExpectedSha256": "f1512583e0e0f4be768af59ac44a8d5e621988a8a30d071fa7e9ca9613956fc0",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 7/audio/7.mp3",
+        "servedKey": "2023/Test 7/audio/7.mp3",
+        "status": 200,
+        "sha256": "cecfbd2ed3939811e76c983457050fafb5af59cfc89466be883d69f12a9beb89",
+        "expectedSha256": "cecfbd2ed3939811e76c983457050fafb5af59cfc89466be883d69f12a9beb89",
+        "servedExpectedSha256": "cecfbd2ed3939811e76c983457050fafb5af59cfc89466be883d69f12a9beb89",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 7/images/1.webp",
+        "servedKey": "2023/Test 7/images/1.webp",
+        "status": 200,
+        "sha256": "bd3408d6589a9b65a6b802013f9a47f94de889db9b5c7af317f79bffbe39e4c7",
+        "expectedSha256": "bd3408d6589a9b65a6b802013f9a47f94de889db9b5c7af317f79bffbe39e4c7",
+        "servedExpectedSha256": "bd3408d6589a9b65a6b802013f9a47f94de889db9b5c7af317f79bffbe39e4c7",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 8/audio/1.mp3",
+        "servedKey": "2023/Test 8/audio/1.mp3",
+        "status": 200,
+        "sha256": "1c29c9987c3fe103cf32184fcf9e8e90f46b585b2c9c1f709e5d13c1f608cf5a",
+        "expectedSha256": "1c29c9987c3fe103cf32184fcf9e8e90f46b585b2c9c1f709e5d13c1f608cf5a",
+        "servedExpectedSha256": "1c29c9987c3fe103cf32184fcf9e8e90f46b585b2c9c1f709e5d13c1f608cf5a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 8/images/1.webp",
+        "servedKey": "2023/Test 8/images/1.webp",
+        "status": 200,
+        "sha256": "4e55b58dc540678e7d885f6f92b3d5156bc18e69d830101815cb082619dbb26f",
+        "expectedSha256": "4e55b58dc540678e7d885f6f92b3d5156bc18e69d830101815cb082619dbb26f",
+        "servedExpectedSha256": "4e55b58dc540678e7d885f6f92b3d5156bc18e69d830101815cb082619dbb26f",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 9/audio/7.mp3",
+        "servedKey": "2023/Test 9/audio/7.mp3",
+        "status": 200,
+        "sha256": "29323ad823e1628d794cf8bcaf7c0857e2f1b74b7422d874f65bd0e726c295fa",
+        "expectedSha256": "29323ad823e1628d794cf8bcaf7c0857e2f1b74b7422d874f65bd0e726c295fa",
+        "servedExpectedSha256": "29323ad823e1628d794cf8bcaf7c0857e2f1b74b7422d874f65bd0e726c295fa",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 9/images/1.webp",
+        "servedKey": "2023/Test 9/images/1.webp",
+        "status": 200,
+        "sha256": "ea6b6a2f158a0206fce1b197d64981d06d11ae3f0d7d048d98987ee30ca8c75f",
+        "expectedSha256": "ea6b6a2f158a0206fce1b197d64981d06d11ae3f0d7d048d98987ee30ca8c75f",
+        "servedExpectedSha256": "ea6b6a2f158a0206fce1b197d64981d06d11ae3f0d7d048d98987ee30ca8c75f",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 10/audio/1.mp3",
+        "servedKey": "2023/Test 10/audio/1.mp3",
+        "status": 200,
+        "sha256": "41971b9d6852d87202ad14aae0f1ebea8bcabd7b9b43785b7340b0f2f19f701a",
+        "expectedSha256": "41971b9d6852d87202ad14aae0f1ebea8bcabd7b9b43785b7340b0f2f19f701a",
+        "servedExpectedSha256": "41971b9d6852d87202ad14aae0f1ebea8bcabd7b9b43785b7340b0f2f19f701a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2023/Test 10/images/1.webp",
+        "servedKey": "2023/Test 10/images/1.webp",
+        "status": 200,
+        "sha256": "f034ef22cd2be0600ceef4d9c717bb241f4ca9a9584608a91fd8e434738a6034",
+        "expectedSha256": "f034ef22cd2be0600ceef4d9c717bb241f4ca9a9584608a91fd8e434738a6034",
+        "servedExpectedSha256": "f034ef22cd2be0600ceef4d9c717bb241f4ca9a9584608a91fd8e434738a6034",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 1/audio/7.mp3",
+        "servedKey": "2024/Test 1/audio/7.mp3",
+        "status": 200,
+        "sha256": "2e030c0f920e144bd76958a6301584507dab06ca579be45a4620c33c6faae285",
+        "expectedSha256": "2e030c0f920e144bd76958a6301584507dab06ca579be45a4620c33c6faae285",
+        "servedExpectedSha256": "2e030c0f920e144bd76958a6301584507dab06ca579be45a4620c33c6faae285",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 1/images/1.webp",
+        "servedKey": "2024/Test 1/images/1.webp",
+        "status": 200,
+        "sha256": "143392ec5d4a1937d61805172b270b789b029217a609f03e4efb39863a77fb2b",
+        "expectedSha256": "143392ec5d4a1937d61805172b270b789b029217a609f03e4efb39863a77fb2b",
+        "servedExpectedSha256": "143392ec5d4a1937d61805172b270b789b029217a609f03e4efb39863a77fb2b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 2/audio/1.mp3",
+        "servedKey": "2024/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "455e4454118b257ae35fa4c0f966609f68e1b74f0176300ffcacd7521a0dfba2",
+        "expectedSha256": "455e4454118b257ae35fa4c0f966609f68e1b74f0176300ffcacd7521a0dfba2",
+        "servedExpectedSha256": "455e4454118b257ae35fa4c0f966609f68e1b74f0176300ffcacd7521a0dfba2",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 2/images/1.webp",
+        "servedKey": "2024/Test 2/images/1.webp",
+        "status": 200,
+        "sha256": "d8a0c80de68db44173cd5b6bebdbb6b6e50d1c738da0f2d1693a71f6495c5f50",
+        "expectedSha256": "d8a0c80de68db44173cd5b6bebdbb6b6e50d1c738da0f2d1693a71f6495c5f50",
+        "servedExpectedSha256": "d8a0c80de68db44173cd5b6bebdbb6b6e50d1c738da0f2d1693a71f6495c5f50",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 3/audio/1.mp3",
+        "servedKey": "2024/Test 3/audio/1.mp3",
+        "status": 200,
+        "sha256": "01c05ac922062d39ab9316b2a63e6d7c2d89dfb05df1aa478afd038d46800295",
+        "expectedSha256": "01c05ac922062d39ab9316b2a63e6d7c2d89dfb05df1aa478afd038d46800295",
+        "servedExpectedSha256": "01c05ac922062d39ab9316b2a63e6d7c2d89dfb05df1aa478afd038d46800295",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 3/images/1.webp",
+        "servedKey": "2024/Test 3/images/1.webp",
+        "status": 200,
+        "sha256": "599a22402f466cc205b26c754e15afc4f4d135e1b39634a802a3c6a813ac008e",
+        "expectedSha256": "599a22402f466cc205b26c754e15afc4f4d135e1b39634a802a3c6a813ac008e",
+        "servedExpectedSha256": "599a22402f466cc205b26c754e15afc4f4d135e1b39634a802a3c6a813ac008e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 4/audio/7.mp3",
+        "servedKey": "2024/Test 4/audio/7.mp3",
+        "status": 200,
+        "sha256": "36e74025050b3c9b161ee8f34269aa108c3945807beaa45afa36e6f2209174fc",
+        "expectedSha256": "36e74025050b3c9b161ee8f34269aa108c3945807beaa45afa36e6f2209174fc",
+        "servedExpectedSha256": "36e74025050b3c9b161ee8f34269aa108c3945807beaa45afa36e6f2209174fc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 4/images/1.webp",
+        "servedKey": "2024/Test 4/images/1.webp",
+        "status": 200,
+        "sha256": "52eb7c37385159714a0e7d33a6cf164d4a124634c13e35c09648be7620321edf",
+        "expectedSha256": "52eb7c37385159714a0e7d33a6cf164d4a124634c13e35c09648be7620321edf",
+        "servedExpectedSha256": "52eb7c37385159714a0e7d33a6cf164d4a124634c13e35c09648be7620321edf",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 5/audio/1.mp3",
+        "servedKey": "2024/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "4373116910272d5efec3f2d16337a7fa1e8b861344c85dd877bee8168a9db679",
+        "expectedSha256": "4373116910272d5efec3f2d16337a7fa1e8b861344c85dd877bee8168a9db679",
+        "servedExpectedSha256": "4373116910272d5efec3f2d16337a7fa1e8b861344c85dd877bee8168a9db679",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 5/images/1.webp",
+        "servedKey": "2024/Test 5/images/1.webp",
+        "status": 200,
+        "sha256": "d9fd24c0d1c09f09b70976d221eef9033167134b7e8379e6a526347cadf74a58",
+        "expectedSha256": "d9fd24c0d1c09f09b70976d221eef9033167134b7e8379e6a526347cadf74a58",
+        "servedExpectedSha256": "d9fd24c0d1c09f09b70976d221eef9033167134b7e8379e6a526347cadf74a58",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 6/audio/1.mp3",
+        "servedKey": "2024/Test 6/audio/1.mp3",
+        "status": 200,
+        "sha256": "1b73116b94c2f2174094ff9ce07169ed6bb15d7b7af84c5f74b1c1383f25a935",
+        "expectedSha256": "1b73116b94c2f2174094ff9ce07169ed6bb15d7b7af84c5f74b1c1383f25a935",
+        "servedExpectedSha256": "1b73116b94c2f2174094ff9ce07169ed6bb15d7b7af84c5f74b1c1383f25a935",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 6/images/1.webp",
+        "servedKey": "2024/Test 6/images/1.webp",
+        "status": 200,
+        "sha256": "4f495fdf8e88d2222bb24d1e7c5d5c87277a2ef5cb6f183ff218a99ad5ae755f",
+        "expectedSha256": "4f495fdf8e88d2222bb24d1e7c5d5c87277a2ef5cb6f183ff218a99ad5ae755f",
+        "servedExpectedSha256": "4f495fdf8e88d2222bb24d1e7c5d5c87277a2ef5cb6f183ff218a99ad5ae755f",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 7/audio/1.mp3",
+        "servedKey": "2024/Test 7/audio/1.mp3",
+        "status": 200,
+        "sha256": "76319bb8ecdd91f1f09035e29c54b6b0a265332e9a7236971bd4296e213f6fda",
+        "expectedSha256": "76319bb8ecdd91f1f09035e29c54b6b0a265332e9a7236971bd4296e213f6fda",
+        "servedExpectedSha256": "76319bb8ecdd91f1f09035e29c54b6b0a265332e9a7236971bd4296e213f6fda",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 7/images/1.webp",
+        "servedKey": "2024/Test 7/images/1.webp",
+        "status": 200,
+        "sha256": "3776a031289042b9d6b5886092b59fda87e0b97218a8d4556c1a97b74be414dc",
+        "expectedSha256": "3776a031289042b9d6b5886092b59fda87e0b97218a8d4556c1a97b74be414dc",
+        "servedExpectedSha256": "3776a031289042b9d6b5886092b59fda87e0b97218a8d4556c1a97b74be414dc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 8/audio/1.mp3",
+        "servedKey": "2024/Test 8/audio/1.mp3",
+        "status": 200,
+        "sha256": "968aab2e8dca0ab3d992766ac0569675ec00b03eab96008a2388e856e78afd2a",
+        "expectedSha256": "968aab2e8dca0ab3d992766ac0569675ec00b03eab96008a2388e856e78afd2a",
+        "servedExpectedSha256": "968aab2e8dca0ab3d992766ac0569675ec00b03eab96008a2388e856e78afd2a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 8/images/1.webp",
+        "servedKey": "2024/Test 8/images/1.webp",
+        "status": 200,
+        "sha256": "7466197c705bf739397faddb38e487788090944af3c500d2054701e208eaeed7",
+        "expectedSha256": "7466197c705bf739397faddb38e487788090944af3c500d2054701e208eaeed7",
+        "servedExpectedSha256": "7466197c705bf739397faddb38e487788090944af3c500d2054701e208eaeed7",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 9/audio/1.mp3",
+        "servedKey": "2024/Test 9/audio/1.mp3",
+        "status": 200,
+        "sha256": "c1804562da3345fa8751d5c24dad21dc8266bfb51e6bf2ddfcab48d6886dbc1a",
+        "expectedSha256": "c1804562da3345fa8751d5c24dad21dc8266bfb51e6bf2ddfcab48d6886dbc1a",
+        "servedExpectedSha256": "c1804562da3345fa8751d5c24dad21dc8266bfb51e6bf2ddfcab48d6886dbc1a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 9/images/1.webp",
+        "servedKey": "2024/Test 9/images/1.webp",
+        "status": 200,
+        "sha256": "3dc3a38185505aabbfd163642f8cc2b54004b6bfd1d5f616a3a651da8780b332",
+        "expectedSha256": "3dc3a38185505aabbfd163642f8cc2b54004b6bfd1d5f616a3a651da8780b332",
+        "servedExpectedSha256": "3dc3a38185505aabbfd163642f8cc2b54004b6bfd1d5f616a3a651da8780b332",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 10/audio/7.mp3",
+        "servedKey": "2024/Test 10/audio/7.mp3",
+        "status": 200,
+        "sha256": "6fb35ba1caba99dcd3c34f75d3dd929a0adc23d161408929bd0426ac786523a1",
+        "expectedSha256": "6fb35ba1caba99dcd3c34f75d3dd929a0adc23d161408929bd0426ac786523a1",
+        "servedExpectedSha256": "6fb35ba1caba99dcd3c34f75d3dd929a0adc23d161408929bd0426ac786523a1",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2024/Test 10/images/1.webp",
+        "servedKey": "2024/Test 10/images/1.webp",
+        "status": 200,
+        "sha256": "e3b09dfeabeaaf591c9d712342f583751166d84c89b9342143d766de1f2a0f19",
+        "expectedSha256": "e3b09dfeabeaaf591c9d712342f583751166d84c89b9342143d766de1f2a0f19",
+        "servedExpectedSha256": "e3b09dfeabeaaf591c9d712342f583751166d84c89b9342143d766de1f2a0f19",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 1/audio/7.mp3",
+        "servedKey": "2025/Test 1/audio/7.mp3",
+        "status": 200,
+        "sha256": "ad4095227dca6aad1aa37a1063d24e66e05b65e09fed9c7b0c8133663c988f62",
+        "expectedSha256": "ad4095227dca6aad1aa37a1063d24e66e05b65e09fed9c7b0c8133663c988f62",
+        "servedExpectedSha256": "ad4095227dca6aad1aa37a1063d24e66e05b65e09fed9c7b0c8133663c988f62",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 1/images/1.png",
+        "servedKey": "2025/Test 1/images/1.png",
+        "status": 200,
+        "sha256": "0f7402ec01a8377e85d4aa6f08f81c72894d498640c3174fa484392edb147d7d",
+        "expectedSha256": "0f7402ec01a8377e85d4aa6f08f81c72894d498640c3174fa484392edb147d7d",
+        "servedExpectedSha256": "0f7402ec01a8377e85d4aa6f08f81c72894d498640c3174fa484392edb147d7d",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 2/audio/1.mp3",
+        "servedKey": "2025/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "be95baa0f39af4d6a297f8cbc88b50a852f6655b50bba0f8d9d7e5663d75c8f9",
+        "expectedSha256": "be95baa0f39af4d6a297f8cbc88b50a852f6655b50bba0f8d9d7e5663d75c8f9",
+        "servedExpectedSha256": "be95baa0f39af4d6a297f8cbc88b50a852f6655b50bba0f8d9d7e5663d75c8f9",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 2/images/1.png",
+        "servedKey": "2025/Test 2/images/1.png",
+        "status": 200,
+        "sha256": "4f4e23a0144918afd02a8cc1abf207b2f2aabfbdb667a18ee8d96856283d64ab",
+        "expectedSha256": "4f4e23a0144918afd02a8cc1abf207b2f2aabfbdb667a18ee8d96856283d64ab",
+        "servedExpectedSha256": "4f4e23a0144918afd02a8cc1abf207b2f2aabfbdb667a18ee8d96856283d64ab",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 3/audio/1.mp3",
+        "servedKey": "2025/Test 3/audio/1.mp3",
+        "status": 200,
+        "sha256": "dcb2e520b3cfc6cbab19d246053843e16541a4df06ea43e510700c04dd6c7ab1",
+        "expectedSha256": "dcb2e520b3cfc6cbab19d246053843e16541a4df06ea43e510700c04dd6c7ab1",
+        "servedExpectedSha256": "dcb2e520b3cfc6cbab19d246053843e16541a4df06ea43e510700c04dd6c7ab1",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 3/images/1.png",
+        "servedKey": "2025/Test 3/images/1.png",
+        "status": 200,
+        "sha256": "35110f28c7802139d8ed3b6878e35149b4734778fe8e05880d4f56c53eb9a22c",
+        "expectedSha256": "35110f28c7802139d8ed3b6878e35149b4734778fe8e05880d4f56c53eb9a22c",
+        "servedExpectedSha256": "35110f28c7802139d8ed3b6878e35149b4734778fe8e05880d4f56c53eb9a22c",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 4/audio/1.mp3",
+        "servedKey": "2025/Test 4/audio/1.mp3",
+        "status": 200,
+        "sha256": "03a5dcbbdd467c3c8b68904c4d551d87ac2a12af70199e21369d47e3ece09ac0",
+        "expectedSha256": "03a5dcbbdd467c3c8b68904c4d551d87ac2a12af70199e21369d47e3ece09ac0",
+        "servedExpectedSha256": "03a5dcbbdd467c3c8b68904c4d551d87ac2a12af70199e21369d47e3ece09ac0",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 4/images/1.png",
+        "servedKey": "2025/Test 4/images/1.png",
+        "status": 200,
+        "sha256": "3d260d29a1e7eec9b19e907568a4adb25615ac5b10eb91c4216592d606e60a2f",
+        "expectedSha256": "3d260d29a1e7eec9b19e907568a4adb25615ac5b10eb91c4216592d606e60a2f",
+        "servedExpectedSha256": "3d260d29a1e7eec9b19e907568a4adb25615ac5b10eb91c4216592d606e60a2f",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 5/audio/1.mp3",
+        "servedKey": "2025/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "82b297f1e063f3bfdd1e319df6ea52948acf457b8b61dd3556a98d5c1962e7d5",
+        "expectedSha256": "82b297f1e063f3bfdd1e319df6ea52948acf457b8b61dd3556a98d5c1962e7d5",
+        "servedExpectedSha256": "82b297f1e063f3bfdd1e319df6ea52948acf457b8b61dd3556a98d5c1962e7d5",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 5/images/1.png",
+        "servedKey": "2025/Test 5/images/1.png",
+        "status": 200,
+        "sha256": "e1be9e8898f505e79ff749b87b9006e7aecba4e4ae058f4b50a19015269eeea8",
+        "expectedSha256": "e1be9e8898f505e79ff749b87b9006e7aecba4e4ae058f4b50a19015269eeea8",
+        "servedExpectedSha256": "e1be9e8898f505e79ff749b87b9006e7aecba4e4ae058f4b50a19015269eeea8",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 6/audio/7.mp3",
+        "servedKey": "2025/Test 6/audio/7.mp3",
+        "status": 200,
+        "sha256": "e12e79a95b06f70f394c35b187a1d63d77d91390e3aaa9ef8e8fac1fcec512e7",
+        "expectedSha256": "e12e79a95b06f70f394c35b187a1d63d77d91390e3aaa9ef8e8fac1fcec512e7",
+        "servedExpectedSha256": "e12e79a95b06f70f394c35b187a1d63d77d91390e3aaa9ef8e8fac1fcec512e7",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 6/images/1.png",
+        "servedKey": "2025/Test 6/images/1.png",
+        "status": 200,
+        "sha256": "09c22687b5ce879a3e47d2de85543721583856ddf7ac59e1f6395dc5bb04f37e",
+        "expectedSha256": "09c22687b5ce879a3e47d2de85543721583856ddf7ac59e1f6395dc5bb04f37e",
+        "servedExpectedSha256": "09c22687b5ce879a3e47d2de85543721583856ddf7ac59e1f6395dc5bb04f37e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 7/audio/1.mp3",
+        "servedKey": "2025/Test 7/audio/1.mp3",
+        "status": 200,
+        "sha256": "6f59e4d54caff011d6d083ff3a62085c8b1ced876f1442854a6904feeb696108",
+        "expectedSha256": "6f59e4d54caff011d6d083ff3a62085c8b1ced876f1442854a6904feeb696108",
+        "servedExpectedSha256": "6f59e4d54caff011d6d083ff3a62085c8b1ced876f1442854a6904feeb696108",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 7/images/1.png",
+        "servedKey": "2025/Test 7/images/1.png",
+        "status": 200,
+        "sha256": "2965b1267be9108917e7dbfd6576d35c4483d925e50cbaa9740aa7e03fc8acfc",
+        "expectedSha256": "2965b1267be9108917e7dbfd6576d35c4483d925e50cbaa9740aa7e03fc8acfc",
+        "servedExpectedSha256": "2965b1267be9108917e7dbfd6576d35c4483d925e50cbaa9740aa7e03fc8acfc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 8/audio/1.mp3",
+        "servedKey": "2025/Test 8/audio/1.mp3",
+        "status": 200,
+        "sha256": "065545bb1aebae23ac361b5a4c1dcdea739b3009e4b25d98a82aea060fc89612",
+        "expectedSha256": "065545bb1aebae23ac361b5a4c1dcdea739b3009e4b25d98a82aea060fc89612",
+        "servedExpectedSha256": "065545bb1aebae23ac361b5a4c1dcdea739b3009e4b25d98a82aea060fc89612",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 8/images/1.png",
+        "servedKey": "2025/Test 8/images/1.png",
+        "status": 200,
+        "sha256": "721a8c0a58f33fd969e46227e15af6339f7ef1ee523f574453b1141908682c2c",
+        "expectedSha256": "721a8c0a58f33fd969e46227e15af6339f7ef1ee523f574453b1141908682c2c",
+        "servedExpectedSha256": "721a8c0a58f33fd969e46227e15af6339f7ef1ee523f574453b1141908682c2c",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 9/audio/1.mp3",
+        "servedKey": "2025/Test 9/audio/1.mp3",
+        "status": 200,
+        "sha256": "f37aa04f70478f64977dc66c5a9b74bb12e75ba8f59b8d3987a71699beec5071",
+        "expectedSha256": "f37aa04f70478f64977dc66c5a9b74bb12e75ba8f59b8d3987a71699beec5071",
+        "servedExpectedSha256": "f37aa04f70478f64977dc66c5a9b74bb12e75ba8f59b8d3987a71699beec5071",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 9/images/1.png",
+        "servedKey": "2025/Test 9/images/1.png",
+        "status": 200,
+        "sha256": "feb0b8e69156b656e4d63a2f1b89b8f8a6ae6997722e32cba938492a73118da0",
+        "expectedSha256": "feb0b8e69156b656e4d63a2f1b89b8f8a6ae6997722e32cba938492a73118da0",
+        "servedExpectedSha256": "feb0b8e69156b656e4d63a2f1b89b8f8a6ae6997722e32cba938492a73118da0",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 10/audio/7.mp3",
+        "servedKey": "2025/Test 10/audio/7.mp3",
+        "status": 200,
+        "sha256": "27f704c46a5455558cf31836f3489ef771ca7b4cc3c23517ce170cfeccbd5715",
+        "expectedSha256": "27f704c46a5455558cf31836f3489ef771ca7b4cc3c23517ce170cfeccbd5715",
+        "servedExpectedSha256": "27f704c46a5455558cf31836f3489ef771ca7b4cc3c23517ce170cfeccbd5715",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2025/Test 10/images/1.png",
+        "servedKey": "2025/Test 10/images/1.png",
+        "status": 200,
+        "sha256": "b40ed54c16b1b384c1516ec5a6145e188126459d121f88803df758ca357dcc63",
+        "expectedSha256": "b40ed54c16b1b384c1516ec5a6145e188126459d121f88803df758ca357dcc63",
+        "servedExpectedSha256": "b40ed54c16b1b384c1516ec5a6145e188126459d121f88803df758ca357dcc63",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 1/audio/1.mp3",
+        "servedKey": "2026/Test 1/audio/1.mp3",
+        "status": 200,
+        "sha256": "2b9ed3c06ba2557ed6f4e6a68c025a52f499d060b59babba967d5711b4d93ec9",
+        "expectedSha256": "2b9ed3c06ba2557ed6f4e6a68c025a52f499d060b59babba967d5711b4d93ec9",
+        "servedExpectedSha256": "2b9ed3c06ba2557ed6f4e6a68c025a52f499d060b59babba967d5711b4d93ec9",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 1/images/1.webp",
+        "servedKey": "2026/Test 1/images/1.webp",
+        "status": 200,
+        "sha256": "dc4e6032a7201708d9be89775bfa332385c62fdb3d042c718957dd1167f441f6",
+        "expectedSha256": "dc4e6032a7201708d9be89775bfa332385c62fdb3d042c718957dd1167f441f6",
+        "servedExpectedSha256": "dc4e6032a7201708d9be89775bfa332385c62fdb3d042c718957dd1167f441f6",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 2/audio/1.mp3",
+        "servedKey": "2026/Test 2/audio/1.mp3",
+        "status": 200,
+        "sha256": "78bc95f8faa8d6fefd181306222f095a4ddce7256d917dfb5939a533e232b702",
+        "expectedSha256": "78bc95f8faa8d6fefd181306222f095a4ddce7256d917dfb5939a533e232b702",
+        "servedExpectedSha256": "78bc95f8faa8d6fefd181306222f095a4ddce7256d917dfb5939a533e232b702",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 2/images/1.webp",
+        "servedKey": "2026/Test 2/images/1.webp",
+        "status": 200,
+        "sha256": "1458d71d00eafdca300d541401244932fde7c5aacf4539bfcaa3f7cafbba563b",
+        "expectedSha256": "1458d71d00eafdca300d541401244932fde7c5aacf4539bfcaa3f7cafbba563b",
+        "servedExpectedSha256": "1458d71d00eafdca300d541401244932fde7c5aacf4539bfcaa3f7cafbba563b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 3/audio/7.mp3",
+        "servedKey": "2026/Test 3/audio/7.mp3",
+        "status": 200,
+        "sha256": "b1f466556aae41831bbfcd7924ca403c9327ec5a0740284780831740c1432bb9",
+        "expectedSha256": "b1f466556aae41831bbfcd7924ca403c9327ec5a0740284780831740c1432bb9",
+        "servedExpectedSha256": "b1f466556aae41831bbfcd7924ca403c9327ec5a0740284780831740c1432bb9",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 3/images/1.webp",
+        "servedKey": "2026/Test 3/images/1.webp",
+        "status": 200,
+        "sha256": "6001c732022b837f1224d044a48f08b061a59c67c3a82e43936ea90a06612740",
+        "expectedSha256": "6001c732022b837f1224d044a48f08b061a59c67c3a82e43936ea90a06612740",
+        "servedExpectedSha256": "6001c732022b837f1224d044a48f08b061a59c67c3a82e43936ea90a06612740",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 4/audio/7.mp3",
+        "servedKey": "2026/Test 4/audio/7.mp3",
+        "status": 200,
+        "sha256": "d3fd0de270d826127586642fedb56afc0be26908dade4e1b348644cd3371f133",
+        "expectedSha256": "d3fd0de270d826127586642fedb56afc0be26908dade4e1b348644cd3371f133",
+        "servedExpectedSha256": "d3fd0de270d826127586642fedb56afc0be26908dade4e1b348644cd3371f133",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 4/images/1.webp",
+        "servedKey": "2026/Test 4/images/1.webp",
+        "status": 200,
+        "sha256": "2bee5348c44d4e7f65f9d75c3042056edf1ea9aa91fc27781c62c64929437698",
+        "expectedSha256": "2bee5348c44d4e7f65f9d75c3042056edf1ea9aa91fc27781c62c64929437698",
+        "servedExpectedSha256": "2bee5348c44d4e7f65f9d75c3042056edf1ea9aa91fc27781c62c64929437698",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 5/audio/1.mp3",
+        "servedKey": "2026/Test 5/audio/1.mp3",
+        "status": 200,
+        "sha256": "928ee4103da067ae2b3a13986a2244b13007229ab56c0915a099afba7f3805b0",
+        "expectedSha256": "928ee4103da067ae2b3a13986a2244b13007229ab56c0915a099afba7f3805b0",
+        "servedExpectedSha256": "928ee4103da067ae2b3a13986a2244b13007229ab56c0915a099afba7f3805b0",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 5/images/1.webp",
+        "servedKey": "2026/Test 5/images/1.webp",
+        "status": 200,
+        "sha256": "b22be586e14dadfc7e4007c93ea6d9a9a8ada3352982e27caf0a2f3c0980de89",
+        "expectedSha256": "b22be586e14dadfc7e4007c93ea6d9a9a8ada3352982e27caf0a2f3c0980de89",
+        "servedExpectedSha256": "b22be586e14dadfc7e4007c93ea6d9a9a8ada3352982e27caf0a2f3c0980de89",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 6/audio/7.mp3",
+        "servedKey": "2026/Test 6/audio/7.mp3",
+        "status": 200,
+        "sha256": "f7c14a6c14a4adba70d158c0721e80f3be5ac92f2fba93f6c2099ed7b9357c89",
+        "expectedSha256": "f7c14a6c14a4adba70d158c0721e80f3be5ac92f2fba93f6c2099ed7b9357c89",
+        "servedExpectedSha256": "f7c14a6c14a4adba70d158c0721e80f3be5ac92f2fba93f6c2099ed7b9357c89",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 6/images/1.webp",
+        "servedKey": "2026/Test 6/images/1.webp",
+        "status": 200,
+        "sha256": "165ccae2fbf48de7bdeff5f96a4b9039c811bc9d6ef8d0e0d164671618609f98",
+        "expectedSha256": "165ccae2fbf48de7bdeff5f96a4b9039c811bc9d6ef8d0e0d164671618609f98",
+        "servedExpectedSha256": "165ccae2fbf48de7bdeff5f96a4b9039c811bc9d6ef8d0e0d164671618609f98",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 7/audio/7.mp3",
+        "servedKey": "2026/Test 7/audio/7.mp3",
+        "status": 200,
+        "sha256": "221190d5a7da9dd28e5743dfaf444fb0a6fb30346fae1b92cc7e45290fbcf75e",
+        "expectedSha256": "221190d5a7da9dd28e5743dfaf444fb0a6fb30346fae1b92cc7e45290fbcf75e",
+        "servedExpectedSha256": "221190d5a7da9dd28e5743dfaf444fb0a6fb30346fae1b92cc7e45290fbcf75e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 7/images/1.webp",
+        "servedKey": "2026/Test 7/images/1.webp",
+        "status": 200,
+        "sha256": "fbb92c3b5601276f5da5386a91a56d4f28be3dbf93a3d771d4053500b452160b",
+        "expectedSha256": "fbb92c3b5601276f5da5386a91a56d4f28be3dbf93a3d771d4053500b452160b",
+        "servedExpectedSha256": "fbb92c3b5601276f5da5386a91a56d4f28be3dbf93a3d771d4053500b452160b",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 8/audio/1.mp3",
+        "servedKey": "2026/Test 8/audio/1.mp3",
+        "status": 200,
+        "sha256": "369aee8d5605523570230a24edaea2432b23e07e9796b0e5d549eccd2574eafc",
+        "expectedSha256": "369aee8d5605523570230a24edaea2432b23e07e9796b0e5d549eccd2574eafc",
+        "servedExpectedSha256": "369aee8d5605523570230a24edaea2432b23e07e9796b0e5d549eccd2574eafc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 8/images/1.webp",
+        "servedKey": "2026/Test 8/images/1.webp",
+        "status": 200,
+        "sha256": "d13e5ce9f34d6912bff996fb1c0a7a6300fbf308759810f0014d8c87eff7e2cc",
+        "expectedSha256": "d13e5ce9f34d6912bff996fb1c0a7a6300fbf308759810f0014d8c87eff7e2cc",
+        "servedExpectedSha256": "d13e5ce9f34d6912bff996fb1c0a7a6300fbf308759810f0014d8c87eff7e2cc",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 9/audio/7.mp3",
+        "servedKey": "2026/Test 9/audio/7.mp3",
+        "status": 200,
+        "sha256": "a748122b9fa3e9a7c2083602cf3f91094e83d3bdd442a17bee1f6df21ee48e4e",
+        "expectedSha256": "a748122b9fa3e9a7c2083602cf3f91094e83d3bdd442a17bee1f6df21ee48e4e",
+        "servedExpectedSha256": "a748122b9fa3e9a7c2083602cf3f91094e83d3bdd442a17bee1f6df21ee48e4e",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 9/images/1.webp",
+        "servedKey": "2026/Test 9/images/1.webp",
+        "status": 200,
+        "sha256": "8ffe08a1e54e6a476674120ee99a7da6e6dc22416b9cd7838c5221186cc4bf90",
+        "expectedSha256": "8ffe08a1e54e6a476674120ee99a7da6e6dc22416b9cd7838c5221186cc4bf90",
+        "servedExpectedSha256": "8ffe08a1e54e6a476674120ee99a7da6e6dc22416b9cd7838c5221186cc4bf90",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 10/audio/1.mp3",
+        "servedKey": "2026/Test 10/audio/1.mp3",
+        "status": 200,
+        "sha256": "9d22d28dd9e3804bd43d2c47f08481b5515202807743d205669fc6f2afc1fbb9",
+        "expectedSha256": "9d22d28dd9e3804bd43d2c47f08481b5515202807743d205669fc6f2afc1fbb9",
+        "servedExpectedSha256": "9d22d28dd9e3804bd43d2c47f08481b5515202807743d205669fc6f2afc1fbb9",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      },
+      {
+        "key": "2026/Test 10/images/1.webp",
+        "servedKey": "2026/Test 10/images/1.webp",
+        "status": 200,
+        "sha256": "e90656f14eef1fba68807441c72cad5d41851f2f2b9f3bcbbdbbf6a5d492934a",
+        "expectedSha256": "e90656f14eef1fba68807441c72cad5d41851f2f2b9f3bcbbdbbf6a5d492934a",
+        "servedExpectedSha256": "e90656f14eef1fba68807441c72cad5d41851f2f2b9f3bcbbdbbf6a5d492934a",
+        "mappingHashMatches": true,
+        "servedObjectHashMatches": true
+      }
+    ]
+  }
+}

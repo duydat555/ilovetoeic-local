@@ -1,0 +1,461 @@
+import asyncio
+import hashlib
+import json
+from collections import OrderedDict
+from typing import Any, Dict, List, Literal, Optional
+
+from pydantic import BaseModel, Field
+
+try:
+    from google import genai
+    from google.genai import types
+except ImportError:
+    genai = None
+    types = None
+
+from app import config
+from app.db import db
+
+
+class TranslationExample(BaseModel):
+    en: str = Field(description="A natural English example using the selected word")
+    vi: str = Field(description="Vietnamese translation of the example")
+
+
+class GeminiWordResult(BaseModel):
+    source_text: str
+    translated_text: str = Field(description="Concise Vietnamese meanings, ordered by relevance")
+    phonetic: str = Field(description="IPA pronunciation between slashes")
+    part_of_speech: str = Field(description="English part of speech, e.g. noun, verb")
+    definition_en: str = Field(description="Short, learner-friendly English definition")
+    examples: List[TranslationExample]
+    synonyms: List[str] = Field(description="Up to four common English synonyms")
+
+class CollocationItem(BaseModel):
+    phrase: str
+    meaning_vi: str
+
+
+class CollocationResult(BaseModel):
+    items: List[CollocationItem] = Field(min_length=2, max_length=4)
+
+
+class ExtendedExample(BaseModel):
+    en: str
+    vi: str
+    level: str
+    context: str
+
+
+class ExampleResult(BaseModel):
+    items: List[ExtendedExample] = Field(min_length=2, max_length=3)
+
+
+class SynonymResult(BaseModel):
+    items: List[str] = Field(min_length=3, max_length=5)
+
+
+class WordFamilyItem(BaseModel):
+    word: str
+    part_of_speech: str
+    phonetic: str
+
+
+class WordFamilyResult(BaseModel):
+    items: List[WordFamilyItem] = Field(min_length=1, max_length=6)
+
+
+DictionaryDetailSection = Literal["collocations", "examples", "synonyms", "wordFamily"]
+
+
+class GeminiTranslationService:
+    def __init__(self):
+        self.memory_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self.max_ram_cache_size = config.RAM_CACHE_MAX_SIZE
+        self.semaphore = asyncio.Semaphore(config.MAX_GEMINI_CONCURRENCY)
+        self.client = (
+            genai.Client(api_key=config.GEMINI_API_KEY)
+            if genai and config.GEMINI_API_KEY
+            else None
+        )
+        self.stats = {
+            "total_requests": 0,
+            "memory_cache_hits": 0,
+            "mysql_cache_hits": 0,
+            "gemini_api_calls": 0,
+            "dictionary_detail_calls": 0,
+            "errors": 0,
+            "last_error": None,
+        }
+
+    @staticmethod
+    def _compute_hash(text: str, src_lang: str, target_lang: str, context: str = "") -> str:
+        raw = f"{text.strip().lower()}:{src_lang}:{target_lang}:{context.strip().lower()}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _get_from_memory_cache(self, text_hash: str) -> Optional[Dict[str, Any]]:
+        if text_hash not in self.memory_cache:
+            return None
+        self.memory_cache.move_to_end(text_hash)
+        self.stats["memory_cache_hits"] += 1
+        return {
+            **self.memory_cache[text_hash],
+            "cached": True,
+            "cache_source": "memory",
+        }
+
+    def _save_to_memory_cache(self, text_hash: str, data: Dict[str, Any]) -> None:
+        if len(self.memory_cache) >= self.max_ram_cache_size:
+            self.memory_cache.popitem(last=False)
+        self.memory_cache[text_hash] = data
+
+    async def translate_text(
+        self,
+        text: str,
+        src_lang: str = "en",
+        target_lang: str = "vi",
+        context: str = "TOEIC",
+    ) -> Dict[str, Any]:
+        self.stats["total_requests"] += 1
+        text_hash = self._compute_hash(text, src_lang, target_lang, context)
+
+        memory_result = self._get_from_memory_cache(text_hash)
+        if memory_result:
+            return memory_result
+
+        database_result = await asyncio.to_thread(self._get_database_cache, text_hash)
+        if database_result:
+            self.stats["mysql_cache_hits"] += 1
+            result = {
+                "source_text": database_result.get("source_text", text),
+                "translated_text": database_result.get("translated_text", ""),
+                "phonetic": database_result.get("phonetic", ""),
+                "part_of_speech": database_result.get("part_of_speech", ""),
+                "definition_en": database_result.get("definition_en", ""),
+                "examples": self._parse_json(database_result.get("examples"), []),
+                "synonyms": self._parse_json(database_result.get("synonyms"), []),
+                "cached": True,
+                "cache_source": "mysql",
+            }
+            self._save_to_memory_cache(text_hash, result)
+            return result
+
+        if not self.client:
+            self.stats["errors"] += 1
+            error = (
+                "Máy chủ chưa cài google-genai. Hãy chạy pip install -r requirements.txt."
+                if genai is None
+                else "GEMINI_API_KEY chưa được cấu hình trên máy chủ."
+            )
+            return {
+                "source_text": text,
+                "error": error,
+                "cached": False,
+                "cache_source": "error",
+            }
+
+        async with self.semaphore:
+            self.stats["gemini_api_calls"] += 1
+            try:
+                result = await asyncio.to_thread(
+                    self._call_gemini_api,
+                    text,
+                    src_lang,
+                    target_lang,
+                    context,
+                )
+            except Exception as error:
+                self.stats["errors"] += 1
+                error_type = type(error).__name__
+                error_message = str(error)
+                self.stats["last_error"] = {
+                    "type": error_type,
+                    "message": error_message[:500],
+                }
+                print(f"[!] Gemini API exception ({error_type}): {error_message}")
+                return {
+                    "source_text": text,
+                    "error": self._friendly_error(error),
+                    "cached": False,
+                    "cache_source": "error",
+                }
+
+        result.update({
+            "source_lang": src_lang,
+            "target_lang": target_lang,
+            "cached": False,
+            "cache_source": "gemini_api",
+        })
+        self._save_to_memory_cache(text_hash, result)
+        asyncio.create_task(asyncio.to_thread(self._save_database_cache, text_hash, result))
+        return result
+
+    async def get_dictionary_detail(
+        self,
+        text: str,
+        section: DictionaryDetailSection,
+        context: str = "TOEIC",
+    ) -> Dict[str, Any]:
+        self.stats["total_requests"] += 1
+        detail_context = f"dictionary-detail:{section}:{context}"
+        text_hash = self._compute_hash(text, "en", "vi", detail_context)
+        memory_result = self._get_from_memory_cache(text_hash)
+        if memory_result:
+            return memory_result
+
+        if not self.client:
+            self.stats["errors"] += 1
+            return {
+                "source_text": text,
+                "section": section,
+                "error": "Gemini API chưa được cấu hình trên máy chủ.",
+                "cache_source": "error",
+            }
+
+        async with self.semaphore:
+            self.stats["gemini_api_calls"] += 1
+            self.stats["dictionary_detail_calls"] += 1
+            try:
+                result = await asyncio.to_thread(
+                    self._call_gemini_detail,
+                    text,
+                    section,
+                    context,
+                )
+            except Exception as error:
+                self.stats["errors"] += 1
+                self.stats["last_error"] = {
+                    "type": type(error).__name__,
+                    "message": str(error)[:500],
+                }
+                return {
+                    "source_text": text,
+                    "section": section,
+                    "error": self._friendly_error(error),
+                    "cache_source": "error",
+                }
+
+        result.update({
+            "source_text": text,
+            "section": section,
+            "cached": False,
+            "cache_source": "gemini_api",
+        })
+        self._save_to_memory_cache(text_hash, result)
+        return result
+
+    @staticmethod
+    def _friendly_error(error: Exception) -> str:
+        status = (
+            getattr(error, "code", None)
+            or getattr(error, "status_code", None)
+            or getattr(getattr(error, "response", None), "status_code", None)
+        )
+        message = str(error).lower()
+        if status == 429 or "resource_exhausted" in message or "quota" in message:
+            return "Gemini đã hết quota hoặc đang bị giới hạn tốc độ. Vui lòng thử lại sau."
+        if status in (401, 403) or "permission_denied" in message or "api key" in message:
+            return "Gemini từ chối API key. Hãy kiểm tra quyền và giới hạn key trong Google AI Studio."
+        if status == 404 or "not_found" in message or "model" in message and "not found" in message:
+            return f"Model Gemini '{config.GEMINI_MODEL}' không khả dụng với API key hiện tại."
+        if "response_schema" in message or "response schema" in message or "json schema" in message:
+            return "Phiên bản google-genai trên máy chủ không tương thích structured output. Hãy cập nhật dependencies."
+        if "timeout" in message or "timed out" in message:
+            return "Gemini phản hồi quá chậm. Vui lòng thử lại."
+        return "Gemini gặp lỗi khi phân tích từ. Chi tiết đã được ghi trong /api/v1/translate/cache-stats."
+
+    def _call_gemini_api(
+        self,
+        text: str,
+        src_lang: str,
+        target_lang: str,
+        context: str,
+    ) -> Dict[str, Any]:
+        if types is None:
+            raise RuntimeError("google-genai is not installed")
+        prompt = f"""
+You are an English-Vietnamese dictionary editor specializing in TOEIC.
+Analyze the selected English word "{text}" from this nearby context:
+{context[:500]}
+
+Return its most contextually relevant Vietnamese meaning, IPA, part of speech,
+a short English definition, one natural bilingual example, and up to four
+common synonyms. Keep the explanation concise and suitable for a Vietnamese learner.
+Source language: {src_lang}. Target language: {target_lang}.
+"""
+        response = self.client.models.generate_content(
+            model=config.GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.15,
+                response_mime_type="application/json",
+                # Pydantic models use response_schema. response_json_schema is
+                # intended for a standard JSON Schema dictionary.
+                response_schema=GeminiWordResult,
+                # Gemini 3 defaults to high thinking. Dictionary lookup is a
+                # short extraction task, so minimal thinking prevents internal
+                # reasoning from consuming the JSON response budget.
+                thinking_config=types.ThinkingConfig(thinking_level="minimal"),
+                max_output_tokens=2048,
+            ),
+        )
+        if response.parsed:
+            parsed = response.parsed
+            return parsed.model_dump() if isinstance(parsed, BaseModel) else dict(parsed)
+        return GeminiWordResult.model_validate_json(response.text).model_dump()
+
+    @staticmethod
+    def _parse_json(value, fallback):
+        if value is None:
+            return fallback
+        if isinstance(value, (dict, list)):
+            return value
+        try:
+            return json.loads(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    @staticmethod
+    def _get_database_cache(text_hash: str) -> Optional[Dict[str, Any]]:
+        try:
+            record = db.fetch_one(
+                "SELECT * FROM translation_cache WHERE hash = ?",
+                (text_hash,),
+                use_cache=False,
+            )
+            if record:
+                db.execute(
+                    "UPDATE translation_cache SET hit_count = hit_count + 1 WHERE hash = ?",
+                    (text_hash,),
+                )
+            return record
+        except Exception as error:
+            print(f"[!] MySQL translation cache read failed: {error}")
+            return None
+
+    @staticmethod
+    def _save_database_cache(text_hash: str, data: Dict[str, Any]) -> bool:
+        try:
+            db.execute(
+                """
+                INSERT INTO translation_cache (
+                    hash, source_text, translated_text, phonetic, part_of_speech,
+                    definition_en, examples, synonyms, source_lang, target_lang
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    translated_text = VALUES(translated_text),
+                    phonetic = VALUES(phonetic),
+                    part_of_speech = VALUES(part_of_speech),
+                    definition_en = VALUES(definition_en),
+                    examples = VALUES(examples),
+                    synonyms = VALUES(synonyms),
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    text_hash,
+                    data.get("source_text", ""),
+                    data.get("translated_text", ""),
+                    data.get("phonetic", ""),
+                    data.get("part_of_speech", ""),
+                    data.get("definition_en", ""),
+                    json.dumps(data.get("examples", []), ensure_ascii=False),
+                    json.dumps(data.get("synonyms", []), ensure_ascii=False),
+                    data.get("source_lang", "en"),
+                    data.get("target_lang", "vi"),
+                ),
+            )
+            return True
+        except Exception as error:
+            print(f"[!] MySQL translation cache write failed: {error}")
+            return False
+
+    def _call_gemini_detail(
+        self,
+        text: str,
+        section: DictionaryDetailSection,
+        context: str,
+    ) -> Dict[str, Any]:
+        if types is None:
+            raise RuntimeError("google-genai is not installed")
+
+        tasks = {
+            "collocations": (
+                "List 2-4 common collocations containing this word. "
+                "Give each a concise Vietnamese meaning.",
+                CollocationResult,
+            ),
+            "examples": (
+                "Write 2-3 new bilingual examples that do not copy the source context. "
+                "Increase difficulty from basic office English to a TOEIC email, notice, "
+                "or workplace conversation. Label the level and context.",
+                ExampleResult,
+            ),
+            "synonyms": (
+                "List 3-5 common English synonyms or near-synonyms. "
+                "Use only words or short phrases suitable for another dictionary lookup.",
+                SynonymResult,
+            ),
+            "wordFamily": (
+                "List the useful word-family forms (noun, verb, adjective, adverb when they exist). "
+                "Include abbreviated part of speech and short IPA for every item.",
+                WordFamilyResult,
+            ),
+        }
+        instruction, schema = tasks[section]
+        prompt = f"""
+You are an English-Vietnamese dictionary editor specializing in TOEIC.
+Selected word or phrase: "{text}"
+Nearby source context (do not copy it into new examples):
+{context[:500]}
+
+Task: {instruction}
+Keep every item concise and accurate for a Vietnamese learner.
+"""
+        response = self.client.models.generate_content(
+            model=config.GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                response_mime_type="application/json",
+                response_schema=schema,
+                thinking_config=types.ThinkingConfig(thinking_level="minimal"),
+                max_output_tokens=2048,
+            ),
+        )
+        if response.parsed:
+            parsed = response.parsed
+            result = parsed.model_dump() if isinstance(parsed, BaseModel) else dict(parsed)
+        else:
+            result = schema.model_validate_json(response.text).model_dump()
+
+        # The client uses camelCase consistently.
+        if section == "collocations":
+            result["items"] = [
+                {"phrase": item["phrase"], "meaningVi": item["meaning_vi"]}
+                for item in result["items"]
+            ]
+        elif section == "wordFamily":
+            result["items"] = [
+                {
+                    "word": item["word"],
+                    "partOfSpeech": item["part_of_speech"],
+                    "phonetic": item["phonetic"],
+                }
+                for item in result["items"]
+            ]
+        return result
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        hits = self.stats["memory_cache_hits"] + self.stats["mysql_cache_hits"]
+        total = self.stats["total_requests"]
+        return {
+            "metrics": self.stats,
+            "hit_rate_percent": round((hits / total) * 100, 2) if total else 0.0,
+            "ram_cache_current_size": len(self.memory_cache),
+            "ram_cache_max_capacity": self.max_ram_cache_size,
+            "mysql_connected": db.is_connected,
+            "model": config.GEMINI_MODEL,
+        }
+
+
+gemini_service = GeminiTranslationService()

@@ -1,0 +1,5 @@
+import React from 'react';
+import { ArrowRight, LibraryBig } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+export const GrammarLivePage: React.FC = () => <div className="space-y-6 pb-10"><header><div className="eyebrow mb-3"><LibraryBig className="size-3.5" /> Ngữ pháp TOEIC</div><h1 className="text-2xl font-extrabold tracking-tight text-content sm:text-3xl">Chuyên đề ngữ pháp</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-content-muted">Trang này chỉ hiển thị chuyên đề khi nội dung thật được thêm vào hệ thống.</p></header><section className="rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center"><LibraryBig className="mx-auto size-9 text-content-muted" /><h2 className="mt-4 text-lg font-extrabold text-content">Chưa có chuyên đề ngữ pháp</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-content-muted">Dữ liệu bài học mẫu đã được loại bỏ. Bạn vẫn có thể luyện Reading từ kho đề thật.</p><Link to="/mock-test" className="btn-primary mt-6 text-sm">Mở kho đề <ArrowRight className="size-4" /></Link></section></div>;

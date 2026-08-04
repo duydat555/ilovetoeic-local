@@ -279,6 +279,71 @@ CREATE TABLE IF NOT EXISTS class_memberships (
     INDEX idx_class_memberships_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS leaderboard_members (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id CHAR(36) NULL,
+    class_id VARCHAR(100) NOT NULL,
+    display_name VARCHAR(255) NOT NULL,
+    avatar_url TEXT NULL,
+    rank_change INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_leaderboard_member_user
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_leaderboard_member_class
+        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_leaderboard_member_user (user_id),
+    INDEX idx_leaderboard_member_class (class_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS leaderboard_stats (
+    member_id VARCHAR(64) NOT NULL,
+    period VARCHAR(10) NOT NULL,
+    total_score INT NOT NULL DEFAULT 0,
+    streak_days INT NOT NULL DEFAULT 0,
+    completed_lessons INT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (member_id, period),
+    CONSTRAINT fk_leaderboard_stats_member
+        FOREIGN KEY (member_id) REFERENCES leaderboard_members(id) ON DELETE CASCADE,
+    INDEX idx_leaderboard_stats_period_score (period, total_score)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS admin_feature_statuses (
+    route VARCHAR(120) PRIMARY KEY,
+    status ENUM('ready', 'coming_soon') NOT NULL DEFAULT 'ready',
+    title VARCHAR(120) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    icon_key VARCHAR(40) NOT NULL DEFAULT 'wrench',
+    action_label VARCHAR(100) NULL,
+    action_path VARCHAR(120) NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO admin_feature_statuses (
+    route, status, title, description, icon_key, action_label, action_path, sort_order
+) VALUES
+    ('/admin/overview', 'coming_soon', 'Thống kê hệ thống', 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.', 'chart', NULL, NULL, 10),
+    ('/admin/classes', 'ready', 'Quản lý lớp học', 'Quản lý lớp học và học viên.', 'school', NULL, NULL, 20),
+    ('/admin/homework', 'ready', 'Bài tập về nhà', 'Tạo và theo dõi bài tập về nhà.', 'clipboard', NULL, NULL, 30),
+    ('/admin/accounts', 'ready', 'Quản lý tài khoản', 'Quản lý tài khoản học viên.', 'users', NULL, NULL, 40),
+    ('/admin/features', 'ready', 'Quản lý tính năng', 'Kiểm soát các trang học sinh được phép truy cập.', 'wrench', NULL, NULL, 50),
+    ('/profile', 'ready', 'Hồ sơ cá nhân', 'Quản lý hồ sơ Giáo viên.', 'user', NULL, NULL, 60),
+    ('/settings', 'ready', 'Cài đặt', 'Tuỳ chỉnh trải nghiệm ứng dụng.', 'settings', NULL, NULL, 70)
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    title = VALUES(title),
+    description = VALUES(description),
+    icon_key = VALUES(icon_key),
+    action_label = VALUES(action_label),
+    action_path = VALUES(action_path),
+    sort_order = VALUES(sort_order);
+
+-- Feature visibility configuration for student-facing pages.
+
 CREATE TABLE IF NOT EXISTS feature_flags (
     feature_key VARCHAR(64) PRIMARY KEY,
     is_enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -332,33 +397,3 @@ INSERT INTO feature_flags (feature_key, is_enabled) VALUES
     ('profile', 1),
     ('settings', 1)
 ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key);
-
-CREATE TABLE IF NOT EXISTS leaderboard_members (
-    id VARCHAR(64) PRIMARY KEY,
-    user_id CHAR(36) NULL,
-    class_id VARCHAR(100) NOT NULL,
-    display_name VARCHAR(255) NOT NULL,
-    avatar_url TEXT NULL,
-    rank_change INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_leaderboard_member_user
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_leaderboard_member_class
-        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE CASCADE,
-    UNIQUE KEY uq_leaderboard_member_user (user_id),
-    INDEX idx_leaderboard_member_class (class_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS leaderboard_stats (
-    member_id VARCHAR(64) NOT NULL,
-    period VARCHAR(10) NOT NULL,
-    total_score INT NOT NULL DEFAULT 0,
-    streak_days INT NOT NULL DEFAULT 0,
-    completed_lessons INT NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (member_id, period),
-    CONSTRAINT fk_leaderboard_stats_member
-        FOREIGN KEY (member_id) REFERENCES leaderboard_members(id) ON DELETE CASCADE,
-    INDEX idx_leaderboard_stats_period_score (period, total_score)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

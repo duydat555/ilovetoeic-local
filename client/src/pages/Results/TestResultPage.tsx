@@ -228,7 +228,11 @@ export const TestResultPage: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-xs font-semibold text-slate-700 sm:text-sm dark:text-content-muted">
-                    {q.promptText || 'Look at the picture and choose the statement.'}
+                    {q.partId === 2 && q.promptText ? (
+                      <span><strong className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</strong> {q.promptText}</span>
+                    ) : (
+                      q.promptText || (q.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')
+                    )}
                   </p>
 
                   {q.evidence ? (

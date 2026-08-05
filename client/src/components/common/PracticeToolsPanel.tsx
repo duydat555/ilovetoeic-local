@@ -129,7 +129,9 @@ export const PracticeToolsPanel: React.FC<PracticeToolsPanelProps> = ({
                         Câu {selectedQuestion?.questionNumber}
                       </p>
                       <p className="mt-0.5 line-clamp-3 text-xs font-medium leading-relaxed text-slate-700 dark:text-content-muted">
-                        {selectedQuestion?.promptText || 'Ghi lại từ khóa, bẫy đáp án hoặc cách suy luận của bạn.'}
+                        {selectedQuestion?.partId === 2
+                          ? 'Nghe và chọn phương án phù hợp nhất.'
+                          : (selectedQuestion?.promptText || 'Ghi lại từ khóa, bẫy đáp án hoặc cách suy luận của bạn.')}
                       </p>
                     </div>
                   </div>

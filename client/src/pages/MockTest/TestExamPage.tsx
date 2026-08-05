@@ -355,7 +355,9 @@ export const TestExamPage: React.FC = () => {
                             {question.questionNumber}
                           </span>
                           <h2 className="pt-0.5 text-sm font-bold leading-relaxed text-slate-950 dark:text-content">
-                            {question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')}
+                            {question.partId === 2
+                              ? 'Nghe và chọn phương án phù hợp nhất.'
+                              : (question.promptText || (question.partId === 1 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))}
                           </h2>
                         </div>
                         <button
@@ -447,7 +449,9 @@ export const TestExamPage: React.FC = () => {
                           {question.questionNumber}
                         </span>
                         <h2 className="pt-0.5 text-sm font-bold leading-relaxed text-slate-950 dark:text-content">
-                          {question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')}
+                          {question.partId === 2
+                            ? 'Nghe và chọn phương án phù hợp nhất.'
+                            : (question.promptText || (question.partId === 1 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))}
                         </h2>
                       </div>
                       <button

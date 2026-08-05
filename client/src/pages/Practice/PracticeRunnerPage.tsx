@@ -653,7 +653,9 @@ export const PracticeRunnerPage: React.FC = () => {
                           <div className="min-w-0">
                             <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Part {question.partId}</div>
                             <h2 className="break-words text-sm font-bold text-slate-950 dark:text-content">
-                              {question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')}
+                              {question.partId === 2 && !currentGroupChecked
+                                ? 'Nghe và chọn phương án phù hợp nhất.'
+                                : (question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))}
                             </h2>
                           </div>
                         </div>
@@ -689,6 +691,11 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
+                            {question.partId === 2 && question.promptText && (
+                              <div className="mt-2 text-xs font-bold text-slate-800 dark:text-content">
+                                <span className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</span> {question.promptText}
+                              </div>
+                            )}
                             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
                               {formatExplanationText(question.explanation)}
                             </p>
@@ -814,7 +821,9 @@ export const PracticeRunnerPage: React.FC = () => {
                         <div>
                           <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Part {question.partId}</div>
                           <h2 className="text-sm font-bold text-slate-950 dark:text-content">
-                            {question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')}
+                            {question.partId === 2 && !currentGroupChecked
+                              ? 'Nghe và chọn phương án phù hợp nhất.'
+                              : (question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))}
                           </h2>
                         </div>
                       </div>
@@ -850,6 +859,11 @@ export const PracticeRunnerPage: React.FC = () => {
                           <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                             <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                           </div>
+                          {question.partId === 2 && question.promptText && (
+                            <div className="mt-2 text-xs font-bold text-slate-800 dark:text-content">
+                              <span className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</span> {question.promptText}
+                            </div>
+                          )}
                           <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
                             {formatExplanationText(question.explanation)}
                           </p>

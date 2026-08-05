@@ -22,6 +22,7 @@ import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationListItem } from '../notifications/NotificationListItem';
 import { getDiceBearAvatar } from '../../utils/avatar';
+import { ActiveTimeTracker } from '../common/ActiveTimeTracker';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -124,6 +125,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             </span>
           </div>
         )}
+
+        {/* Active Session Time Tracker */}
+        {user && <ActiveTimeTracker />}
 
         {/* Theme Toggle Button */}
         <motion.button

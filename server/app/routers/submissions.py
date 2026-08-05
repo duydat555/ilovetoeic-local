@@ -14,7 +14,7 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
 
     # Get all questions with correct answers for this test
     questions = db.fetch_all("""
-        SELECT id, question_number, part, section, correct_answer, explanation_vi, dich_nghia, tu_vung
+        SELECT id, question_number, part, section, correct_answer, explanation_vi, dich_nghia, tu_vung, dich_nghia_dap_an
         FROM questions
         WHERE test_id = ?
         ORDER BY question_number ASC

@@ -1,10 +1,9 @@
 import {
-  DictionaryDetailResult, DictionaryDetailSection, MockTestItem, Question,
+  DictionaryDetailResult, DictionaryDetailSection, MockTestItem, OptionTranslationItem, Question,
   QuestionChoice, TestResultData, WordTranslation,
 } from '../types';
 import { API_BASE_URL } from './backend';
 import { parseQuestionEvidence } from '../utils/evidence';
-
 
 const getDynamicHost = () => {
   if (typeof window !== 'undefined' && window.location.hostname) {
@@ -297,6 +296,107 @@ export const apiService = {
   }
 };
 
+function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; meaning: string }[] {
+  if (!tuVung || typeof tuVung !== 'string') return [];
+  const trimmed = tuVung.trim();
+  if (!trimmed) return [];
+
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => {
+          if (typeof item === 'object' && item !== null) {
+            return {
+              word: (item.word || item.vocab || item.term || item.tu || '').trim(),
+              meaning: (item.meaning || item.dich || item.definition || item.nghia || '').trim(),
+            };
+          }
+          return { word: String(item).trim(), meaning: '' };
+        }).filter((item) => item.word);
+      }
+    } catch {
+      // Fallback to string split
+    }
+  }
+
+  const items: { word: string; meaning: string }[] = [];
+  const lines = trimmed.split(/\n|\||;/).map((s) => s.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const match = line.match(/^([^:\=\-–—]+)[:\=\-–—](.+)$/);
+    if (match) {
+      const word = match[1].trim();
+      const meaning = match[2].trim();
+      if (word) items.push({ word, meaning });
+    } else if (line) {
+      items.push({ word: line, meaning: '' });
+    }
+  }
+
+  return items;
+}
+
+export function parseOptionsTranslation(raw: string | undefined | null): {
+  items: OptionTranslationItem[];
+  map: Record<string, string>;
+} {
+  if (!raw || typeof raw !== 'string') return { items: [], map: {} };
+  const trimmed = raw.trim();
+  if (!trimmed) return { items: [], map: {} };
+
+  const map: Record<string, string> = {};
+  const items: OptionTranslationItem[] = [];
+  const choiceIds: ('A' | 'B' | 'C' | 'D')[] = ['A', 'B', 'C', 'D'];
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null) {
+        choiceIds.forEach((key) => {
+          if (parsed[key]) {
+            const val = String(parsed[key]).trim();
+            map[key] = val;
+            items.push({ choiceId: key, meaning: val, rawText: val });
+          }
+        });
+        if (items.length > 0) return { items, map };
+      }
+    } catch {
+      // Fallthrough
+    }
+  }
+
+  const segments = trimmed
+    .split(/\n|\||;/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const hasChoicePrefix = segments.some((seg) => /^\(?([A-D])\)?[\.\:\s]/i.test(seg));
+
+  if (hasChoicePrefix) {
+    for (const seg of segments) {
+      const match = seg.match(/^[\(]?([A-D])[\)]?[\.\:\s]\s*(.+)$/i);
+      if (match) {
+        const choiceId = match[1].toUpperCase() as 'A' | 'B' | 'C' | 'D';
+        const bodyText = match[2].trim();
+        map[choiceId] = bodyText;
+        items.push({ choiceId, meaning: bodyText, rawText: bodyText });
+      }
+    }
+  } else {
+    segments.forEach((seg, idx) => {
+      if (idx < choiceIds.length) {
+        const choiceId = choiceIds[idx];
+        map[choiceId] = seg;
+        items.push({ choiceId, meaning: seg, rawText: seg });
+      }
+    });
+  }
+
+  return { items, map };
+}
+
 function formatAudioUrl(rawUrl?: string): string | undefined {
   if (!rawUrl) return undefined;
 
@@ -362,6 +462,8 @@ function formatQuestionObject(q: any): Question {
     choices.push({ id: 'D', text: q.option_d || '(D)' });
   }
 
+  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an);
+
   return {
     id: q.id,
     partId: part,
@@ -384,5 +486,10 @@ function formatQuestionObject(q: any): Question {
     passageTranslationFormatStatus: ['pending', 'done', 'error'].includes(q.format_status)
       ? q.format_status
       : undefined,
+    questionTranslation: q.dich_nghia || undefined,
+    optionsTranslation: q.dich_nghia_dap_an || undefined,
+    optionsTranslationMap: parsedOptions.map,
+    optionsTranslationItems: parsedOptions.items,
+    keyVocabulary: parseKeyVocabulary(q.tu_vung),
   };
 }

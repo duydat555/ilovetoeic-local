@@ -97,6 +97,19 @@ export interface Question {
   passageTranslationHtml?: string;
   passageTranslationFormatStatus?: PassageFormatStatus;
   keyVocabulary?: { word: string; meaning: string }[];
+  questionTranslation?: string;
+  optionsTranslation?: string;
+  optionsTranslationMap?: Record<string, string>;
+  optionsTranslationItems?: OptionTranslationItem[];
+}
+
+export interface OptionTranslationItem {
+  choiceId: 'A' | 'B' | 'C' | 'D';
+  optionText?: string;
+  word?: string;
+  partOfSpeech?: string;
+  meaning: string;
+  rawText: string;
 }
 
 

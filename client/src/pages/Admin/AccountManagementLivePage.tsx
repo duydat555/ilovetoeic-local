@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { RefreshCw, Search, ShieldCheck, UsersRound } from 'lucide-react';
 import { PageHeader, RoleBadge, managementInputClass } from '../../components/management/ManagementUI';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { useManagementData } from '../../hooks/useManagementData';
 import { UserRole } from '../../types';
@@ -36,7 +37,7 @@ export const AccountManagementLivePage: React.FC = () => {
         <article className="rounded-2xl border border-line bg-surface p-4"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-elevated text-content-muted"><UsersRound className="size-5" /></span><div><p className="text-sm font-extrabold text-content">{students.length} tài khoản Học sinh</p><p className="mt-1 text-sm leading-relaxed text-content-muted">{students.filter((student) => classes.some((item) => item.studentIds.includes(student.id))).length} học sinh đã vào lớp</p></div></div></article>
       </section>
 
-      {loading ? <div className="h-72 animate-pulse rounded-2xl border border-line bg-surface motion-reduce:animate-none" /> : error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-500/10"><p className="text-sm text-red-700 dark:text-red-300">{error}</p><button type="button" onClick={() => void reload()} className="btn-secondary mt-4 text-sm"><RefreshCw className="size-4" /> Thử lại</button></div> : (
+      {loading ? <BoneyardSkeleton name="accounts-skeleton" height={288} /> : error ? <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-500/10"><p className="text-sm text-red-700 dark:text-red-300">{error}</p><button type="button" onClick={() => void reload()} className="btn-secondary mt-4 text-sm"><RefreshCw className="size-4" /> Thử lại</button></div> : (
         <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
           <div className="flex flex-col gap-3 border-b border-line p-4 lg:flex-row lg:items-center lg:justify-between">
             <label className="relative block w-full lg:max-w-sm"><span className="sr-only">Tìm tài khoản</span><Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" /><input value={query} onChange={(event) => setQuery(event.target.value)} className={`${managementInputClass} pl-10`} placeholder="Tìm tên hoặc email" /></label>

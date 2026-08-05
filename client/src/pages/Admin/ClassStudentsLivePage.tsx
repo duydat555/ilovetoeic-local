@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { AlertTriangle, ArrowLeft, RefreshCw, Search, UserCog, UsersRound } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { PageHeader, managementInputClass } from '../../components/management/ManagementUI';
@@ -28,7 +29,7 @@ export const ClassStudentsLivePage: React.FC = () => {
     });
   }, [classAssignments, classItem, filter, query, students]);
 
-  if (loading) return <div className="min-h-64 animate-pulse rounded-2xl border border-line bg-surface motion-reduce:animate-none" />;
+  if (loading) return <BoneyardSkeleton name="class-students-skeleton" height={256} />;
   if (error) return <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-500/10"><p className="text-sm text-red-700 dark:text-red-300">{error}</p><button type="button" onClick={() => void reload()} className="btn-secondary mt-4 text-sm"><RefreshCw className="size-4" /> Thử lại</button></div>;
   if (!classItem) return <div className="rounded-2xl border border-line bg-surface p-8 text-center"><UsersRound className="mx-auto size-8 text-content-muted" /><h1 className="mt-3 text-lg font-extrabold text-content">Không tìm thấy lớp học</h1><Link to="/admin/classes" className="btn-primary mt-5">Quay lại quản lý lớp</Link></div>;
 

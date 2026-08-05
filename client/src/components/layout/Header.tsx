@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getUserRole, ROLE_LABELS } from '../../utils/rbac';
+import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { useNotifications } from '../../context/NotificationContext';
 import { NotificationListItem } from '../notifications/NotificationListItem';
 import { getDiceBearAvatar } from '../../utils/avatar';
@@ -225,9 +226,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 <div className="max-h-[min(25rem,calc(100dvh-10rem))] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-line/70">
                   {notificationsLoading && notifications.length === 0 ? (
                     <div className="space-y-3 p-4" aria-label="Đang tải thông báo" aria-busy="true">
-                      {[0, 1, 2].map((item) => (
-                        <div key={item} className="h-[76px] animate-pulse rounded-xl bg-slate-100 dark:bg-surface-elevated" />
-                      ))}
+                      <BoneyardSkeleton name="header-notifications-skeleton" variant="row" count={3} height={76} />
                     </div>
                   ) : notifications.length > 0 ? (
                     notifications.slice(0, 5).map((notification) => (

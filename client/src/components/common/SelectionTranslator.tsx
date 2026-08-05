@@ -4,6 +4,7 @@ import {
   BookOpen, Check, Cpu, FolderOpen, Loader2, Plus, Sparkles, StickyNote, Volume2, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { BoneyardSkeleton } from './BoneyardSkeleton';
 import { dictionaryService } from '../../services/dictionary';
 import {
   VocabularyTopicSelection,
@@ -54,12 +55,7 @@ const speak = (word: string) => {
 
 const TabSkeleton = () => (
   <div className="space-y-3 py-1" role="status" aria-label="Đang tải nội dung">
-    {[84, 68, 92].map((width) => (
-      <div key={width} className="rounded-xl border border-slate-100 p-3 dark:border-line">
-        <div className="h-3 animate-pulse rounded bg-slate-200 dark:bg-surface-hover" style={{ width: `${width}%` }} />
-        <div className="mt-2 h-2.5 w-1/2 animate-pulse rounded bg-slate-100 dark:bg-surface-elevated" />
-      </div>
-    ))}
+    <BoneyardSkeleton name="translator-skeleton" variant="card" count={3} height={64} />
   </div>
 );
 

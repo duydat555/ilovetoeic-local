@@ -8,6 +8,8 @@ interface RoleGuardProps {
   allowedRoles: UserRole[];
 }
 
+import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+
 export const RoleGuard: React.FC<RoleGuardProps> = ({ allowedRoles }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
@@ -15,7 +17,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({ allowedRoles }) => {
   if (isLoading) {
     return (
       <div className="grid min-h-[45vh] place-items-center" role="status">
-        <div className="h-20 w-full max-w-sm animate-pulse rounded-2xl border border-line bg-surface-elevated" />
+        <BoneyardSkeleton name="role-guard-skeleton" height={80} width={384} />
       </div>
     );
   }

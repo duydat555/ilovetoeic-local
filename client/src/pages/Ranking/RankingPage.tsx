@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { BrandName } from '../../components/common/BrandName';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import {
   backendService,
@@ -538,16 +539,16 @@ export const ClassComparison: React.FC<{
 
 const RankingLoadingState: React.FC = () => (
   <div className="space-y-4" aria-label="Đang tải bảng xếp hạng" aria-busy="true">
-    <div className="h-[86px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-line dark:bg-surface" />
+    <BoneyardSkeleton name="ranking-header" height={86} />
     <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-      <div className="h-10 w-full max-w-[270px] animate-pulse rounded-xl bg-slate-100 dark:bg-surface-elevated" />
-      <div className="h-10 w-full max-w-[320px] animate-pulse rounded-xl bg-slate-100 dark:bg-surface-elevated" />
+      <BoneyardSkeleton name="ranking-filter-1" height={40} width={270} />
+      <BoneyardSkeleton name="ranking-filter-2" height={40} width={320} />
     </div>
-    <div className="h-[74px] animate-pulse rounded-2xl bg-brand-50/80 dark:bg-brand-500/10" />
-    <div className="h-[310px] animate-pulse rounded-2xl border border-slate-200 bg-slate-50 dark:border-line dark:bg-surface" />
+    <BoneyardSkeleton name="ranking-banner" height={74} />
+    <BoneyardSkeleton name="ranking-table" height={310} />
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)]">
-      <div className="h-[360px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-line dark:bg-surface" />
-      <div className="h-[260px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-line dark:bg-surface" />
+      <BoneyardSkeleton name="ranking-card-1" height={360} />
+      <BoneyardSkeleton name="ranking-card-2" height={260} />
     </div>
   </div>
 );

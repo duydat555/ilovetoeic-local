@@ -39,12 +39,11 @@ const ClassesManagementPage = lazy(() => import('./pages/Admin/ClassesManagement
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
 const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagementPage').then((m) => ({ default: m.FeatureManagementPage })));
 
+import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
+
 const RouteFallback = () => (
   <div className="min-h-[55vh] grid place-items-center" role="status" aria-label="Đang tải nội dung">
-    <div className="flex items-center gap-3 rounded-2xl border border-line bg-surface/90 px-5 py-4 text-content shadow-lg backdrop-blur-xl transition-colors duration-300 dark:shadow-none">
-      <span className="size-5 animate-spin rounded-full border-2 border-brand-100 border-t-brand" />
-      <span className="text-sm font-semibold text-content-muted">Đang chuẩn bị bài học...</span>
-    </div>
+    <BoneyardSkeleton name="app-route-fallback" height={64} width={260} className="shadow-lg" />
   </div>
 );
 

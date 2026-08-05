@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import {
   VOCABULARY_CHANGED_EVENT,
   vocabularyService,
@@ -37,12 +38,7 @@ const speak = (word: string) => {
 const VocabularySkeleton = () => (
   <div className="grid min-h-80 place-items-center rounded-2xl border border-line bg-surface p-6" role="status">
     <span className="sr-only">Đang tải từ vựng</span>
-    <div className="w-full max-w-2xl animate-pulse space-y-4 motion-reduce:animate-none">
-      <div className="mx-auto h-5 w-28 rounded bg-surface-elevated" />
-      <div className="mx-auto h-12 w-52 rounded-xl bg-surface-elevated" />
-      <div className="mx-auto h-4 w-36 rounded bg-surface-elevated" />
-      <div className="mt-8 h-20 rounded-xl bg-surface-elevated" />
-    </div>
+    <BoneyardSkeleton name="vocab-live-skeleton" height={220} width="100%" className="max-w-2xl" />
   </div>
 );
 

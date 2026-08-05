@@ -7,6 +7,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { NotificationListItem } from '../../components/notifications/NotificationListItem';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useNotifications } from '../../context/NotificationContext';
 
 type NotificationFilter = 'all' | 'unread';
@@ -112,9 +113,7 @@ export const NotificationsPage: React.FC = () => {
 
       {isLoading && notifications.length === 0 ? (
         <div className="space-y-3" aria-label="Đang tải thông báo" aria-busy="true">
-          {[0, 1, 2, 3].map((item) => (
-            <div key={item} className="h-[112px] animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-line dark:bg-surface" />
-          ))}
+          <BoneyardSkeleton name="notifications-skeleton" variant="row" count={4} height={112} />
         </div>
       ) : visibleNotifications.length > 0 ? (
         <section className="space-y-3" aria-live="polite">

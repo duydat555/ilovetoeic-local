@@ -18,6 +18,7 @@ import { HomeworkAssignment } from '../../types/management';
 import { ManagedClassRecord } from '../../services/backend';
 import { MockTestItem } from '../../types';
 import { TestCard } from '../mock-test/TestCard';
+import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { HomeworkSetupStep } from './HomeworkSetupStep';
 import { getModalMotion } from '../common/modalMotion';
 import {
@@ -448,7 +449,7 @@ export const CreateHomeworkModal: React.FC<CreateHomeworkModalProps> = ({
           {testsLoading ? (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {[0, 1, 2, 3].map((item) => (
-                <div key={item} className="h-44 animate-pulse rounded-2xl border border-line bg-surface-elevated" />
+                <BoneyardSkeleton key={item} name={`hw-test-card-${item}`} variant="card" height={176} />
               ))}
             </div>
           ) : testYears.length === 0 ? (

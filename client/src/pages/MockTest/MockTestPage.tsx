@@ -5,6 +5,7 @@ import { ClipboardCheck, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SelectModeModal, SelectedParts, TestMode } from '../../components/mock-test/SelectModeModal';
 import { TestCard } from '../../components/mock-test/TestCard';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { AnimatePresence } from 'framer-motion';
 import { ALL_TEST_PARTS, serializeTestPartScope } from '../../utils/testScope';
 
@@ -106,7 +107,7 @@ export const MockTestPage: React.FC = () => {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-44 animate-pulse rounded-2xl border border-line bg-surface-elevated" />
+            <BoneyardSkeleton key={i} name={`test-card-${i}`} variant="card" height={176} />
           ))}
         </div>
       ) : tests.length > 0 ? (

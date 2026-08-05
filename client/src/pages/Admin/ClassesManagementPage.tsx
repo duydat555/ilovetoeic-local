@@ -16,6 +16,7 @@ import {
   UserRoundPlus,
   UsersRound,
 } from 'lucide-react';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import {
   ManagedClassInput,
   ManagedClassRecord,
@@ -98,17 +99,7 @@ const ProgressRing: React.FC<{ value: number }> = ({ value }) => {
 };
 
 const ClassCardSkeleton: React.FC = () => (
-  <div className="animate-pulse rounded-2xl border border-line bg-surface p-5 motion-reduce:animate-none" aria-hidden="true">
-    <div className="flex items-start justify-between gap-4">
-      <div className="w-full space-y-3">
-        <div className="h-5 w-2/3 rounded-lg bg-surface-hover" />
-        <div className="h-4 w-24 rounded-lg bg-surface-hover" />
-      </div>
-      <div className="size-10 rounded-xl bg-surface-hover" />
-    </div>
-    <div className="mt-5 h-14 rounded-xl bg-surface-elevated" />
-    <div className="mt-5 h-11 rounded-xl bg-surface-hover" />
-  </div>
+  <BoneyardSkeleton name="class-card-skeleton" variant="card" height={210} />
 );
 
 export const ClassesManagementPage: React.FC = () => {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import {
   AlertCircle,
   ArrowLeft,
@@ -327,8 +328,8 @@ export const PracticeRunnerPage: React.FC = () => {
   if (loading) {
     return (
       <div className="mx-auto max-w-6xl space-y-5" role="status" aria-label="Đang tải bài luyện tập">
-        <div className="h-20 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-surface-elevated" />
-        <div className="h-96 animate-pulse rounded-2xl bg-slate-200/70 dark:bg-surface-elevated" />
+        <BoneyardSkeleton name="practice-header-skeleton" height={80} />
+        <BoneyardSkeleton name="practice-body-skeleton" height={384} />
       </div>
     );
   }

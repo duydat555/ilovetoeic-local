@@ -20,6 +20,8 @@ import {
   FeatureKey,
   featureDefinitionByKey,
 } from '../../config/features';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import {
   FeatureAdminConfiguration,
   backendService,
@@ -113,10 +115,8 @@ const FeatureIdentity: React.FC<{ feature: FeatureDefinition; compact?: boolean 
 
 const LoadingState = () => (
   <div className="space-y-4" aria-label="Đang tải cấu hình tính năng" role="status">
-    <div className="h-24 animate-pulse rounded-2xl bg-surface-hover motion-reduce:animate-none" />
-    {[1, 2, 3].map((item) => (
-      <div key={item} className="h-36 animate-pulse rounded-2xl bg-surface-hover motion-reduce:animate-none" />
-    ))}
+    <BoneyardSkeleton name="feature-header-skeleton" height={96} />
+    <BoneyardSkeleton name="feature-cards-skeleton" variant="card" count={3} height={144} />
   </div>
 );
 
@@ -130,6 +130,7 @@ const formatDateTime = (value: string) => {
 };
 
 export const FeatureManagementPage: React.FC = () => {
+  const { reload: reloadFeatureFlags } = useFeatureFlags();
   const [configuration, setConfiguration] = useState<FeatureAdminConfiguration | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -216,6 +217,7 @@ export const FeatureManagementPage: React.FC = () => {
         await backendService.updateClassFeature(classId, feature.key, enabled, confirmed);
       }
       await loadConfiguration();
+      void reloadFeatureFlags();
       setToast({
         tone: 'success',
         message: `${enabled ? 'Đã bật' : 'Đã tắt'} ${feature.name}${scope === 'class' ? ' cho lớp đã chọn' : ' trên toàn hệ thống'}.`,

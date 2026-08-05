@@ -5,6 +5,8 @@ import { HomeworkStatusBadge, PageHeader } from '../../components/management/Man
 import { useManagementData } from '../../hooks/useManagementData';
 import { HomeworkStatus } from '../../types/management';
 
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+
 export const StudentDetailLivePage: React.FC = () => {
   const { studentId } = useParams();
   const { classes, students, assignments, loading, error, reload } = useManagementData();
@@ -12,7 +14,7 @@ export const StudentDetailLivePage: React.FC = () => {
   const studentClasses = classes.filter((item) => item.studentIds.includes(studentId || ''));
   const studentAssignments = assignments.filter((item) => item.classIds.some((classId) => studentClasses.some((classItem) => classItem.id === classId)));
 
-  if (loading) return <div className="min-h-72 animate-pulse rounded-2xl border border-line bg-surface motion-reduce:animate-none" />;
+  if (loading) return <BoneyardSkeleton name="student-detail-skeleton" height={288} />;
   if (error) return <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-500/10"><p className="text-sm text-red-700 dark:text-red-300">{error}</p><button type="button" onClick={() => void reload()} className="btn-secondary mt-4 text-sm"><RefreshCw className="size-4" /> Thử lại</button></div>;
   if (!student) return <div className="rounded-2xl border border-line bg-surface p-8 text-center"><h1 className="text-lg font-extrabold text-content">Không tìm thấy Học sinh</h1><p className="mt-2 text-sm text-content-muted">Tài khoản không tồn tại hoặc không còn thuộc phạm vi quản lý.</p><Link to="/admin/classes" className="btn-primary mt-5">Quay lại quản lý lớp</Link></div>;
 

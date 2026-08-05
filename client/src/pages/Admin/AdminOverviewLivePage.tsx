@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, ClipboardList, RefreshCw, School, UsersRound } from 'lucide-react';
 import { PageHeader, StatCard } from '../../components/management/ManagementUI';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useManagementData } from '../../hooks/useManagementData';
 
 export const AdminOverviewLivePage: React.FC = () => {
@@ -35,7 +36,9 @@ export const AdminOverviewLivePage: React.FC = () => {
 
       {loading ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Đang tải thống kê">
-          {[0, 1, 2, 3].map((item) => <div key={item} className="h-32 animate-pulse rounded-2xl border border-line bg-surface motion-reduce:animate-none" />)}
+          {[0, 1, 2, 3].map((item) => (
+            <BoneyardSkeleton key={item} name={`stat-card-${item}`} height={128} />
+          ))}
         </div>
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900 dark:bg-red-500/10">

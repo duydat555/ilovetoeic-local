@@ -2,16 +2,18 @@ name: Deploy to VPS
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
-  group: production-deploy
+  group: production-deploy-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Configure SSH
@@ -21,10 +23,35 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           set -Eeuo pipefail
+
           install -m 700 -d "$HOME/.ssh"
-          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
-          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" \
+            > "$HOME/.ssh/id_ed25519"
+
+          printf '%s\n' "$KNOWN_HOSTS" \
+            > "$HOME/.ssh/known_hosts"
+
+          chmod 600 \
+            "$HOME/.ssh/id_ed25519" \
+            "$HOME/.ssh/known_hosts"
+
+      - name: Test SSH connection
+        shell: bash
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -Eeuo pipefail
+
+          ssh \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" \
+            "echo 'SSH connection successful'"
 
       - name: Deploy application
         shell: bash
@@ -34,53 +61,177 @@ jobs:
           DEPLOY_PATH: /var/www/toeic-website
         run: |
           set -Eeuo pipefail
-          ssh -o BatchMode=yes -o IdentitiesOnly=yes "$VPS_USER@$VPS_HOST" \
+
+          ssh \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=3 \
+            "$VPS_USER@$VPS_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE_SCRIPT'
           set -Eeuo pipefail
+
+          # Ngăn hai tiến trình deploy chạy cùng lúc trên VPS.
+          exec 9>/tmp/toeic-production-deploy.lock
+          if ! flock -n 9; then
+            echo "Another deployment is already running."
+            exit 1
+          fi
+
+          echo "==> Updating source code"
           cd "$DEPLOY_PATH"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Repository contains uncommitted changes:"
+            git status --short
+            exit 1
+          fi
+
+          git fetch origin main
+          git checkout main
           git pull --ff-only origin main
 
-          # Back up production data before applying schema changes.
-          mkdir -p /var/backups/toeic
-          BACKUP_FILE="/var/backups/toeic/toeic_db_$(date +%Y%m%d_%H%M%S).sql"
-          mysqldump -u root --single-transaction --routines --events toeic_db > "$BACKUP_FILE"
-          chmod 600 "$BACKUP_FILE"
+          echo "==> Creating database backup"
+          install -d -m 700 /var/backups/toeic
 
-          # Apply each migration once, tracked by its filename.
+          BACKUP_FILE="/var/backups/toeic/toeic_db_$(date +%Y%m%d_%H%M%S).sql"
+
+          # Lệnh này yêu cầu root MySQL đã được cấu hình đăng nhập
+          # bằng Unix socket hoặc file /root/.my.cnf.
+          mysqldump \
+            --user=root \
+            --single-transaction \
+            --routines \
+            --events \
+            --triggers \
+            toeic_db > "$BACKUP_FILE"
+
+          chmod 600 "$BACKUP_FILE"
+          gzip "$BACKUP_FILE"
+
+          # Chỉ giữ backup trong 14 ngày.
+          find /var/backups/toeic \
+            -type f \
+            -name 'toeic_db_*.sql.gz' \
+            -mtime +14 \
+            -delete
+
+          echo "==> Loading database configuration"
           cd "$DEPLOY_PATH/server"
-          DBPASS="$(sed -n 's/^DB_PASSWORD=//p' .env)"
+
+          if [ ! -f .env ]; then
+            echo "Missing server/.env"
+            exit 1
+          fi
+
+          DBPASS="$(
+            python3 - <<'PY'
+          from pathlib import Path
+
+          for line in Path(".env").read_text(encoding="utf-8").splitlines():
+              line = line.strip()
+
+              if not line or line.startswith("#") or "=" not in line:
+                  continue
+
+              key, value = line.split("=", 1)
+
+              if key.strip() == "DB_PASSWORD":
+                  value = value.strip()
+
+                  if len(value) >= 2 and value[0] == value[-1] \
+                          and value[0] in {"'", '"'}:
+                      value = value[1:-1]
+
+                  print(value)
+                  break
+          PY
+          )"
+
+          if [ -z "$DBPASS" ]; then
+            echo "DB_PASSWORD is missing from server/.env"
+            exit 1
+          fi
+
           export MYSQL_PWD="$DBPASS"
-          mysql -h 127.0.0.1 -u toeic_app toeic_db <<'SQL'
+
+          echo "==> Preparing migration history"
+          mysql \
+            --host=127.0.0.1 \
+            --user=toeic_app \
+            toeic_db <<'SQL'
           CREATE TABLE IF NOT EXISTS schema_migrations (
               version VARCHAR(255) NOT NULL PRIMARY KEY,
               applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
           );
           SQL
 
-          for migration in migrations/*.sql; do
-            [ -e "$migration" ] || continue
-            version="$(basename "$migration")"
-            applied="$(mysql -h 127.0.0.1 -u toeic_app toeic_db --batch --skip-column-names \
-              -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '$version'")"
-            if [ "$applied" = "0" ]; then
-              echo "Applying migration: $version"
-              mysql -h 127.0.0.1 -u toeic_app toeic_db < "$migration"
-              mysql -h 127.0.0.1 -u toeic_app toeic_db \
-                -e "INSERT INTO schema_migrations (version) VALUES ('$version')"
-            else
-              echo "Skipping applied migration: $version"
-            fi
-          done
+          echo "==> Applying database migrations"
+          if [ -d migrations ]; then
+            while IFS= read -r -d '' migration; do
+              version="$(basename "$migration")"
+
+              applied="$(
+                mysql \
+                  --host=127.0.0.1 \
+                  --user=toeic_app \
+                  --batch \
+                  --skip-column-names \
+                  toeic_db \
+                  -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '$version'"
+              )"
+
+              if [ "$applied" = "0" ]; then
+                echo "Applying migration: $version"
+
+                mysql \
+                  --host=127.0.0.1 \
+                  --user=toeic_app \
+                  toeic_db < "$migration"
+
+                mysql \
+                  --host=127.0.0.1 \
+                  --user=toeic_app \
+                  toeic_db \
+                  -e "INSERT INTO schema_migrations (version) VALUES ('$version')"
+              else
+                echo "Skipping applied migration: $version"
+              fi
+            done < <(
+              find migrations \
+                -maxdepth 1 \
+                -type f \
+                -name '*.sql' \
+                -print0 |
+              sort -z
+            )
+          fi
+
           unset DBPASS MYSQL_PWD
 
-          .venv/bin/python -m pip install -r requirements.txt
+          echo "==> Installing backend dependencies"
+          if [ ! -x .venv/bin/python ]; then
+            echo "Missing server/.venv"
+            exit 1
+          fi
 
+          .venv/bin/python -m pip install \
+            --disable-pip-version-check \
+            -r requirements.txt
+
+          echo "==> Building frontend"
           cd "$DEPLOY_PATH/client"
-          npm ci
+
+          npm ci --no-audit --no-fund
           npm run build
 
+          echo "==> Restarting services"
           systemctl restart toeic-api
           systemctl reload nginx
+
           systemctl is-active --quiet toeic-api
           systemctl is-active --quiet nginx
+
+          echo "Deployment completed successfully."
           REMOTE_SCRIPT

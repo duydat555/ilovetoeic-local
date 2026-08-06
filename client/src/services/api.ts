@@ -340,6 +340,7 @@ function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; 
 export function parseOptionsTranslation(raw: string | undefined | null): {
   items: OptionTranslationItem[];
   map: Record<string, string>;
+  cleanPromptTranslation?: string;
 } {
   if (!raw || typeof raw !== 'string') return { items: [], map: {} };
   const trimmed = raw.trim();
@@ -348,6 +349,7 @@ export function parseOptionsTranslation(raw: string | undefined | null): {
   const map: Record<string, string> = {};
   const items: OptionTranslationItem[] = [];
   const choiceIds: ('A' | 'B' | 'C' | 'D')[] = ['A', 'B', 'C', 'D'];
+  let cleanPromptTranslation: string | undefined;
 
   if (trimmed.startsWith('{')) {
     try {
@@ -367,10 +369,23 @@ export function parseOptionsTranslation(raw: string | undefined | null): {
     }
   }
 
-  const segments = trimmed
-    .split(/\n|\||;/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Khớp chính xác case-sensitive nhãn phương án như (A) hoặc (B), tránh khớp nhầm chữ 'c' trong từ tiếng Việt như 'cuộc'
+  const inlineMatch = trimmed.match(/(?:\([A-D]\)|^[A-D][\.\:\s])/);
+  let segments: string[] = [];
+
+  if (inlineMatch && inlineMatch.index !== undefined && inlineMatch.index > 0) {
+    cleanPromptTranslation = trimmed.slice(0, inlineMatch.index).trim().replace(/[\:\-\|\s]+$/, '');
+    const optionsText = trimmed.slice(inlineMatch.index).trim();
+    segments = optionsText
+      .split(/(?=\([A-D]\)|^[A-D][\.\:\s])/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } else {
+    segments = trimmed
+      .split(/\n|\||;/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
 
   const hasChoicePrefix = segments.some((seg) => /^\(?([A-D])\)?[\.\:\s]/i.test(seg));
 
@@ -394,7 +409,7 @@ export function parseOptionsTranslation(raw: string | undefined | null): {
     });
   }
 
-  return { items, map };
+  return { items, map, cleanPromptTranslation };
 }
 
 function formatAudioUrl(rawUrl?: string): string | undefined {
@@ -462,7 +477,8 @@ function formatQuestionObject(q: any): Question {
     choices.push({ id: 'D', text: q.option_d || '(D)' });
   }
 
-  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an);
+  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an || q.dich_nghia);
+  const finalQuestionTranslation = parsedOptions.cleanPromptTranslation || q.dich_nghia || undefined;
 
   return {
     id: q.id,
@@ -486,7 +502,7 @@ function formatQuestionObject(q: any): Question {
     passageTranslationFormatStatus: ['pending', 'done', 'error'].includes(q.format_status)
       ? q.format_status
       : undefined,
-    questionTranslation: q.dich_nghia || undefined,
+    questionTranslation: finalQuestionTranslation,
     optionsTranslation: q.dich_nghia_dap_an || undefined,
     optionsTranslationMap: parsedOptions.map,
     optionsTranslationItems: parsedOptions.items,

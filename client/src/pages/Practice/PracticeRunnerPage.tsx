@@ -41,7 +41,7 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
-import { buildPracticeGroups, formatExplanationText, stripChoicePrefix } from '../../utils/practice';
+import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, formatExplanationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
@@ -710,72 +710,64 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {question.partId === 2 && question.promptText && (
-                              <div className="mt-2 text-xs font-bold text-slate-800 dark:text-content">
-                                <span className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</span> {question.promptText}
-                              </div>
-                            )}
-
-                            {(question.questionTranslation || question.passageTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-950 dark:text-emerald-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-700 dark:text-emerald-400">
-                                  <Languages className="size-4 shrink-0" />
-                                  <span>Dịch nghĩa câu hỏi:</span>
+                            {(question.questionTranslation || question.passageTranslation || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
+                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
+                                  <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Dịch nghĩa câu hỏi & phương án:</span>
                                 </div>
-                                <p className="mt-1 font-medium italic text-slate-800 dark:text-content">
-                                  "{question.questionTranslation || question.passageTranslation}"
-                                </p>
-                              </div>
-                            )}
 
-                            {((question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-sky-500/20 bg-sky-50/70 p-3 text-xs leading-relaxed text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-sky-800 dark:text-sky-300">
-                                  <ListChecks className="size-4 shrink-0 text-sky-600 dark:text-sky-400" />
-                                  <span>Dịch nghĩa phương án đáp án:</span>
-                                </div>
+                                {cleanQuestionTranslation(question.questionTranslation || question.passageTranslation) && (
+                                  <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
+                                    "{cleanQuestionTranslation(question.questionTranslation || question.passageTranslation)}"
+                                  </p>
+                                )}
 
                                 {question.optionsTranslationItems && question.optionsTranslationItems.length > 0 ? (
-                                  <div className="mt-2 space-y-1.5 font-medium">
+                                  <div className="mt-2.5 space-y-2">
                                     {question.optionsTranslationItems.map((item) => {
                                       const isCorrect = item.choiceId === question.correctAnswer;
                                       return (
                                         <div
                                           key={item.choiceId}
-                                          className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 text-xs border ${
+                                          className={`flex min-h-[42px] items-center gap-3 rounded-xl border px-3.5 py-2 text-xs transition-all ${
                                             isCorrect
-                                              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-950 font-bold dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-100'
-                                              : 'border-slate-200/80 bg-white/90 text-slate-800 shadow-2xs dark:border-line dark:bg-surface/90 dark:text-content-muted'
+                                              ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
+                                              : 'border-slate-200/90 bg-white text-slate-800 dark:border-line dark:bg-surface dark:text-content'
                                           }`}
                                         >
-                                          <span className={`inline-flex shrink-0 size-5 items-center justify-center rounded-md text-[11px] font-black ${
-                                            isCorrect
-                                              ? 'bg-emerald-500 text-white'
-                                              : 'bg-slate-100 text-slate-700 dark:bg-surface-hover dark:text-content-muted'
-                                          }`}>
+                                          <span
+                                            className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
+                                              isCorrect
+                                                ? 'bg-emerald-600 text-white shadow-2xs'
+                                                : 'bg-slate-100 text-slate-700 dark:bg-surface-elevated dark:text-content-muted'
+                                            }`}
+                                          >
                                             {item.choiceId}
                                           </span>
-                                          <span className="flex-1 font-medium leading-relaxed">{item.rawText}</span>
+                                          <span className="flex-1 leading-snug font-medium">{item.rawText}</span>
                                           {isCorrect && (
-                                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
-                                              <CheckCircle2 className="size-3" /> Đáp án đúng
+                                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                                              <Check className="size-3 stroke-[2.5]" />
                                             </span>
                                           )}
                                         </div>
                                       );
                                     })}
                                   </div>
-                                ) : (
-                                  <p className="mt-1 font-medium italic text-slate-800 dark:text-content">
+                                ) : question.optionsTranslation && question.optionsTranslation !== question.questionTranslation ? (
+                                  <p className="mt-2 font-medium italic text-slate-800 dark:text-content">
                                     "{question.optionsTranslation}"
                                   </p>
-                                )}
+                                ) : null}
                               </div>
                             )}
 
-                            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
-                              {formatExplanationText(question.explanation)}
-                            </p>
+                            {cleanExplanationText(question.explanation) && (
+                              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
+                                {cleanExplanationText(question.explanation)}
+                              </p>
+                            )}
                             {question.keyVocabulary && question.keyVocabulary.length > 0 && (
                               <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
                                 <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
@@ -953,72 +945,64 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {question.partId === 2 && question.promptText && (
-                              <div className="mt-2 text-xs font-bold text-slate-800 dark:text-content">
-                                <span className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</span> {question.promptText}
-                              </div>
-                            )}
-
-                            {(question.questionTranslation || question.passageTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-950 dark:text-emerald-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-700 dark:text-emerald-400">
-                                  <Languages className="size-4 shrink-0" />
-                                  <span>Dịch nghĩa câu hỏi:</span>
+                            {(question.questionTranslation || question.passageTranslation || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
+                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
+                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
+                                  <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                  <span>Dịch nghĩa câu hỏi & phương án:</span>
                                 </div>
-                                <p className="mt-1 font-medium italic text-slate-800 dark:text-content">
-                                  "{question.questionTranslation || question.passageTranslation}"
-                                </p>
-                              </div>
-                            )}
 
-                            {((question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-sky-500/20 bg-sky-50/70 p-3 text-xs leading-relaxed text-sky-950 dark:border-sky-900/40 dark:bg-sky-950/20 dark:text-sky-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-sky-800 dark:text-sky-300">
-                                  <ListChecks className="size-4 shrink-0 text-sky-600 dark:text-sky-400" />
-                                  <span>Dịch nghĩa phương án đáp án:</span>
-                                </div>
+                                {cleanQuestionTranslation(question.questionTranslation || question.passageTranslation) && (
+                                  <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
+                                    "{cleanQuestionTranslation(question.questionTranslation || question.passageTranslation)}"
+                                  </p>
+                                )}
 
                                 {question.optionsTranslationItems && question.optionsTranslationItems.length > 0 ? (
-                                  <div className="mt-2 space-y-1.5 font-medium">
+                                  <div className="mt-2.5 space-y-2">
                                     {question.optionsTranslationItems.map((item) => {
                                       const isCorrect = item.choiceId === question.correctAnswer;
                                       return (
                                         <div
                                           key={item.choiceId}
-                                          className={`flex items-start gap-2 rounded-lg px-2.5 py-1.5 text-xs border ${
+                                          className={`flex min-h-[42px] items-center gap-3 rounded-xl border px-3.5 py-2 text-xs transition-all ${
                                             isCorrect
-                                              ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-950 font-bold dark:border-emerald-500/40 dark:bg-emerald-500/25 dark:text-emerald-100'
-                                              : 'border-slate-200/80 bg-white/90 text-slate-800 shadow-2xs dark:border-line dark:bg-surface/90 dark:text-content-muted'
+                                              ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
+                                              : 'border-slate-200/90 bg-white text-slate-800 dark:border-line dark:bg-surface dark:text-content'
                                           }`}
                                         >
-                                          <span className={`inline-flex shrink-0 size-5 items-center justify-center rounded-md text-[11px] font-black ${
-                                            isCorrect
-                                              ? 'bg-emerald-500 text-white'
-                                              : 'bg-slate-100 text-slate-700 dark:bg-surface-hover dark:text-content-muted'
-                                          }`}>
+                                          <span
+                                            className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
+                                              isCorrect
+                                                ? 'bg-emerald-600 text-white shadow-2xs'
+                                                : 'bg-slate-100 text-slate-700 dark:bg-surface-elevated dark:text-content-muted'
+                                            }`}
+                                          >
                                             {item.choiceId}
                                           </span>
-                                          <span className="flex-1 font-medium leading-relaxed">{item.rawText}</span>
+                                          <span className="flex-1 leading-snug font-medium">{item.rawText}</span>
                                           {isCorrect && (
-                                            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
-                                              <CheckCircle2 className="size-3" /> Đáp án đúng
+                                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                                              <Check className="size-3 stroke-[2.5]" />
                                             </span>
                                           )}
                                         </div>
                                       );
                                     })}
                                   </div>
-                                ) : (
-                                  <p className="mt-1 font-medium italic text-slate-800 dark:text-content">
+                                ) : question.optionsTranslation && question.optionsTranslation !== question.questionTranslation ? (
+                                  <p className="mt-2 font-medium italic text-slate-800 dark:text-content">
                                     "{question.optionsTranslation}"
                                   </p>
-                                )}
+                                ) : null}
                               </div>
                             )}
 
-                          <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
-                            {formatExplanationText(question.explanation)}
-                          </p>
+                           {cleanExplanationText(question.explanation) && (
+                             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
+                               {cleanExplanationText(question.explanation)}
+                             </p>
+                           )}
 
                           {question.keyVocabulary && question.keyVocabulary.length > 0 && (
                             <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">

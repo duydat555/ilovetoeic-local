@@ -102,3 +102,58 @@ export const formatExplanationText = (text: string) => {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 };
+
+/**
+ * Trích xuất chỉ phần dịch nghĩa câu hỏi, loại bỏ phần dịch nghĩa phương án đáp án (nếu trùng trong dich_nghia)
+ * Ví dụ: "Hội nghị được tổ chức ở đâu? (A) Một kỳ nghỉ... (B)..." -> "Hội nghị được tổ chức ở đâu?"
+ */
+export const cleanQuestionTranslation = (text: string | undefined | null): string => {
+  if (!text) return '';
+  const trimmed = text.trim();
+
+  // Khớp chính xác case-sensitive nhãn phương án như (A) hoặc (B), tránh khớp chữ 'c' trong từ tiếng Việt như 'cuộc'
+  const optionMatch = trimmed.match(/(?:\([A-D]\)|^[A-D][\.\:\s])/);
+  if (optionMatch && optionMatch.index !== undefined && optionMatch.index > 0) {
+    return trimmed.slice(0, optionMatch.index).trim().replace(/[\:\-\|\s]+$/, '');
+  }
+
+  return trimmed;
+};
+
+/**
+ * Làm sạch văn bản giải thích, loại bỏ phần lặp lại câu hỏi dịch nghĩa và phương án đáp án ở đầu
+ */
+export const cleanExplanationText = (text: string | undefined | null): string => {
+  if (!text) return '';
+  let cleaned = text.trim();
+  if (!cleaned) return '';
+
+  const lines = cleaned.split('\n').map((l) => l.trim()).filter(Boolean);
+  let startIndex = 0;
+  let hasChoicesHeader = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const isChoiceLine = /^\(?([A-D])\)?[\.\:\s]/i.test(line);
+
+    if (isChoiceLine) {
+      hasChoicesHeader = true;
+      startIndex = i + 1;
+    } else if (hasChoicesHeader) {
+      break;
+    } else if (i === 0 && (line.endsWith('?') || line.toLowerCase().includes('dịch') || line.toLowerCase().includes('câu hỏi'))) {
+      startIndex = i + 1;
+    }
+  }
+
+  if (startIndex > 0) {
+    if (startIndex < lines.length) {
+      cleaned = lines.slice(startIndex).join('\n').trim();
+    } else {
+      // Toàn bộ đoạn văn bản giải thích chỉ chứa câu dịch hỏi và phương án đáp án dính kèm -> trả về rỗng để không bị lặp
+      return '';
+    }
+  }
+
+  return formatExplanationText(cleaned);
+};

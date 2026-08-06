@@ -24,6 +24,8 @@ class QuestionResult(BaseModel):
 class TestSubmissionResponse(BaseModel):
     attempt_id: str
     test_id: str
+    test_name: Optional[str] = None
+    test_year: Optional[int] = None
     listening_correct: int
     reading_correct: int
     total_correct: int

@@ -1,18 +1,39 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Trophy, Headphones, BookOpen, CheckCircle2, XCircle, Loader2, History } from 'lucide-react';
-import { EvidencePanel } from '../../components/common/EvidencePanel';
+import { History, Loader2 } from 'lucide-react';
+import { LazyAnswerReviewList } from '../../components/results/LazyAnswerReviewList';
+import { PartBreakdownList } from '../../components/results/PartBreakdownList';
+import { formatScopeDescription, ResultsHeader } from '../../components/results/ResultsHeader';
+import { ResultsSummaryCards } from '../../components/results/ResultsSummaryCards';
+import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../services/api';
+import { vocabularyService } from '../../services/vocabulary';
 import { Question } from '../../types';
-import { formatExplanationText } from '../../utils/practice';
 import { storage } from '../../utils/storage';
-import { getTestPartScopeLabel } from '../../utils/testScope';
 
 export const TestResultPage: React.FC = () => {
+  const { user } = useAuth();
   const [result] = useState(() => storage.getTestHistory()[0]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [filter, setFilter] = useState<'all' | 'wrong' | 'correct'>('all');
+  const [savedVocabWords, setSavedVocabWords] = useState<Record<string, boolean>>({});
+  const [testMeta, setTestMeta] = useState<{ name?: string; year?: number }>({});
 
+  // Tải thông tin metadata của đề thi (Tên đề & Năm phát hành)
+  useEffect(() => {
+    if (!result?.testId) return;
+    let active = true;
+    apiService.getTestDetail(result.testId).then((meta) => {
+      if (active && meta) {
+        setTestMeta({ name: meta.name, year: meta.year });
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [result?.testId]);
+
+  // Tải danh sách câu hỏi của bài thi
   useEffect(() => {
     if (!result) {
       setLoadingQuestions(false);
@@ -20,7 +41,8 @@ export const TestResultPage: React.FC = () => {
     }
     let active = true;
     setLoadingQuestions(true);
-    apiService.getFullTestQuestions(result.testId)
+    apiService
+      .getFullTestQuestions(result.testId)
       .then((data) => {
         if (active) setQuestions(data);
       })
@@ -32,12 +54,81 @@ export const TestResultPage: React.FC = () => {
     };
   }, [result?.testId]);
 
+  // Tải danh sách từ vựng đã lưu để hiển thị dấu ✓ trên thẻ từ vựng
+  useEffect(() => {
+    if (!user) return;
+    void vocabularyService.getAll(user.id).then((words) => {
+      const map: Record<string, boolean> = {};
+      words.forEach((w) => {
+        map[w.word] = true;
+      });
+      setSavedVocabWords(map);
+    });
+  }, [user?.id]);
+
+  // Lưu từ vựng nhanh vào Flashcard cá nhân
+  const handleSaveVocabulary = async (word: string, meaning: string) => {
+    if (!user) return;
+    try {
+      await vocabularyService.add(user.id, {
+        sourceText: word,
+        translatedText: meaning,
+        phonetic: '',
+        partOfSpeech: '',
+        definitionEn: '',
+        examples: [],
+        synonyms: [],
+        aiSource: 'local',
+      });
+      setSavedVocabWords((prev) => ({ ...prev, [word]: true }));
+    } catch (error) {
+      console.error('Không thể lưu từ vựng:', error);
+    }
+  };
+
+  // Xác định phạm vi làm bài và các chỉ số
+  const scopeInfo = useMemo(() => {
+    const parts = result?.selectedParts || [1, 2, 3, 4, 5, 6, 7];
+    const totalCount = result?.questionIds?.length || 0;
+    return formatScopeDescription(parts, totalCount);
+  }, [result]);
+
+  // Tính tổng số câu Listening & Reading trong phạm vi đã chọn
+  const { listeningResult, readingResult } = useMemo(() => {
+    if (!result || !result.partBreakdown) {
+      return { listeningResult: { correct: 0, total: 0 }, readingResult: { correct: 0, total: 0 } };
+    }
+
+    const listeningItems = result.partBreakdown.filter((item) => {
+      const partNum = parseInt(item.part.replace(/\D/g, ''), 10);
+      return Number.isFinite(partNum) ? partNum <= 4 : item.part.toLowerCase().includes('listening');
+    });
+
+    const readingItems = result.partBreakdown.filter((item) => {
+      const partNum = parseInt(item.part.replace(/\D/g, ''), 10);
+      return Number.isFinite(partNum) ? partNum >= 5 : item.part.toLowerCase().includes('reading');
+    });
+
+    const sumItems = (items: typeof result.partBreakdown) =>
+      items.reduce(
+        (acc, item) => ({ correct: acc.correct + item.correct, total: acc.total + item.total }),
+        { correct: 0, total: 0 }
+      );
+
+    return {
+      listeningResult: sumItems(listeningItems),
+      readingResult: sumItems(readingItems),
+    };
+  }, [result]);
+
+  // Lọc danh sách câu hỏi xem lại theo phạm vi & bộ lọc
   const reviewQuestions = useMemo(() => {
     if (!result) return [];
     const selectedQuestionIds = result.questionIds ? new Set(result.questionIds) : null;
     const source = selectedQuestionIds
       ? questions.filter((question) => selectedQuestionIds.has(question.id))
       : questions;
+
     if (filter === 'all') return source;
     return source.filter((question) => {
       const selectedAnswer = result.answers?.[question.id];
@@ -48,210 +139,127 @@ export const TestResultPage: React.FC = () => {
 
   if (!result) {
     return (
-      <div className="surface mx-auto max-w-xl px-6 py-12 text-center">
-        <History className="mx-auto size-9 text-content-muted" aria-hidden="true" />
-        <h1 className="mt-4 text-lg font-bold text-content">Chưa có kết quả bài thi</h1>
+      <div className="surface mx-auto max-w-xl rounded-2xl border border-line p-8 text-center shadow-xs">
+        <History className="mx-auto size-10 text-content-muted" aria-hidden="true" />
+        <h1 className="mt-4 text-xl font-bold text-content">Chưa có kết quả bài thi</h1>
         <p className="mt-2 text-sm leading-relaxed text-content-muted">
-          Kết quả sẽ xuất hiện tại đây sau khi bạn hoàn thành một đề thi từ kho đề.
+          Kết quả sẽ xuất hiện tại đây sau khi bạn hoàn thành một bài thi thử từ kho đề.
         </p>
       </div>
     );
   }
 
-  const scopeLabel = getTestPartScopeLabel(result.selectedParts || [1, 2, 3, 4, 5, 6, 7]);
-  const listeningBreakdown = result.partBreakdown.filter((item) => {
-    const part = Number.parseInt(item.part.replace(/\D/g, ''), 10);
-    return Number.isFinite(part) ? part <= 4 : item.part.toLowerCase().includes('listening');
-  });
-  const readingBreakdown = result.partBreakdown.filter((item) => {
-    const part = Number.parseInt(item.part.replace(/\D/g, ''), 10);
-    return Number.isFinite(part) ? part >= 5 : item.part.toLowerCase().includes('reading');
-  });
-  const sumBreakdown = (items: typeof result.partBreakdown) => items.reduce(
-    (totals, item) => ({ correct: totals.correct + item.correct, total: totals.total + item.total }),
-    { correct: 0, total: 0 },
-  );
-  const listeningResult = sumBreakdown(listeningBreakdown);
-  const readingResult = sumBreakdown(readingBreakdown);
+  const totalQuestionsInScope = result.questionIds?.length || result.correctAnswers + result.wrongAnswers + result.skippedAnswers;
 
   return (
-    <div className="space-y-7">
-      {/* Header Result Summary Banner */}
-      <div className="relative overflow-hidden bg-[linear-gradient(125deg,#e5ad00,#ffd13f)] rounded-[28px] border border-brand-400/30 p-6 sm:p-8 text-brand-ink shadow-[0_24px_70px_-32px_rgba(138,94,21,.8)] flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="pointer-events-none absolute -right-20 -top-32 size-80 rounded-full border-[52px] border-white/[.06]" />
-        <div className="space-y-3 text-center md:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold">
-            <Trophy className="w-4 h-4 text-amber-300 fill-amber-300" />
-            <span>{result.isPartial ? 'Kết quả bài thi theo phạm vi' : 'Kết quả bài thi thử TOEIC'}</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold">{result.testTitle}</h1>
-          <p className="text-xs sm:text-sm text-brand-ink/75">
-            {result.isPartial ? `${scopeLabel}. ` : ''}Hoàn thành lúc: {result.completedAt}
-          </p>
-        </div>
+    <div className="space-y-7 pb-12">
+      {/* 1. Header Kết quả bài thi */}
+      <ResultsHeader
+        testTitle={result.testTitle}
+        testName={testMeta.name || result.testName}
+        testYear={testMeta.year || result.testYear}
+        testId={result.testId}
+        selectedParts={result.selectedParts}
+        isPartial={result.isPartial}
+        completedAt={result.completedAt}
+        accuracyRate={result.accuracyRate}
+        totalScore={result.totalScore}
+        correctAnswers={result.correctAnswers}
+        totalQuestions={totalQuestionsInScope}
+      />
 
-        {/* Total Predicted Score Card */}
-        <div className="bg-white/25 backdrop-blur-md p-6 rounded-3xl border border-brand-ink/10 text-center shrink-0 min-w-[200px]">
-          <div className="text-xs font-bold uppercase tracking-wider text-brand-ink/70">
-            {result.isPartial ? 'Độ chính xác' : 'Điểm TOEIC dự đoán'}
-          </div>
-          <div className="text-5xl font-black mt-1 text-brand-ink">
-            {result.isPartial ? `${result.accuracyRate}%` : result.totalScore}
-          </div>
-          <div className="text-xs text-brand-ink/75 mt-1">
-            {result.isPartial ? `${result.correctAnswers}/${result.questionIds?.length || 0} câu đúng` : 'trên thang điểm 990'}
-          </div>
-        </div>
+      {/* 2. Khối thống kê tổng quan (Nằm đè nhẹ lên mép dưới Banner - Pattern Dashboard hiện đại) */}
+      <div className="relative z-20 -mt-8 sm:-mt-10 px-3 sm:px-6">
+        <ResultsSummaryCards
+          hasListening={scopeInfo.hasListening}
+          hasReading={scopeInfo.hasReading}
+          isPartial={result.isPartial}
+          listeningResult={listeningResult}
+          readingResult={readingResult}
+          listeningScore={result.listeningScore}
+          readingScore={result.readingScore}
+          correctAnswers={result.correctAnswers}
+          wrongAnswers={result.wrongAnswers}
+          skippedAnswers={result.skippedAnswers}
+          accuracyRate={result.accuracyRate}
+          totalQuestions={totalQuestionsInScope}
+        />
       </div>
 
-      {/* Score Breakdown Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="surface surface-hover p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0">
-            <Headphones className="w-6 h-6" />
-          </div>
+      {/* 3. Chi tiết kết quả theo từng Part (Nội dung mở rộng theo phạm vi) */}
+      <PartBreakdownList
+        partBreakdown={result.partBreakdown}
+        selectedParts={result.selectedParts}
+        hasListening={scopeInfo.hasListening}
+        hasReading={scopeInfo.hasReading}
+      />
+
+      {/* 4. Xem lại danh sách đáp án chi tiết */}
+      <div className="rounded-2xl border border-line bg-surface p-6 shadow-xs sm:p-8 dark:shadow-none space-y-6">
+        <div className="flex flex-col justify-between gap-4 border-b border-line pb-4 sm:flex-row sm:items-center">
           <div>
-            <div className="text-xs text-slate-500 font-medium">{result.isPartial ? 'Listening' : 'Điểm Listening'}</div>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-content">
-              {result.isPartial ? `${listeningResult.correct}/${listeningResult.total} câu` : `${result.listeningScore} / 495`}
-            </div>
+            <h3 className="text-base font-extrabold text-content">Xem lại đáp án chi tiết</h3>
+            <p className="mt-0.5 text-xs text-content-muted">
+              Bao gồm bản dịch nghĩa câu hỏi, dịch nghĩa phương án đáp án và kho từ vựng gợi ý.
+            </p>
           </div>
-        </div>
 
-        <div className="surface surface-hover p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">{result.isPartial ? 'Reading' : 'Điểm Reading'}</div>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-content">
-              {result.isPartial ? `${readingResult.correct}/${readingResult.total} câu` : `${result.readingScore} / 495`}
-            </div>
-          </div>
-        </div>
-
-        <div className="surface surface-hover p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Số câu đúng</div>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-content">{result.correctAnswers} câu ({result.accuracyRate}%)</div>
-          </div>
-        </div>
-
-        <div className="surface surface-hover p-5 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-red-500/10 text-red-500 flex items-center justify-center shrink-0">
-            <XCircle className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-xs text-slate-500 font-medium">Số câu sai / Bỏ qua</div>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-content">{result.wrongAnswers + result.skippedAnswers} câu</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Part Breakdown Progress */}
-      <div className="surface p-6 sm:p-8 space-y-6">
-        <h3 className="font-bold text-base text-slate-800 dark:text-content">Chi tiết kết quả theo từng Part</h3>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {result.partBreakdown.map((part, idx) => {
-            const percent = Math.round((part.correct / part.total) * 100);
-            return (
-              <div key={idx} className="p-4 bg-slate-50 dark:bg-surface-hover/40 rounded-2xl space-y-2 border border-slate-200/60 dark:border-line">
-                <div className="flex justify-between items-center text-xs font-bold text-slate-800 dark:text-content">
-                  <span>{part.part}</span>
-                  <span className="text-brand-600 dark:text-brand-300">{part.correct}/{part.total} ({percent}%)</span>
-                </div>
-                <div className="w-full bg-slate-200 dark:bg-surface-hover h-2 rounded-full overflow-hidden">
-                  <div className="bg-brand h-full rounded-full" style={{ width: `${percent}%` }} />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Detailed Answer Key Review Section */}
-      <div className="surface p-6 sm:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-line pb-4">
-          <h3 className="font-bold text-base text-slate-800 dark:text-content">Xem lại danh sách đáp án chi tiết</h3>
-
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-surface-hover/50 p-1 rounded-xl">
+          {/* Bộ lọc Tất cả / Câu sai / Câu đúng */}
+          <div className="flex items-center gap-1.5 rounded-2xl bg-surface-elevated/70 p-1.5 border border-line">
             <button
+              type="button"
               onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'all' ? 'bg-white dark:bg-surface-elevated text-brand-600 shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                filter === 'all'
+                  ? 'bg-surface text-brand-600 shadow-2xs dark:text-brand-400'
+                  : 'text-content-muted hover:text-content'
+              }`}
             >
               Tất cả câu
             </button>
             <button
+              type="button"
               onClick={() => setFilter('wrong')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'wrong' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                filter === 'wrong'
+                  ? 'bg-rose-500 text-white shadow-2xs'
+                  : 'text-content-muted hover:text-content'
+              }`}
             >
               Câu làm sai
             </button>
             <button
+              type="button"
               onClick={() => setFilter('correct')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === 'correct' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500'}`}
+              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                filter === 'correct'
+                  ? 'bg-emerald-500 text-white shadow-2xs'
+                  : 'text-content-muted hover:text-content'
+              }`}
             >
               Câu làm đúng
             </button>
           </div>
         </div>
 
-        {/* Detailed Question Explanations */}
-        <div className="space-y-4">
-          {loadingQuestions ? (
-            <div className="flex items-center justify-center gap-2 py-10 text-sm font-semibold text-slate-500">
-              <Loader2 className="size-5 animate-spin" /> Đang tải dữ liệu xem lại...
-            </div>
-          ) : reviewQuestions.length > 0 ? (
-            reviewQuestions.map((q) => {
-              const selectedAnswer = result.answers?.[q.id];
-              const isCorrect = selectedAnswer === q.correctAnswer;
-              return (
-                <div key={q.id} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-line dark:bg-surface-hover/40">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="font-bold text-slate-800 dark:text-content">Câu {q.questionNumber} (Part {q.partId})</span>
-                    <div className="flex flex-wrap gap-2">
-                      <span className={`rounded-full px-2.5 py-1 font-bold ${
-                        isCorrect
-                          ? 'bg-emerald-500/10 text-emerald-600'
-                          : 'bg-rose-500/10 text-rose-600'
-                      }`}>
-                        Bạn chọn: {selectedAnswer || 'Bỏ qua'}
-                      </span>
-                      <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 font-bold text-emerald-600">
-                        Đáp án đúng: {q.correctAnswer}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs font-semibold text-slate-700 sm:text-sm dark:text-content-muted">
-                    {q.partId === 2 && q.promptText ? (
-                      <span><strong className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</strong> {q.promptText}</span>
-                    ) : (
-                      q.promptText || (q.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')
-                    )}
-                  </p>
-
-                  {q.evidence ? (
-                    <EvidencePanel evidence={q.evidence} questionNumber={q.questionNumber} />
-                  ) : (
-                    <div className="whitespace-pre-line rounded-xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 dark:border-line dark:bg-surface-elevated dark:text-content-muted">
-                      <div className="mb-1 font-bold text-brand-600">Giải thích</div>
-                      <div>{formatExplanationText(q.explanation)}</div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
-          ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 py-10 text-center text-sm text-slate-500 dark:border-line">
-              Không có câu hỏi phù hợp với bộ lọc này.
-            </div>
-          )}
-        </div>
+        {/* Danh sách câu hỏi xem lại Lazy Load */}
+        {loadingQuestions ? (
+          <div className="flex items-center justify-center gap-2.5 py-12 text-sm font-extrabold text-content-muted">
+            <Loader2 className="size-5 animate-spin text-brand-600 dark:text-brand-400" />
+            <span>Đang tải dữ liệu xem lại...</span>
+          </div>
+        ) : reviewQuestions.length > 0 ? (
+          <LazyAnswerReviewList
+            questions={reviewQuestions}
+            userAnswers={result.answers}
+            onSaveVocabulary={handleSaveVocabulary}
+            savedVocabWords={savedVocabWords}
+          />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-line p-10 text-center text-sm font-semibold text-content-muted">
+            Không có câu hỏi nào phù hợp với bộ lọc này.
+          </div>
+        )}
       </div>
     </div>
   );

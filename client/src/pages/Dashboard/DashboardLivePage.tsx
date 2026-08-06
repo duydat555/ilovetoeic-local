@@ -270,7 +270,9 @@ export const DashboardLivePage: React.FC = () => {
       {/* Metric Cards (Điểm cao nhất, Mục tiêu, Thời gian học, Độ chính xác) */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
-          <BoneyardSkeleton name="dashboard-metrics" count={4} variant="card" height={124} />
+          [1, 2, 3, 4].map((id) => (
+            <BoneyardSkeleton key={id} name={`dashboard-metric-${id}`} variant="card" height={124} />
+          ))
         ) : (
           metricCards.map(({ label, value, subtext, icon: Icon, color }) => (
             <article

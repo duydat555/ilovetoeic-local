@@ -7,10 +7,13 @@ router = APIRouter(prefix="/api/v1", tags=["Submissions"])
 
 @router.post("/tests/{test_id}/submit", response_model=TestSubmissionResponse)
 def submit_test(test_id: str, payload: TestSubmissionRequest):
-    # Verify test exists
-    test = db.fetch_one("SELECT id FROM tests WHERE id = ?", (test_id,))
+    # Verify test exists and fetch metadata
+    test = db.fetch_one("SELECT id, name, title, year FROM tests WHERE id = ?", (test_id,))
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
+
+    test_name = test.get("name") or test.get("title") or "Test TOEIC"
+    test_year = test.get("year")
 
     # Get all questions with correct answers for this test
     questions = db.fetch_all("""
@@ -50,26 +53,23 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
             user_answer=user_ans,
             correct_answer=correct_ans,
             is_correct=is_correct,
-            explanation_vi=q.get("explanation_vi"),
-            dich_nghia=q.get("dich_nghia"),
-            tu_vung=q.get("tu_vung")
+            explanation_vi=q["explanation_vi"],
+            dich_nghia=q["dich_nghia"],
+            tu_vung=q["tu_vung"]
         ))
 
-    # Fetch TOEIC Score Conversion
-    l_score_row = db.fetch_one("SELECT listening_score FROM toeic_score_conversion WHERE correct_count = ?", (listening_correct,))
-    r_score_row = db.fetch_one("SELECT reading_score FROM toeic_score_conversion WHERE correct_count = ?", (reading_correct,))
-
-    listening_score = l_score_row["listening_score"] if l_score_row else 5
-    reading_score = r_score_row["reading_score"] if r_score_row else 5
+    total_correct = listening_correct + reading_correct
+    listening_score = int((listening_correct / 100.0) * 495) if listening_correct > 0 else 5
+    reading_score = int((reading_correct / 100.0) * 495) if reading_correct > 0 else 5
     total_score = listening_score + reading_score
 
     attempt_id = str(uuid.uuid4())
-    # The authenticated history endpoint persists this result after scoring.
-    # It derives ownership from the bearer session instead of trusting user_id.
 
     return TestSubmissionResponse(
         attempt_id=attempt_id,
         test_id=test_id,
+        test_name=test_name,
+        test_year=test_year,
         listening_correct=listening_correct,
         reading_correct=reading_correct,
         total_correct=listening_correct + reading_correct,

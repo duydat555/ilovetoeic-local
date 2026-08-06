@@ -113,6 +113,7 @@ export interface OptionTranslationItem {
 }
 
 
+
 export interface MockTestItem {
   id: string;
   title: string;
@@ -130,6 +131,8 @@ export interface TestResultData {
   attemptId?: string;
   testId: string;
   testTitle: string;
+  testName?: string;
+  testYear?: number;
   totalScore: number;
   listeningScore: number;
   readingScore: number;

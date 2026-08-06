@@ -139,6 +139,25 @@ export const apiService = {
     return [];
   },
 
+  async getTestDetail(testId: string): Promise<{ name?: string; year?: number; title?: string } | null> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/tests/${testId}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          return {
+            name: json.data.name || json.data.title,
+            year: json.data.year,
+            title: json.data.title,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch test detail', err);
+    }
+    return null;
+  },
+
   // 3. Get Full Test details & Questions
   async getFullTestQuestions(testId: string): Promise<Question[]> {
     try {
@@ -270,7 +289,9 @@ export const apiService = {
         return {
           attemptId: json.attempt_id,
           testId: json.test_id,
-          testTitle: `Đề thi ${json.test_id}`,
+          testTitle: json.test_name || (json.test_id && !json.test_id.includes('-') ? json.test_id : 'Đề thi TOEIC'),
+          testName: json.test_name || undefined,
+          testYear: json.test_year || undefined,
           totalScore: isPartial ? 0 : json.total_score,
           listeningScore: json.listening_score,
           readingScore: json.reading_score,
@@ -301,37 +322,86 @@ function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; 
   const trimmed = tuVung.trim();
   if (!trimmed) return [];
 
+  // Nếu là dạng JSON Array
   if (trimmed.startsWith('[')) {
     try {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
-        return parsed.map((item: any) => {
-          if (typeof item === 'object' && item !== null) {
-            return {
-              word: (item.word || item.vocab || item.term || item.tu || '').trim(),
-              meaning: (item.meaning || item.dich || item.definition || item.nghia || '').trim(),
-            };
-          }
-          return { word: String(item).trim(), meaning: '' };
-        }).filter((item) => item.word);
+        return parsed
+          .map((item: any) => {
+            if (typeof item === 'object' && item !== null) {
+              return {
+                word: (item.word || item.vocab || item.term || item.tu || '').trim(),
+                meaning: (item.meaning || item.dich || item.definition || item.nghia || '').trim(),
+              };
+            }
+            return { word: String(item).trim(), meaning: '' };
+          })
+          .filter((item) => item.word);
       }
     } catch {
-      // Fallback to string split
+      // Fallthrough
     }
   }
 
-  const items: { word: string; meaning: string }[] = [];
-  const lines = trimmed.split(/\n|\||;/).map((s) => s.trim()).filter(Boolean);
+  // Tách các từ theo \n, |, ;, hoặc dấu phẩy , (không tách dấu phẩy nằm bên trong ngoặc đơn)
+  const rawItems: string[] = [];
+  let current = '';
+  let parenDepth = 0;
+  let bracketDepth = 0;
 
-  for (const line of lines) {
-    const match = line.match(/^([^:\=\-–—]+)[:\=\-–—](.+)$/);
-    if (match) {
-      const word = match[1].trim();
-      const meaning = match[2].trim();
-      if (word) items.push({ word, meaning });
-    } else if (line) {
-      items.push({ word: line, meaning: '' });
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (char === '(') parenDepth++;
+    else if (char === ')') parenDepth = Math.max(0, parenDepth - 1);
+    else if (char === '[') bracketDepth++;
+    else if (char === ']') bracketDepth = Math.max(0, bracketDepth - 1);
+
+    if (parenDepth === 0 && bracketDepth === 0 && (char === '\n' || char === '|' || char === ';' || char === ',')) {
+      if (current.trim()) {
+        rawItems.push(current.trim());
+      }
+      current = '';
+    } else {
+      current += char;
     }
+  }
+
+  if (current.trim()) {
+    rawItems.push(current.trim());
+  }
+
+  const items: { word: string; meaning: string }[] = [];
+
+  for (const itemStr of rawItems) {
+    if (!itemStr) continue;
+
+    // Định dạng 1: Có hai chấm / dấu bằng / gạch ngang ngăn cách giữa từ và nghĩa
+    // Ví dụ: "promoted : được thăng chức" hoặc "promoted - được thăng chức"
+    const matchSeparator = itemStr.match(/^([^:\=\-–—]+)[:\=\-–—](.+)$/);
+    if (matchSeparator) {
+      const word = matchSeparator[1].trim();
+      const meaning = matchSeparator[2].trim();
+      if (word) {
+        items.push({ word, meaning });
+        continue;
+      }
+    }
+
+    // Định dạng 2: Nghĩa nằm trong ngoặc đơn ở cuối từ
+    // Ví dụ: "promoted (được thăng chức)" hoặc "revenue growth (tăng trưởng doanh thu)"
+    const matchParen = itemStr.match(/^(.+?)\s*\(([^)]+)\)$/);
+    if (matchParen) {
+      const wordCandidate = matchParen[1].trim();
+      const meaningCandidate = matchParen[2].trim();
+      if (wordCandidate) {
+        items.push({ word: wordCandidate, meaning: meaningCandidate });
+        continue;
+      }
+    }
+
+    // Mặc định fallback
+    items.push({ word: itemStr, meaning: '' });
   }
 
   return items;

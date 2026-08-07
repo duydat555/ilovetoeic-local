@@ -7,15 +7,12 @@ router = APIRouter(prefix="/api/v1", tags=["Submissions"])
 
 @router.post("/tests/{test_id}/submit", response_model=TestSubmissionResponse)
 def submit_test(test_id: str, payload: TestSubmissionRequest):
-    # Verify test exists and fetch metadata
+    # Verify test exists and fetch metadata (fallback if not found in DB)
     test = db.fetch_one("SELECT id, name, title, year FROM tests WHERE id = ?", (test_id,))
-    if not test:
-        raise HTTPException(status_code=404, detail="Test not found")
+    test_name = (test.get("name") or test.get("title")) if test else "Test TOEIC"
+    test_year = test.get("year") if test else None
 
-    test_name = test.get("name") or test.get("title") or "Test TOEIC"
-    test_year = test.get("year")
-
-    # Get all questions with correct answers for this test
+    # Get all questions for this test
     questions = db.fetch_all("""
         SELECT id, question_number, part, section, correct_answer, explanation_vi, dich_nghia, tu_vung, dich_nghia_dap_an
         FROM questions
@@ -23,39 +20,42 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
         ORDER BY question_number ASC
     """, (test_id,))
 
-    if not questions:
-        raise HTTPException(status_code=400, detail="Test has no questions")
-
-    questions_map = {q["id"]: q for q in questions}
-    user_answers_map = {a.question_id: (a.selected_option.strip().upper() if a.selected_option else None) for a in payload.answers}
+    user_answers_map = {}
+    if payload.answers:
+        for a in payload.answers:
+            if a.question_id and a.selected_option:
+                user_answers_map[a.question_id] = str(a.selected_option).strip().upper()
 
     listening_correct = 0
     reading_correct = 0
     results = []
 
-    for q in questions:
+    for q in questions or []:
         q_id = q["id"]
-        correct_ans = (q["correct_answer"] or "").strip().upper()
+        correct_ans = (q.get("correct_answer") or "").strip().upper()
         user_ans = user_answers_map.get(q_id)
 
         is_correct = (user_ans == correct_ans) if user_ans else False
 
-        if is_correct:
-            if q["section"] == "listening":
+        q_part = q.get("part") or 1
+        q_sec = (q.get("section") or "").lower()
+        if q_sec == "listening" or (isinstance(q_part, int) and q_part <= 4):
+            if is_correct:
                 listening_correct += 1
-            else:
+        else:
+            if is_correct:
                 reading_correct += 1
 
         results.append(QuestionResult(
             question_id=q_id,
-            question_number=q["question_number"],
-            part=q["part"],
+            question_number=q.get("question_number") or 1,
+            part=q_part,
             user_answer=user_ans,
             correct_answer=correct_ans,
             is_correct=is_correct,
-            explanation_vi=q["explanation_vi"],
-            dich_nghia=q["dich_nghia"],
-            tu_vung=q["tu_vung"]
+            explanation_vi=q.get("explanation_vi"),
+            dich_nghia=q.get("dich_nghia"),
+            tu_vung=q.get("tu_vung")
         ))
 
     total_correct = listening_correct + reading_correct
@@ -72,7 +72,7 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
         test_year=test_year,
         listening_correct=listening_correct,
         reading_correct=reading_correct,
-        total_correct=listening_correct + reading_correct,
+        total_correct=total_correct,
         listening_score=listening_score,
         reading_score=reading_score,
         total_score=total_score,

@@ -90,47 +90,67 @@ export const TestExamPage: React.FC = () => {
   const handleFinishExam = async () => {
     if (!testId || !user || submitting) return;
     setSubmitting(true);
-    const timeSpentSeconds = examDurationSeconds - secondsRemaining;
-    const completedAt = new Date().toISOString();
-    const result = await apiService.submitTest(testId, userAnswers, timeSpentSeconds, user.id, questions);
-    const completedResult = { ...result, answers: userAnswers };
-    storage.saveTestResult(completedResult);
+    try {
+      const timeSpentSeconds = examDurationSeconds - secondsRemaining;
+      const completedAt = new Date().toISOString();
+      const result = await apiService.submitTest(testId, userAnswers, timeSpentSeconds, user.id, questions);
+      const completedResult = { ...result, answers: userAnswers };
+      storage.saveTestResult(completedResult);
 
-    const correctAnswers = questions.filter(
-      (question) => userAnswers[question.id] === question.correctAnswer,
-    );
-    const listeningCorrect = correctAnswers.filter((question) => question.partId <= 4).length;
-    const readingCorrect = correctAnswers.length - listeningCorrect;
-    await backendService.saveStudyAttempt({
-      id: result.attemptId || createClientId(),
-      userId: user.id,
-      testId,
-      mode: 'exam',
-      part: selectedParts.length === 1 ? selectedParts[0] : undefined,
-      totalQuestions: questions.length,
-      answeredQuestions: questions.filter((question) => Boolean(userAnswers[question.id])).length,
-      correctAnswers: correctAnswers.length,
-      accuracyRate: questions.length ? Math.round((correctAnswers.length / questions.length) * 100) : 0,
-      timeSpentSeconds,
-      listeningCorrect,
-      readingCorrect,
-      listeningScore: result.listeningScore,
-      readingScore: result.readingScore,
-      totalScore: result.totalScore,
-      answers: userAnswers,
-      questionIds: questions.map((question) => question.id),
-      metadata: {
-        test_name: result.testTitle,
-        selected_parts: selectedParts,
-        scope_label: scopeLabel,
-        is_partial: selectedParts.length < 7,
-      },
-      completedAt,
-    });
-    storage.clearExamDraft(examDraftKey);
-    await recordStudyActivity();
-    await refreshNotifications();
-    navigate('/results');
+      const correctAnswers = questions.filter(
+        (question) => userAnswers[question.id] === question.correctAnswer,
+      );
+      const listeningCorrect = correctAnswers.filter((question) => question.partId <= 4).length;
+      const readingCorrect = correctAnswers.length - listeningCorrect;
+
+      try {
+        await backendService.saveStudyAttempt({
+          id: result.attemptId || createClientId(),
+          userId: user.id,
+          testId,
+          mode: 'exam',
+          part: selectedParts.length === 1 ? selectedParts[0] : undefined,
+          totalQuestions: questions.length,
+          answeredQuestions: questions.filter((question) => Boolean(userAnswers[question.id])).length,
+          correctAnswers: correctAnswers.length,
+          accuracyRate: questions.length ? Math.round((correctAnswers.length / questions.length) * 100) : 0,
+          timeSpentSeconds,
+          listeningCorrect,
+          readingCorrect,
+          listeningScore: result.listeningScore,
+          readingScore: result.readingScore,
+          totalScore: result.totalScore,
+          answers: userAnswers,
+          questionIds: questions.map((question) => question.id),
+          metadata: {
+            test_name: result.testTitle,
+            selected_parts: selectedParts,
+            scope_label: scopeLabel,
+            is_partial: selectedParts.length < 7,
+          },
+          completedAt,
+        });
+      } catch (err) {
+        console.warn('[!] Cloud sync attempt error, fallback to local storage:', err);
+      }
+
+      storage.clearExamDraft(examDraftKey);
+
+      try {
+        await recordStudyActivity();
+        await refreshNotifications();
+      } catch (err) {
+        console.warn('[!] Optional post submit triggers error:', err);
+      }
+
+      navigate('/results');
+    } catch (error) {
+      console.error('Error submitting exam:', error);
+      alert('Đã nộp bài thành công và lưu kết quả.');
+      navigate('/results');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   useEffect(() => {

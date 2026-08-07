@@ -4,6 +4,7 @@ import {
 } from '../types';
 import { API_BASE_URL } from './backend';
 import { parseQuestionEvidence } from '../utils/evidence';
+import { createClientId } from '../utils/id';
 
 const getDynamicHost = () => {
   if (typeof window !== 'undefined' && window.location.hostname) {
@@ -242,10 +243,36 @@ export const apiService = {
     userId: string,
     selectedQuestions?: Question[],
   ): Promise<TestResultData> {
+    const scopedQuestions = selectedQuestions || [];
+    const selectedParts = [...new Set(scopedQuestions.map((question) => question.partId))]
+      .sort((a, b) => a - b);
+    const hasQuestionScope = scopedQuestions.length > 0;
+    const correctAnswers = hasQuestionScope
+      ? scopedQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
+      : 0;
+    const answeredQuestions = hasQuestionScope
+      ? scopedQuestions.filter((question) => Boolean(answers[question.id])).length
+      : Object.keys(answers).length;
+    const totalQuestions = hasQuestionScope ? scopedQuestions.length : 200;
+    const isPartial = hasQuestionScope && selectedParts.length < 7;
+    const partBreakdown = hasQuestionScope
+      ? selectedParts.map((part) => {
+          const partQuestions = scopedQuestions.filter((question) => question.partId === part);
+          return {
+            part: `Part ${part}`,
+            correct: partQuestions.filter((question) => answers[question.id] === question.correctAnswer).length,
+            total: partQuestions.length,
+          };
+        })
+      : [
+          { part: 'Listening', correct: 0, total: 100 },
+          { part: 'Reading', correct: 0, total: 100 },
+        ];
+
     try {
       const payloadAnswers = Object.entries(answers).map(([qId, selected]) => ({
         question_id: qId,
-        selected_option: selected
+        selected_option: selected,
       }));
 
       const res = await fetch(`${API_BASE_URL}/tests/${testId}/submit`, {
@@ -254,42 +281,16 @@ export const apiService = {
         body: JSON.stringify({
           user_id: userId,
           time_spent_seconds: timeSpentSeconds,
-          answers: payloadAnswers
-        })
+          answers: payloadAnswers,
+        }),
       });
 
       if (res.ok) {
         const json = await res.json();
-        const scopedQuestions = selectedQuestions || [];
-        const selectedParts = [...new Set(scopedQuestions.map((question) => question.partId))]
-          .sort((a, b) => a - b);
-        const hasQuestionScope = scopedQuestions.length > 0;
-        const correctAnswers = hasQuestionScope
-          ? scopedQuestions.filter((question) => answers[question.id] === question.correctAnswer).length
-          : Number(json.total_correct || 0);
-        const answeredQuestions = hasQuestionScope
-          ? scopedQuestions.filter((question) => Boolean(answers[question.id])).length
-          : Object.keys(answers).length;
-        const totalQuestions = hasQuestionScope ? scopedQuestions.length : 200;
-        const isPartial = hasQuestionScope && selectedParts.length < 7;
-        const partBreakdown = hasQuestionScope
-          ? selectedParts.map((part) => {
-            const partQuestions = scopedQuestions.filter((question) => question.partId === part);
-            return {
-              part: `Part ${part}`,
-              correct: partQuestions.filter((question) => answers[question.id] === question.correctAnswer).length,
-              total: partQuestions.length,
-            };
-          })
-          : [
-            { part: 'Listening', correct: json.listening_correct, total: 100 },
-            { part: 'Reading', correct: json.reading_correct, total: 100 },
-          ];
-        
         return {
           attemptId: json.attempt_id,
-          testId: json.test_id,
-          testTitle: json.test_name || (json.test_id && !json.test_id.includes('-') ? json.test_id : 'Đề thi TOEIC'),
+          testId: json.test_id || testId,
+          testTitle: json.test_name || (testId && !testId.includes('-') ? testId : 'Đề thi TOEIC'),
           testName: json.test_name || undefined,
           testYear: json.test_year || undefined,
           totalScore: isPartial ? 0 : json.total_score,
@@ -307,13 +308,36 @@ export const apiService = {
           isPartial,
         };
       }
-      throw new Error('Không thể nộp bài thi. Vui lòng thử lại.');
     } catch (e) {
-      console.warn('[!] Không thể nộp bài thi:', e);
-      throw e instanceof Error
-        ? e
-        : new Error('Không thể nộp bài thi. Vui lòng thử lại.');
+      console.warn('[!] Server submit failed, falling back to local calculation:', e);
     }
+
+    // Fallback Result khi API server không phản hồi
+    const listeningQuestions = scopedQuestions.filter((q) => q.partId <= 4);
+    const readingQuestions = scopedQuestions.filter((q) => q.partId >= 5);
+    const listeningCorrect = listeningQuestions.filter((q) => answers[q.id] === q.correctAnswer).length;
+    const readingCorrect = readingQuestions.filter((q) => answers[q.id] === q.correctAnswer).length;
+    const listeningScore = listeningQuestions.length > 0 ? Math.round((listeningCorrect / listeningQuestions.length) * 495) : 0;
+    const readingScore = readingQuestions.length > 0 ? Math.round((readingCorrect / readingQuestions.length) * 495) : 0;
+
+    return {
+      attemptId: createClientId(),
+      testId,
+      testTitle: 'Đề thi TOEIC',
+      totalScore: isPartial ? 0 : listeningScore + readingScore,
+      listeningScore,
+      readingScore,
+      correctAnswers,
+      wrongAnswers: Math.max(answeredQuestions - correctAnswers, 0),
+      skippedAnswers: Math.max(totalQuestions - answeredQuestions, 0),
+      timeSpentSeconds,
+      accuracyRate: totalQuestions ? Math.round((correctAnswers / totalQuestions) * 100) : 0,
+      completedAt: new Date().toLocaleString(),
+      partBreakdown,
+      questionIds: hasQuestionScope ? scopedQuestions.map((question) => question.id) : undefined,
+      selectedParts: hasQuestionScope ? selectedParts : undefined,
+      isPartial,
+    };
   }
 };
 

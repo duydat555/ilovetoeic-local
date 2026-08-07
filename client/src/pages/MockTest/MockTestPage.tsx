@@ -84,30 +84,35 @@ export const MockTestPage: React.FC = () => {
         </div>
       </div>
       {/* Top Filter Pill Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 no-scrollbar">
-        {yearOptions.map(({ year, count }) => (
-          <button
-            key={year}
-            type="button"
-            aria-pressed={selectedYear === year}
-            onClick={() => handleYearChange(year)}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
-              selectedYear === year
-                  ? 'bg-accent text-brand-ink shadow-md shadow-brand-500/20'
-                : 'border border-line bg-surface text-content-muted hover:bg-surface-hover hover:text-content'
-            }`}
-          >
-            {year} <span className="font-semibold opacity-75">({count})</span>
-          </button>
-        ))}
+      <div className="flex items-center gap-2 overflow-x-auto py-2 px-1 no-scrollbar min-h-[44px]">
+        {loading ? (
+          [1, 2, 3, 4].map((id) => (
+            <BoneyardSkeleton key={id} name={`year-skeleton-${id}`} variant="button" width={80} height={32} />
+          ))
+        ) : (
+          yearOptions.map(({ year, count }) => (
+            <button
+              key={year}
+              type="button"
+              aria-pressed={selectedYear === year}
+              onClick={() => handleYearChange(year)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all ${
+                selectedYear === year
+                    ? 'bg-accent text-brand-ink shadow-md shadow-brand-500/20'
+                  : 'border border-line bg-surface text-content-muted hover:bg-surface-hover hover:text-content'
+              }`}
+            >
+              {year} <span className="font-semibold opacity-75">({count})</span>
+            </button>
+          ))
+        )}
       </div>
-
 
       {/* Modern Compact 4-Column Card Grid */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
-            <BoneyardSkeleton key={i} name={`test-card-${i}`} variant="card" height={176} />
+            <BoneyardSkeleton key={i} name={`test-card-${i}`} variant="card" height={190} />
           ))}
         </div>
       ) : tests.length > 0 ? (

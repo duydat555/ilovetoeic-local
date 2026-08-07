@@ -373,7 +373,7 @@ function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; 
     }
   }
 
-  // Tách các từ theo \n, |, ;, hoặc dấu phẩy , (không tách dấu phẩy nằm bên trong ngoặc đơn)
+  // Tách các từ theo \n, |, hoặc ; (không tách theo dấu phẩy , vì dấu phẩy dùng để liệt kê nhiều nghĩa tiếng Việt của cùng 1 từ)
   const rawItems: string[] = [];
   let current = '';
   let parenDepth = 0;
@@ -386,7 +386,7 @@ function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; 
     else if (char === '[') bracketDepth++;
     else if (char === ']') bracketDepth = Math.max(0, bracketDepth - 1);
 
-    if (parenDepth === 0 && bracketDepth === 0 && (char === '\n' || char === '|' || char === ';' || char === ',')) {
+    if (parenDepth === 0 && bracketDepth === 0 && (char === '\n' || char === '|' || char === ';')) {
       if (current.trim()) {
         rawItems.push(current.trim());
       }

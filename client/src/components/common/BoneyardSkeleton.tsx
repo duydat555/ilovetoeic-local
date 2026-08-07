@@ -26,12 +26,44 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
   width,
   isGrid = false,
 }) => {
-  if (!loading && children) {
+  if (!loading) {
     return <>{children}</>;
   }
 
   const baseClasses =
     'boneyard-bone relative overflow-hidden rounded-2xl bg-slate-200/80 dark:bg-surface-elevated animate-pulse motion-reduce:animate-none';
+
+  const styleObj: React.CSSProperties = {};
+  if (height !== undefined) styleObj.height = typeof height === 'number' ? `${height}px` : height;
+  if (width !== undefined) styleObj.width = typeof width === 'number' ? `${width}px` : width;
+
+  const renderCardSkeleton = (key: React.Key) => (
+    <div
+      key={key}
+      aria-hidden="true"
+      className={`surface relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line p-5 shadow-2xs animate-pulse ${className}`.trim()}
+      style={styleObj.height ? { height: styleObj.height } : { minHeight: '185px' }}
+    >
+      <div className="space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-3/5 rounded-lg bg-slate-200/90 dark:bg-surface-elevated" />
+          <div className="flex gap-1.5">
+            <div className="size-6 rounded-md bg-slate-200/90 dark:bg-surface-elevated" />
+            <div className="size-6 rounded-md bg-slate-200/90 dark:bg-surface-elevated" />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <div className="h-4 w-20 rounded-md bg-slate-200/70 dark:bg-surface-elevated/70" />
+          <div className="h-4 w-24 rounded-md bg-slate-200/70 dark:bg-surface-elevated/70" />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 pt-4">
+        <div className="h-9 rounded-xl bg-slate-200/90 dark:bg-surface-elevated" />
+        <div className="h-9 rounded-xl bg-slate-200/90 dark:bg-surface-elevated" />
+      </div>
+      <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 dark:via-white/10 to-transparent animate-[shimmer_1.8s_infinite]" />
+    </div>
+  );
 
   const getVariantStyle = () => {
     switch (variant) {
@@ -40,9 +72,7 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
       case 'text':
         return 'h-4 w-full rounded-lg';
       case 'button':
-        return 'h-10 w-28 rounded-xl';
-      case 'card':
-        return 'h-32 w-full rounded-2xl border border-line bg-surface';
+        return 'h-9 w-24 rounded-full';
       case 'row':
         return 'h-14 w-full rounded-xl border border-line bg-surface';
       default:
@@ -50,20 +80,22 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
     }
   };
 
-  const styleObj: React.CSSProperties = {};
-  if (height !== undefined) styleObj.height = typeof height === 'number' ? `${height}px` : height;
-  if (width !== undefined) styleObj.width = typeof width === 'number' ? `${width}px` : width;
+  const skeletonItems = Array.from({ length: count }, (_, idx) => {
+    if (variant === 'card') {
+      return renderCardSkeleton(idx);
+    }
 
-  const skeletonItems = Array.from({ length: count }, (_, idx) => (
-    <div
-      key={idx}
-      aria-hidden="true"
-      className={`${baseClasses} ${getVariantStyle()} ${className}`.trim()}
-      style={styleObj}
-    >
-      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/40 dark:via-white/5 to-transparent animate-[shimmer_1.8s_infinite]" />
-    </div>
-  ));
+    return (
+      <div
+        key={idx}
+        aria-hidden="true"
+        className={`${baseClasses} ${getVariantStyle()} ${className}`.trim()}
+        style={styleObj}
+      >
+        <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/50 dark:via-white/10 to-transparent animate-[shimmer_1.8s_infinite]" />
+      </div>
+    );
+  });
 
   let renderNodes: React.ReactNode;
   if (count <= 1) {
@@ -79,7 +111,7 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
   try {
     return (
       <BoneyardReactSkeleton name={name} loading={loading} fallback={renderNodes}>
-        {children || renderNodes}
+        {renderNodes}
       </BoneyardReactSkeleton>
     );
   } catch {

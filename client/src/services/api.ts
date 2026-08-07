@@ -417,7 +417,19 @@ function parseKeyVocabulary(tuVung: string | undefined | null): { word: string; 
       }
     }
 
-    // Định dạng 2: Nghĩa nằm trong ngoặc đơn ở cuối từ
+    // Định dạng 2: Loại từ trong ngoặc theo sau là nghĩa tiếng Việt không có dấu hai chấm
+    // Ví dụ: "kneel (v) quỳ" hoặc "commute to work (phr) đi làm"
+    const matchPosInline = itemStr.match(/^(.+?\s*\((?:v|n|adj|adv|phr|prep|conj|pron|num)\))\s+(.+)$/i);
+    if (matchPosInline) {
+      const word = matchPosInline[1].trim();
+      const meaning = matchPosInline[2].trim();
+      if (word) {
+        items.push({ word, meaning });
+        continue;
+      }
+    }
+
+    // Định dạng 3: Nghĩa nằm trong ngoặc đơn ở cuối từ
     // Ví dụ: "promoted (được thăng chức)" hoặc "revenue growth (tăng trưởng doanh thu)"
     const matchParen = itemStr.match(/^(.+?)\s*\(([^)]+)\)$/);
     if (matchParen) {
@@ -580,12 +592,16 @@ function formatQuestionObject(q: any): Question {
   const hasPassageText = Boolean(q.passage_text);
   const isPassageQuestion = hasPassageId || hasPassageText;
 
-  // questionTranslation: chỉ lấy cleanPromptTranslation từ dich_nghia_dap_an
-  // Với Part 6/7 KHÔNG fallback vào dich_nghia (đó là bản dịch đoạn văn, không phải câu hỏi)
-  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an || (isPassageQuestion ? undefined : q.dich_nghia));
+  // Kết hợp dich_nghia_dap_an và explanation_en: cái nào null/rỗng thì dùng cái còn lại
+  const optionsRawSource = q.dich_nghia_dap_an || q.explanation_en || (isPassageQuestion ? undefined : q.dich_nghia);
+
+  const parsedOptions = parseOptionsTranslation(optionsRawSource);
   const finalQuestionTranslation = parsedOptions.cleanPromptTranslation
     || (isPassageQuestion ? undefined : q.dich_nghia)
     || undefined;
+
+  // explanationEn: kết hợp explanation_en và dich_nghia_dap_an (cái nào null thì lấy cái còn lại)
+  const finalExplanationEn = q.explanation_en || q.dich_nghia_dap_an || undefined;
 
   // passageTranslation = bản dịch ĐOẠN VĂN
   // - Câu hỏi thuộc passage: dùng q.dich_nghia (toàn bộ bản dịch đoạn văn)
@@ -607,6 +623,7 @@ function formatQuestionObject(q: any): Question {
     choices,
     correctAnswer: q.correct_answer || 'A',
     explanation: downloadedExplanation || 'Không có giải thích chi tiết.',
+    explanationEn: finalExplanationEn,
     evidence: parseQuestionEvidence(q.explanation_vi),
     transcript: q.transcript || undefined,
     passageTranslation: passageTranslationRaw,
@@ -617,7 +634,7 @@ function formatQuestionObject(q: any): Question {
       ? q.format_status
       : undefined,
     questionTranslation: finalQuestionTranslation,
-    optionsTranslation: q.dich_nghia_dap_an || undefined,
+    optionsTranslation: q.dich_nghia_dap_an || q.explanation_en || undefined,
     optionsTranslationMap: parsedOptions.map,
     optionsTranslationItems: parsedOptions.items,
     keyVocabulary: parseKeyVocabulary(q.tu_vung),

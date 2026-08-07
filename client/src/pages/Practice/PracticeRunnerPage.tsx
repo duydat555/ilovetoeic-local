@@ -41,7 +41,7 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
-import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, formatExplanationText, getEffectiveQuestionTranslation, stripChoicePrefix } from '../../utils/practice';
+import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getEffectiveQuestionTranslation, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
@@ -624,11 +624,11 @@ export const PracticeRunnerPage: React.FC = () => {
                         </div>
                         {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
                           <div className="mt-2.5">
-                            <PassageContent html={currentGroup.transcript} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
+                            <PassageContent html={cleanTranscriptSpacing(currentGroup.transcript)} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
                           </div>
                         ) : (
                           <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                            {currentGroup.transcript}
+                            {cleanTranscriptSpacing(currentGroup.transcript)}
                           </p>
                         )}
                       </div>
@@ -645,15 +645,51 @@ export const PracticeRunnerPage: React.FC = () => {
                             <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
                           </div>
                           <PassageContent
-                            html={
+                            html={cleanTranscriptSpacing(
                               currentGroup.passageTranslationHtml ||
                               currentGroup.passageTranslation ||
                               currentGroup.questions[0]?.passageTranslation ||
                               currentGroup.questions[0]?.questionTranslation ||
                               ''
-                            }
+                            )}
                             className="text-sm leading-7 text-slate-700 dark:text-content-muted"
                           />
+                        </div>
+                      )}
+                      {/* Từ vựng cần học dùng chung cho bài nghe */}
+                      {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
+                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
+                          <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-300">
+                            <span className="flex items-center gap-1.5">
+                              <Sparkles className="size-3.5 text-amber-500" />
+                              <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {currentGroup.keyVocabulary.map((item) => (
+                              <div
+                                key={item.word}
+                                className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
+                              >
+                                <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                {user && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                    title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
+                                      savedVocabWords[item.word]
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                                    }`}
+                                  >
+                                    {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </section>
@@ -690,6 +726,41 @@ export const PracticeRunnerPage: React.FC = () => {
                               || 'Bản dịch cho đoạn văn này đang được cập nhật.'
                         }
                       />
+                      {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
+                        <div className="mt-3.5 border-t border-line pt-3">
+                          <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-accent-strong">
+                            <span className="flex items-center gap-1.5">
+                              <Sparkles className="size-3.5 text-amber-500" />
+                              <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {currentGroup.keyVocabulary.map((item) => (
+                              <div
+                                key={item.word}
+                                className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
+                              >
+                                <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                {user && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                    title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
+                                      savedVocabWords[item.word]
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                                    }`}
+                                  >
+                                    {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -734,7 +805,7 @@ export const PracticeRunnerPage: React.FC = () => {
                         ))}
 
                         {currentGroupChecked && question.evidence && (
-                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} />
+                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
                         )}
 
                         {currentGroupChecked && !question.evidence && (
@@ -800,7 +871,17 @@ export const PracticeRunnerPage: React.FC = () => {
                                 {cleanExplanationText(question.explanation)}
                               </p>
                             )}
-                            {question.keyVocabulary && question.keyVocabulary.length > 0 && (
+
+                            {question.explanationEn && (
+                              <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+                                <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+                                  <Languages className="size-3.5" />
+                                  <span>Dịch nghĩa:</span>
+                                </div>
+                                <div className="whitespace-pre-line text-sm leading-relaxed">{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
+                              </div>
+                            )}
+                             {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
                               <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
                                 <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
                                   <span className="flex items-center gap-1.5">
@@ -913,11 +994,11 @@ export const PracticeRunnerPage: React.FC = () => {
                         </div>
                         {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
                           <div className="mt-2.5">
-                            <PassageContent html={currentGroup.transcript} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
+                            <PassageContent html={cleanTranscriptSpacing(currentGroup.transcript)} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
                           </div>
                         ) : (
                           <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                            {currentGroup.transcript}
+                            {cleanTranscriptSpacing(currentGroup.transcript)}
                           </p>
                         )}
                       </div>
@@ -934,13 +1015,13 @@ export const PracticeRunnerPage: React.FC = () => {
                             <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
                           </div>
                           <PassageContent
-                            html={
+                            html={cleanTranscriptSpacing(
                               currentGroup.passageTranslationHtml ||
                               currentGroup.passageTranslation ||
                               currentGroup.questions[0]?.passageTranslation ||
                               currentGroup.questions[0]?.questionTranslation ||
                               ''
-                            }
+                            )}
                             className="text-sm leading-7 text-slate-700 dark:text-content-muted"
                           />
                         </div>
@@ -1001,7 +1082,7 @@ export const PracticeRunnerPage: React.FC = () => {
                       ))}
 
                         {currentGroupChecked && question.evidence && (
-                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} />
+                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
                         )}
 
                         {currentGroupChecked && !question.evidence && (
@@ -1068,7 +1149,17 @@ export const PracticeRunnerPage: React.FC = () => {
                              </p>
                            )}
 
-                          {question.keyVocabulary && question.keyVocabulary.length > 0 && (
+                           {question.explanationEn && (
+                             <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+                               <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+                                 <Languages className="size-3.5" />
+                                 <span>Dịch nghĩa:</span>
+                               </div>
+                               <div className="whitespace-pre-line text-sm leading-relaxed">{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
+                             </div>
+                           )}
+
+                           {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
                             <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
                               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
                                 <span className="flex items-center gap-1.5">

@@ -20,7 +20,7 @@ def get_full_test(test_id: str):
     questions = db.fetch_all("""
         SELECT id, test_id, passage_id, part, section, question_number, audio_url, image_url,
                question_text, option_a, option_b, option_c, option_d, correct_answer,
-               explanation_vi, dich_nghia, tu_vung, dich_nghia_dap_an, difficulty_level, order_index
+               explanation_vi, explanation_en, dich_nghia, tu_vung, dich_nghia_dap_an, difficulty_level, order_index
         FROM questions 
         WHERE test_id = ? 
         ORDER BY question_number ASC
@@ -61,7 +61,7 @@ def get_test_part(test_id: str, part_num: int):
     questions = db.fetch_all("""
         SELECT id, test_id, passage_id, part, section, question_number, audio_url, image_url,
                question_text, option_a, option_b, option_c, option_d, correct_answer,
-               explanation_vi, dich_nghia, tu_vung, dich_nghia_dap_an, difficulty_level, order_index
+               explanation_vi, explanation_en, dich_nghia, tu_vung, dich_nghia_dap_an, difficulty_level, order_index
         FROM questions 
         WHERE test_id = ? AND part = ? 
         ORDER BY question_number ASC

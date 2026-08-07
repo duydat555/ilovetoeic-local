@@ -61,6 +61,51 @@ export interface LearningLesson {
   score?: number;
 }
 
+
+export interface ActivityItem {
+  id: string;
+  type: 'vocab' | 'part2' | 'part5' | 'mistake' | 'quicktest';
+  title: string;
+  description: string;
+  estimatedMinutes: number;
+  questionCount: number;
+  completed: boolean;
+  score?: number;
+}
+
+export interface SkillWeakness {
+  id: string;
+  name: string;
+  accuracy: number;
+  part: string;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  iconName: string; // Award, Medal, Trophy, Flame, BadgeCheck
+  unlocked: boolean;
+  unlockedDate?: string;
+}
+
+export interface LearningStage {
+  id: number;
+  title: string;
+  description: string;
+  lessons: LearningLesson[];
+}
+
+export interface LearningLesson {
+  id: string;
+  title: string;
+  skill: 'Listening' | 'Reading' | 'Vocabulary' | 'Grammar';
+  durationMinutes: number;
+  exerciseCount: number;
+  status: 'locked' | 'in_progress' | 'completed';
+  score?: number;
+}
+
 export interface QuestionChoice {
   id: 'A' | 'B' | 'C' | 'D';
   text: string;
@@ -91,6 +136,7 @@ export interface Question {
   choices: QuestionChoice[];
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
+  explanationEn?: string;
   evidence?: QuestionEvidence;
   transcript?: string;
   passageTranslation?: string;

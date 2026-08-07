@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Question } from '../../types';
-import { cleanExplanationText, getEffectiveQuestionTranslation } from '../../utils/practice';
+import { cleanExplanationText, cleanTranscriptSpacing, getEffectiveQuestionTranslation } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 
@@ -117,7 +117,7 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
 
       {/* Khối bằng chứng (Evidence) nếu có */}
       {question.evidence && (
-        <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} />
+        <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
       )}
 
       {/* Khối gộp Dịch nghĩa câu hỏi & phương án (Nền xanh lá nhạt) */}
@@ -180,6 +180,14 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
         <div className="whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
           <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Giải thích chi tiết</div>
           <div>{explanationText}</div>
+        </div>
+      )}
+
+      {/* Khối Dịch nghĩa */}
+      {question.explanationEn && (
+        <div className="mt-3 whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
+          <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Dịch nghĩa</div>
+          <div>{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
         </div>
       )}
 

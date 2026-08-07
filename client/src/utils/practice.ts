@@ -11,10 +11,28 @@ export interface PracticeGroup {
   passageTranslationHtml?: string;
   passageTranslationFormatStatus?: PassageFormatStatus;
   transcript?: string;
+  keyVocabulary?: { word: string; meaning: string }[];
 }
 
 const normalizeSharedContent = (value?: string) =>
   value?.replace(/\s+/g, ' ').trim().toLowerCase();
+
+const mergeKeyVocab = (
+  existing?: { word: string; meaning: string }[],
+  incoming?: { word: string; meaning: string }[],
+) => {
+  if (!incoming || incoming.length === 0) return existing;
+  if (!existing || existing.length === 0) return incoming;
+  const seen = new Set(existing.map((v) => v.word.toLowerCase()));
+  const merged = [...existing];
+  for (const item of incoming) {
+    if (!seen.has(item.word.toLowerCase())) {
+      seen.add(item.word.toLowerCase());
+      merged.push(item);
+    }
+  }
+  return merged;
+};
 
 const getSharedKey = (question: Question) => {
   // Passage identity is the strongest grouping signal. Some imported sources
@@ -54,6 +72,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
       previous.passageTranslationHtml ||= question.passageTranslationHtml;
       previous.passageTranslationFormatStatus ||= question.passageTranslationFormatStatus;
       previous.transcript ||= question.transcript;
+      previous.keyVocabulary = mergeKeyVocab(previous.keyVocabulary, question.keyVocabulary);
       continue;
     }
 
@@ -68,6 +87,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
       passageTranslationHtml: question.passageTranslationHtml,
       passageTranslationFormatStatus: question.passageTranslationFormatStatus,
       transcript: question.transcript,
+      keyVocabulary: question.keyVocabulary,
     });
   }
 
@@ -165,4 +185,16 @@ export const cleanExplanationText = (text: string | undefined | null): string =>
   }
 
   return formatExplanationText(cleaned);
+};
+
+/**
+ * Làm sạch khoảng trắng và các dòng trống thừa trùng lặp trong transcript / bản dịch transcript
+ */
+export const cleanTranscriptSpacing = (text?: string | null): string => {
+  if (!text) return '';
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/<p>\s*(?:<br\s*\/?>|&nbsp;|\s*)*<\/p>/gi, '')
+    .replace(/\n\s*\n+/g, '\n')
+    .trim();
 };

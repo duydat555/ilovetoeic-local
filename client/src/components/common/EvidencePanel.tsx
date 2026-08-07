@@ -1,10 +1,12 @@
 import React, { useId, useState } from 'react';
-import { BookMarked, ChevronDown, Quote } from 'lucide-react';
+import { BookMarked, ChevronDown, Quote, Languages } from 'lucide-react';
 import { QuestionEvidence } from '../../types';
+import { cleanExplanationText, cleanTranscriptSpacing } from '../../utils/practice';
 
 interface EvidencePanelProps {
   evidence: QuestionEvidence;
   questionNumber?: number;
+  explanationEn?: string;
 }
 
 const splitCitationTranslation = (text: string) => {
@@ -26,7 +28,11 @@ const splitParaphrase = (text: string) => {
   };
 };
 
-export const EvidencePanel: React.FC<EvidencePanelProps> = ({ evidence, questionNumber }) => {
+export const EvidencePanel: React.FC<EvidencePanelProps> = ({
+  evidence,
+  questionNumber,
+  explanationEn,
+}) => {
   const [isOpen, setIsOpen] = useState(true);
   const panelId = useId();
   const paraphrasePair = evidence.paraphrase ? splitParaphrase(evidence.paraphrase) : null;
@@ -112,6 +118,18 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({ evidence, question
                   {evidence.paraphrase}
                 </p>
               )}
+            </div>
+          )}
+
+          {explanationEn && (
+            <div className="mt-4 rounded-xl border border-brand-200 bg-brand-50/70 p-3.5 dark:border-brand-900 dark:bg-brand-950/25">
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-brand-700 dark:text-brand-200">
+                <Languages className="size-3.5" />
+                <span>Dịch nghĩa</span>
+              </div>
+              <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
+                {cleanTranscriptSpacing(cleanExplanationText(explanationEn) || explanationEn)}
+              </p>
             </div>
           )}
         </div>

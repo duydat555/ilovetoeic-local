@@ -186,8 +186,13 @@ export const apiService = {
                     ? passageParts.join('<hr class="passage-separator" />')
                     : p.title;
                 }
-                if (!formatted.passageTranslation && (p.dich_nghia || p.explanation_vi)) {
-                  formatted.passageTranslation = p.dich_nghia || p.explanation_vi;
+                // passageTranslation: bảng passages không có dich_nghia riêng.
+                // Dùng q.dich_nghia (bản dịch đoạn văn lưu ở từng câu hỏi) khi chưa có.
+                if (!formatted.passageTranslation) {
+                  const qDichNghia = q.dich_nghia || q.explanation_vi;
+                  if (qDichNghia) {
+                    formatted.passageTranslation = qDichNghia;
+                  }
                 }
                 const sourcePassageParts = [p.passage_text, p.passage_text_2, p.passage_text_3];
                 const translatedHtmlParts = [
@@ -571,8 +576,23 @@ function formatQuestionObject(q: any): Question {
     choices.push({ id: 'D', text: q.option_d || '(D)' });
   }
 
-  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an || q.dich_nghia);
-  const finalQuestionTranslation = parsedOptions.cleanPromptTranslation || q.dich_nghia || undefined;
+  const hasPassageId = Boolean(q.passage_id);
+  const hasPassageText = Boolean(q.passage_text);
+  const isPassageQuestion = hasPassageId || hasPassageText;
+
+  // questionTranslation: chỉ lấy cleanPromptTranslation từ dich_nghia_dap_an
+  // Với Part 6/7 KHÔNG fallback vào dich_nghia (đó là bản dịch đoạn văn, không phải câu hỏi)
+  const parsedOptions = parseOptionsTranslation(q.dich_nghia_dap_an || (isPassageQuestion ? undefined : q.dich_nghia));
+  const finalQuestionTranslation = parsedOptions.cleanPromptTranslation
+    || (isPassageQuestion ? undefined : q.dich_nghia)
+    || undefined;
+
+  // passageTranslation = bản dịch ĐOẠN VĂN
+  // - Câu hỏi thuộc passage: dùng q.dich_nghia (toàn bộ bản dịch đoạn văn)
+  // - Câu hỏi standalone: không có passageTranslation riêng
+  const passageTranslationRaw = isPassageQuestion
+    ? (q.dich_nghia || q.explanation_vi || undefined)
+    : undefined;
 
   return {
     id: q.id,
@@ -589,7 +609,7 @@ function formatQuestionObject(q: any): Question {
     explanation: downloadedExplanation || 'Không có giải thích chi tiết.',
     evidence: parseQuestionEvidence(q.explanation_vi),
     transcript: q.transcript || undefined,
-    passageTranslation: q.dich_nghia_html || q.dich_nghia || q.explanation_vi || undefined,
+    passageTranslation: passageTranslationRaw,
     passageTranslationHtml: q.format_status === 'done'
       ? q.passage_text_vi_html || undefined
       : undefined,

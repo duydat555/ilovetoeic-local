@@ -41,7 +41,7 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
-import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, formatExplanationText, stripChoicePrefix } from '../../utils/practice';
+import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, formatExplanationText, getEffectiveQuestionTranslation, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
@@ -617,13 +617,45 @@ export const PracticeRunnerPage: React.FC = () => {
                     <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
-                    <section id="shared-transcript" className="rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
-                      <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-                        <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
+                    <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
+                          <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
+                        </div>
+                        {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
+                          <div className="mt-2.5">
+                            <PassageContent html={currentGroup.transcript} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
+                          </div>
+                        ) : (
+                          <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
+                            {currentGroup.transcript}
+                          </p>
+                        )}
                       </div>
-                      <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                        {currentGroup.transcript}
-                      </p>
+
+                      {/* Dịch nghĩa tiếng Việt của Transcript */}
+                      {Boolean(
+                        currentGroup.passageTranslation ||
+                        currentGroup.passageTranslationHtml ||
+                        currentGroup.questions[0]?.passageTranslation ||
+                        currentGroup.questions[0]?.questionTranslation
+                      ) && (
+                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
+                          <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
+                            <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
+                          </div>
+                          <PassageContent
+                            html={
+                              currentGroup.passageTranslationHtml ||
+                              currentGroup.passageTranslation ||
+                              currentGroup.questions[0]?.passageTranslation ||
+                              currentGroup.questions[0]?.questionTranslation ||
+                              ''
+                            }
+                            className="text-sm leading-7 text-slate-700 dark:text-content-muted"
+                          />
+                        </div>
+                      )}
                     </section>
                   )}
                   {currentGroup.imageUrl && (
@@ -710,16 +742,16 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {(question.questionTranslation || question.passageTranslation || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
+                            {(getEffectiveQuestionTranslation(question) || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
                               <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
                                 <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
                                   <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                   <span>Dịch nghĩa câu hỏi & phương án:</span>
                                 </div>
 
-                                {cleanQuestionTranslation(question.questionTranslation || question.passageTranslation) && (
+                                {getEffectiveQuestionTranslation(question) && (
                                   <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
-                                    "{cleanQuestionTranslation(question.questionTranslation || question.passageTranslation)}"
+                                    "{getEffectiveQuestionTranslation(question)}"
                                   </p>
                                 )}
 
@@ -874,13 +906,45 @@ export const PracticeRunnerPage: React.FC = () => {
                     <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
-                    <section id="shared-transcript" className="rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
-                      <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-                        <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
+                    <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
+                          <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
+                        </div>
+                        {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
+                          <div className="mt-2.5">
+                            <PassageContent html={currentGroup.transcript} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
+                          </div>
+                        ) : (
+                          <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
+                            {currentGroup.transcript}
+                          </p>
+                        )}
                       </div>
-                      <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                        {currentGroup.transcript}
-                      </p>
+
+                      {/* Dịch nghĩa tiếng Việt của Transcript */}
+                      {Boolean(
+                        currentGroup.passageTranslation ||
+                        currentGroup.passageTranslationHtml ||
+                        currentGroup.questions[0]?.passageTranslation ||
+                        currentGroup.questions[0]?.questionTranslation
+                      ) && (
+                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
+                          <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
+                            <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
+                          </div>
+                          <PassageContent
+                            html={
+                              currentGroup.passageTranslationHtml ||
+                              currentGroup.passageTranslation ||
+                              currentGroup.questions[0]?.passageTranslation ||
+                              currentGroup.questions[0]?.questionTranslation ||
+                              ''
+                            }
+                            className="text-sm leading-7 text-slate-700 dark:text-content-muted"
+                          />
+                        </div>
+                      )}
                     </section>
                   )}
                   {currentGroup.imageUrl && (
@@ -945,16 +1009,16 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {(question.questionTranslation || question.passageTranslation || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
+                            {(getEffectiveQuestionTranslation(question) || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
                               <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
                                 <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
                                   <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                   <span>Dịch nghĩa câu hỏi & phương án:</span>
                                 </div>
 
-                                {cleanQuestionTranslation(question.questionTranslation || question.passageTranslation) && (
+                                {getEffectiveQuestionTranslation(question) && (
                                   <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
-                                    "{cleanQuestionTranslation(question.questionTranslation || question.passageTranslation)}"
+                                    "{getEffectiveQuestionTranslation(question)}"
                                   </p>
                                 )}
 

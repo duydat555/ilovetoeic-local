@@ -73,6 +73,7 @@ export const ResizableSplitPane: React.FC<ResizableSplitPaneProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dividerRef = useRef<HTMLDivElement>(null);
   const livePercentRef = useRef(leftPercent);
   const preferredPercentRef = useRef(leftPercent);
   const resetTimerRef = useRef<number | null>(null);
@@ -171,6 +172,8 @@ export const ResizableSplitPane: React.FC<ResizableSplitPaneProps> = ({
     const finishDragging = () => {
       commitPercent(livePercentRef.current);
       setIsDragging(false);
+      // Blur the divider so it doesn't stay highlighted after dragging
+      dividerRef.current?.blur();
     };
 
     window.addEventListener('pointermove', moveDivider);
@@ -237,6 +240,7 @@ export const ResizableSplitPane: React.FC<ResizableSplitPaneProps> = ({
       <div className={`min-w-0 lg:h-full lg:min-h-0 ${leftPaneClassName}`}>{left}</div>
 
       <div
+        ref={dividerRef}
         role="separator"
         aria-label={dividerLabel}
         aria-orientation="vertical"
@@ -249,10 +253,10 @@ export const ResizableSplitPane: React.FC<ResizableSplitPaneProps> = ({
         onPointerDown={startDragging}
         onDoubleClick={reset}
         onKeyDown={handleKeyboardResize}
-        className="group relative hidden h-full touch-none cursor-col-resize items-stretch justify-center outline-none lg:flex"
+        className="group relative hidden h-full touch-none cursor-col-resize items-stretch justify-center outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 lg:flex"
       >
         <div
-          className={`h-full w-1 rounded-full transition-colors duration-150 group-hover:bg-brand-300 group-focus-visible:bg-brand-400 dark:group-hover:bg-brand-700 ${
+          className={`h-full w-1 rounded-full transition-colors duration-150 group-hover:bg-brand-300 dark:group-hover:bg-brand-700 ${
             isDragging ? 'bg-brand-400 dark:bg-brand-600' : 'bg-slate-200 dark:bg-line'
           }`}
         />

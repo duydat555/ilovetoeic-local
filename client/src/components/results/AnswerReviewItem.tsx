@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Question } from '../../types';
-import { cleanExplanationText, cleanQuestionTranslation } from '../../utils/practice';
+import { cleanExplanationText, getEffectiveQuestionTranslation } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 
@@ -31,9 +31,7 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
 }) => {
   const [passageExpanded, setPassageExpanded] = useState(false);
 
-  const promptTranslation = cleanQuestionTranslation(
-    question.questionTranslation || question.passageTranslation
-  );
+  const promptTranslation = getEffectiveQuestionTranslation(question);
   const explanationText = cleanExplanationText(question.explanation);
   const isReadingPart = question.partId >= 5;
 

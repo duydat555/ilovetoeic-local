@@ -121,6 +121,15 @@ export const cleanQuestionTranslation = (text: string | undefined | null): strin
 };
 
 /**
+ * Lấy phần dịch nghĩa cho riêng câu hỏi (không bao giờ lấy passageTranslation vì
+ * passageTranslation = bản dịch đoạn văn dùng cho nút "Xem bản dịch" bên trái,
+ * còn questionTranslation = bản dịch câu hỏi + phương án hiển thị bên phải)
+ */
+export const getEffectiveQuestionTranslation = (question: Question): string => {
+  return cleanQuestionTranslation(question.questionTranslation);
+};
+
+/**
  * Làm sạch văn bản giải thích, loại bỏ phần lặp lại câu hỏi dịch nghĩa và phương án đáp án ở đầu
  */
 export const cleanExplanationText = (text: string | undefined | null): string => {

@@ -198,3 +198,58 @@ export const cleanTranscriptSpacing = (text?: string | null): string => {
     .replace(/\n\s*\n+/g, '\n')
     .trim();
 };
+
+/**
+ * Trả về chuỗi bản dịch câu hỏi nếu bản dịch đó thực sự là câu hỏi riêng biệt.
+ * Nếu bản dịch câu hỏi chứa các ký hiệu lựa chọn (A), (B), (C), (D) và đã có optionsTranslationItems,
+ * hàm trả về null để tránh hiển thị lặp lại đoạn text thô gộp ở trên các thẻ đáp án.
+ */
+export const getCleanQuestionPromptTranslation = (question: Question): string | null => {
+  const rawTrans = getEffectiveQuestionTranslation(question);
+  if (!rawTrans) return null;
+
+  const hasOptionsItems = Boolean(
+    question.optionsTranslationItems && question.optionsTranslationItems.length > 0,
+  );
+  const hasChoiceInPrompt = /(?:\([A-D]\)|^[A-D][\.\:\s])/m.test(rawTrans);
+
+  if (hasOptionsItems && hasChoiceInPrompt) {
+    return null;
+  }
+
+  return rawTrans;
+};
+
+/**
+ * Trả về nội dung bản dịch nghĩa đồng bộ 100% (kết hợp câu hỏi và phương án A, B, C, D)
+ * cho giao diện hiển thị duy nhất theo mẫu thiết kế.
+ */
+export const getUnifiedQuestionTranslationText = (question: Question): string | null => {
+  const promptTrans = getCleanQuestionPromptTranslation(question);
+
+  let optionsContent = '';
+  if (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) {
+    optionsContent = question.optionsTranslationItems
+      .map((item) => `${item.choiceId}. ${item.meaning}`)
+      .join('\n');
+  } else if (question.explanationEn) {
+    optionsContent = cleanTranscriptSpacing(
+      cleanExplanationText(question.explanationEn) || question.explanationEn,
+    );
+  } else if (question.optionsTranslation) {
+    optionsContent = cleanTranscriptSpacing(question.optionsTranslation);
+  }
+
+  const parts: string[] = [];
+  if (promptTrans) {
+    parts.push(promptTrans);
+  }
+  if (optionsContent) {
+    if (!promptTrans || !promptTrans.includes(optionsContent)) {
+      parts.push(optionsContent);
+    }
+  }
+
+  const result = cleanTranscriptSpacing(parts.join('\n\n'));
+  return result || null;
+};

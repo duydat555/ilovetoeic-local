@@ -10,7 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Question } from '../../types';
-import { cleanExplanationText, cleanTranscriptSpacing, getEffectiveQuestionTranslation } from '../../utils/practice';
+import { cleanExplanationText, cleanTranscriptSpacing, getUnifiedQuestionTranslationText } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 
@@ -31,7 +31,6 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
 }) => {
   const [passageExpanded, setPassageExpanded] = useState(false);
 
-  const promptTranslation = getEffectiveQuestionTranslation(question);
   const explanationText = cleanExplanationText(question.explanation);
   const isReadingPart = question.partId >= 5;
 
@@ -120,61 +119,6 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
         <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
       )}
 
-      {/* Khối gộp Dịch nghĩa câu hỏi & phương án (Nền xanh lá nhạt) */}
-      {(promptTranslation || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
-        <div className="mt-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-          <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
-            <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>Dịch nghĩa câu hỏi & phương án:</span>
-          </div>
-
-          {promptTranslation && (
-            <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
-              "{promptTranslation}"
-            </p>
-          )}
-
-          {/* Dịch nghĩa các phương án đáp án chuẩn giao diện ChoiceCard */}
-          {question.optionsTranslationItems && question.optionsTranslationItems.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              {question.optionsTranslationItems.map((item) => {
-                const isCorrectOption = item.choiceId === question.correctAnswer;
-                return (
-                  <div
-                    key={item.choiceId}
-                    className={`flex min-h-[42px] items-center gap-3 rounded-xl border px-3.5 py-2 text-xs transition-all ${
-                      isCorrectOption
-                        ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
-                        : 'border-slate-200/90 bg-white text-slate-800 dark:border-line dark:bg-surface dark:text-content'
-                    }`}
-                  >
-                    <span
-                      className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
-                        isCorrectOption
-                          ? 'bg-emerald-600 text-white shadow-2xs'
-                          : 'bg-slate-100 text-slate-700 dark:bg-surface-elevated dark:text-content-muted'
-                      }`}
-                    >
-                      {item.choiceId}
-                    </span>
-                    <span className="flex-1 leading-snug font-medium">{item.rawText}</span>
-                    {isCorrectOption && (
-                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                        <Check className="size-3 stroke-[2.5]" />
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ) : question.optionsTranslation && question.optionsTranslation !== question.questionTranslation ? (
-            <p className="mt-2 font-medium italic text-slate-800 dark:text-content">
-              "{question.optionsTranslation}"
-            </p>
-          ) : null}
-        </div>
-      )}
-
       {/* Khối Giải thích chi tiết */}
       {explanationText && (
         <div className="whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
@@ -183,11 +127,16 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
         </div>
       )}
 
-      {/* Khối Dịch nghĩa */}
-      {question.explanationEn && (
-        <div className="mt-3 whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
-          <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Dịch nghĩa</div>
-          <div>{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
+      {/* Khối Dịch nghĩa đồng bộ 100% theo Ảnh 2 */}
+      {getUnifiedQuestionTranslationText(question) && (
+        <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+          <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+            <Languages className="size-3.5" />
+            <span>Dịch nghĩa:</span>
+          </div>
+          <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">
+            {getUnifiedQuestionTranslationText(question)}
+          </div>
         </div>
       )}
 

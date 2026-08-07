@@ -41,7 +41,7 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
-import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getEffectiveQuestionTranslation, stripChoicePrefix } from '../../utils/practice';
+import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
@@ -813,72 +813,19 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {(getEffectiveQuestionTranslation(question) || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
-                                  <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                  <span>Dịch nghĩa câu hỏi & phương án:</span>
-                                </div>
-
-                                {getEffectiveQuestionTranslation(question) && (
-                                  <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
-                                    "{getEffectiveQuestionTranslation(question)}"
-                                  </p>
-                                )}
-
-                                {question.optionsTranslationItems && question.optionsTranslationItems.length > 0 ? (
-                                  <div className="mt-2.5 space-y-2">
-                                    {question.optionsTranslationItems.map((item) => {
-                                      const isCorrect = item.choiceId === question.correctAnswer;
-                                      return (
-                                        <div
-                                          key={item.choiceId}
-                                          className={`flex min-h-[42px] items-center gap-3 rounded-xl border px-3.5 py-2 text-xs transition-all ${
-                                            isCorrect
-                                              ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
-                                              : 'border-slate-200/90 bg-white text-slate-800 dark:border-line dark:bg-surface dark:text-content'
-                                          }`}
-                                        >
-                                          <span
-                                            className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
-                                              isCorrect
-                                                ? 'bg-emerald-600 text-white shadow-2xs'
-                                                : 'bg-slate-100 text-slate-700 dark:bg-surface-elevated dark:text-content-muted'
-                                            }`}
-                                          >
-                                            {item.choiceId}
-                                          </span>
-                                          <span className="flex-1 leading-snug font-medium">{item.rawText}</span>
-                                          {isCorrect && (
-                                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                                              <Check className="size-3 stroke-[2.5]" />
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : question.optionsTranslation && question.optionsTranslation !== question.questionTranslation ? (
-                                  <p className="mt-2 font-medium italic text-slate-800 dark:text-content">
-                                    "{question.optionsTranslation}"
-                                  </p>
-                                ) : null}
-                              </div>
-                            )}
-
                             {cleanExplanationText(question.explanation) && (
                               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
                                 {cleanExplanationText(question.explanation)}
                               </p>
                             )}
 
-                            {question.explanationEn && (
+                            {getUnifiedQuestionTranslationText(question) && (
                               <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
                                 <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
                                   <Languages className="size-3.5" />
                                   <span>Dịch nghĩa:</span>
                                 </div>
-                                <div className="whitespace-pre-line text-sm leading-relaxed">{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
+                                <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">{getUnifiedQuestionTranslationText(question)}</div>
                               </div>
                             )}
                              {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
@@ -1090,74 +1037,22 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            {(getEffectiveQuestionTranslation(question) || (question.optionsTranslationItems && question.optionsTranslationItems.length > 0) || question.optionsTranslation) && (
-                              <div className="mt-2.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3.5 text-xs leading-relaxed text-emerald-950 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200">
-                                <div className="flex items-center gap-1.5 font-extrabold text-emerald-800 dark:text-emerald-300">
-                                  <Languages className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                  <span>Dịch nghĩa câu hỏi & phương án:</span>
-                                </div>
-
-                                {getEffectiveQuestionTranslation(question) && (
-                                  <p className="mt-2 font-bold italic text-slate-900 dark:text-content">
-                                    "{getEffectiveQuestionTranslation(question)}"
-                                  </p>
-                                )}
-
-                                {question.optionsTranslationItems && question.optionsTranslationItems.length > 0 ? (
-                                  <div className="mt-2.5 space-y-2">
-                                    {question.optionsTranslationItems.map((item) => {
-                                      const isCorrect = item.choiceId === question.correctAnswer;
-                                      return (
-                                        <div
-                                          key={item.choiceId}
-                                          className={`flex min-h-[42px] items-center gap-3 rounded-xl border px-3.5 py-2 text-xs transition-all ${
-                                            isCorrect
-                                              ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 font-semibold shadow-2xs dark:border-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-200'
-                                              : 'border-slate-200/90 bg-white text-slate-800 dark:border-line dark:bg-surface dark:text-content'
-                                          }`}
-                                        >
-                                          <span
-                                            className={`flex size-7 shrink-0 items-center justify-center rounded-lg text-xs font-black transition-colors ${
-                                              isCorrect
-                                                ? 'bg-emerald-600 text-white shadow-2xs'
-                                                : 'bg-slate-100 text-slate-700 dark:bg-surface-elevated dark:text-content-muted'
-                                            }`}
-                                          >
-                                            {item.choiceId}
-                                          </span>
-                                          <span className="flex-1 leading-snug font-medium">{item.rawText}</span>
-                                          {isCorrect && (
-                                            <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-                                              <Check className="size-3 stroke-[2.5]" />
-                                            </span>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                ) : question.optionsTranslation && question.optionsTranslation !== question.questionTranslation ? (
-                                  <p className="mt-2 font-medium italic text-slate-800 dark:text-content">
-                                    "{question.optionsTranslation}"
-                                  </p>
-                                ) : null}
-                              </div>
+                            
+                            {cleanExplanationText(question.explanation) && (
+                              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
+                                {cleanExplanationText(question.explanation)}
+                              </p>
                             )}
 
-                           {cleanExplanationText(question.explanation) && (
-                             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
-                               {cleanExplanationText(question.explanation)}
-                             </p>
-                           )}
-
-                           {question.explanationEn && (
-                             <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
-                               <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
-                                 <Languages className="size-3.5" />
-                                 <span>Dịch nghĩa:</span>
-                               </div>
-                               <div className="whitespace-pre-line text-sm leading-relaxed">{cleanTranscriptSpacing(cleanExplanationText(question.explanationEn) || question.explanationEn)}</div>
-                             </div>
-                           )}
+                            {getUnifiedQuestionTranslationText(question) && (
+                              <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+                                <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+                                  <Languages className="size-3.5" />
+                                  <span>Dịch nghĩa:</span>
+                                </div>
+                                <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">{getUnifiedQuestionTranslationText(question)}</div>
+                              </div>
+                            )}
 
                            {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
                             <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">

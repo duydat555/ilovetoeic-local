@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BrandLogo } from '../../components/common/BrandLogo';
 import { useAuth } from '../../context/AuthContext';
 import { getRoleHome, getUserRole } from '../../utils/rbac';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 
 const getOAuthError = () => {
   const params = new URLSearchParams(window.location.search);
@@ -26,7 +27,7 @@ export const AuthCallbackPage: React.FC = () => {
     if (isLoading || callbackError) return;
 
     if (isAuthenticated) {
-      navigate(getRoleHome(getUserRole(user)), { replace: true });
+      navigate(user?.approvalStatus === 'approved' || getUserRole(user) === 'admin' ? getRoleHome(getUserRole(user)) : '/pending-approval', { replace: true });
       return;
     }
 
@@ -74,11 +75,7 @@ export const AuthCallbackPage: React.FC = () => {
           </>
         ) : (
           <>
-            <div
-              className="mx-auto size-9 animate-spin rounded-full border-4 border-brand-100 border-t-brand"
-              role="status"
-              aria-label="Đang hoàn tất đăng nhập"
-            />
+            <BoneyardSkeleton name="oauth-callback" height={72} width="100%" />
             <h1 className="mt-5 text-xl font-bold text-slate-900 dark:text-content">
               Đang hoàn tất đăng nhập
             </h1>

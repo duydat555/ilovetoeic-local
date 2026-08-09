@@ -16,7 +16,6 @@ export const ADMIN_FEATURE_STATUS: Record<string, AdminFeatureStatus> = {
     description: 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.',
   },
   '/admin/classes': { route: '/admin/classes', status: 'ready', title: 'Quản lý lớp học', iconKey: 'school', description: 'Quản lý lớp học và học viên.' },
-  '/admin/homework': { route: '/admin/homework', status: 'ready', title: 'Bài tập về nhà', iconKey: 'clipboard', description: 'Tạo và theo dõi bài tập về nhà.' },
   '/admin/accounts': { route: '/admin/accounts', status: 'ready', title: 'Quản lý tài khoản', iconKey: 'users', description: 'Quản lý tài khoản học viên.' },
   '/admin/features': {
     route: '/admin/features', status: 'ready', title: 'Quản lý tính năng', iconKey: 'wrench',

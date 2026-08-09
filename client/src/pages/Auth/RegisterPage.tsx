@@ -89,7 +89,7 @@ export const RegisterPage: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      navigate(getRoleHome(getUserRole(user)), { replace: true });
+      navigate(user.approvalStatus === 'approved' || getUserRole(user) === 'admin' ? getRoleHome(getUserRole(user)) : '/pending-approval', { replace: true });
     }
   }, [isAuthenticated, isLoading, user, navigate]);
 
@@ -116,7 +116,7 @@ export const RegisterPage: React.FC = () => {
       if (result.requiresEmailConfirmation) {
         setSuccess('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận tài khoản.');
       } else {
-        navigate('/dashboard', { replace: true });
+        navigate('/pending-approval', { replace: true });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : '';

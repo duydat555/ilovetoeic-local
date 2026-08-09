@@ -80,7 +80,7 @@ def revoke_session(token: str):
     db.execute("DELETE FROM user_sessions WHERE token_hash = ?", (token_hash(token),))
 
 
-def get_current_user(
+def get_session_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ):
     if not credentials or credentials.scheme.lower() != "bearer":
@@ -98,6 +98,13 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn.")
 
+    if is_access_expired(user):
+        db.execute("DELETE FROM user_sessions WHERE user_id = ?", (user["id"],))
+        raise HTTPException(
+            status_code=401,
+            detail="Thời hạn sử dụng tài khoản đã kết thúc. Vui lòng liên hệ Giảng viên.",
+        )
+
     # Tự động gia hạn phiên đăng nhập trong DB lên 10 năm liên tục mỗi khi người dùng truy cập
     try:
         db.execute(
@@ -108,6 +115,36 @@ def get_current_user(
         pass
 
     return user
+
+
+def get_current_user(user=Depends(get_session_user)):
+    if user.get("role") != "admin" and user.get("approval_status") != "approved":
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản của bạn đang chờ Giảng viên phê duyệt.",
+        )
+    if user.get("role") != "admin" and bool(user.get("is_frozen")):
+        raise HTTPException(
+            status_code=403,
+            detail="Tài khoản đang được bảo lưu. Vui lòng liên hệ Giảng viên để mở lại.",
+        )
+    return user
+
+
+def is_access_expired(user) -> bool:
+    # A frozen account is preserving its remaining access time. Its original
+    # deadline is shifted forward by the frozen duration when it is reopened.
+    if bool(user.get("is_frozen")):
+        return False
+    expires_at = user.get("access_expires_at")
+    if not expires_at:
+        return False
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.fromisoformat(expires_at.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            return False
+    return expires_at <= datetime.utcnow()
 
 
 def normalize_date(val):
@@ -148,6 +185,11 @@ def user_payload(user):
         "name": user.get("full_name") or "Học viên TOEIC",
         "email": user.get("email") or "",
         "role": role,
+        "approvalStatus": "approved" if role == "admin" else (user.get("approval_status") or "pending"),
+        "approvedAt": user.get("approved_at").isoformat() if isinstance(user.get("approved_at"), datetime) else (str(user.get("approved_at") or "") or None),
+        "isFrozen": bool(user.get("is_frozen")),
+        "frozenAt": user.get("frozen_at").isoformat() if isinstance(user.get("frozen_at"), datetime) else (str(user.get("frozen_at") or "") or None),
+        "accessExpiresAt": user.get("access_expires_at").isoformat() if isinstance(user.get("access_expires_at"), datetime) else (str(user.get("access_expires_at") or "") or None),
         "avatar": user.get("avatar_url") or get_dicebear_avatar(user.get("full_name") or user.get("id")),
         "targetScore": int(user.get("target_score") or 750),
         "currentScore": int(user.get("current_score") or 0),

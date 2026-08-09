@@ -1,5 +1,4 @@
-import { NotificationItem, StudyAttempt, User, VocabularyWord } from '../types';
-import type { HomeworkAssignment } from '../types/management';
+import { ApprovalStatus, NotificationItem, StudyAttempt, User, VocabularyWord } from '../types';
 import type { AdminFeatureStatus } from '../config/adminFeatureStatus';
 import type { FeatureKey } from '../config/features';
 
@@ -268,6 +267,36 @@ export const authApi = {
     return authFetch<{ user: User }>('/auth/activity', { method: 'POST' });
   },
 
+  async getApprovalRequests() {
+    const response = await authFetch<{ data: Array<User & { createdAt: string }> }>('/auth/approval-requests');
+    return response.data;
+  },
+
+  async updateApproval(userId: string, status: Extract<ApprovalStatus, 'approved'>) {
+    return authFetch<{ user: User }>(`/auth/approval-requests/${encodeURIComponent(userId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  async rejectApprovalRequest(userId: string) {
+    return authFetch<{ success: boolean; deleted_user_id: string }>(
+      `/auth/approval-requests/${encodeURIComponent(userId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async updateAccountAccess(
+    userId: string,
+    action: 'freeze' | 'unfreeze' | 'set_duration',
+    durationMonths?: number,
+  ) {
+    return authFetch<{ user: User }>(`/auth/accounts/${encodeURIComponent(userId)}/access`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, duration_months: durationMonths }),
+    });
+  },
+
   googleLoginUrl(remember: boolean) {
     const params = new URLSearchParams({
       remember: String(remember),
@@ -392,37 +421,6 @@ export const backendService = {
   async deleteNotification(notificationId: string) {
     return authFetch<{ success: boolean }>(
       `/notifications/${encodeURIComponent(notificationId)}`,
-      { method: 'DELETE' },
-    );
-  },
-
-  async getHomeworkAssignments() {
-    const response = await authFetch<{ data: HomeworkAssignment[] }>('/homework');
-    return response.data;
-  },
-
-  async createHomeworkAssignment(assignment: HomeworkAssignment) {
-    const response = await authFetch<{ data: HomeworkAssignment }>('/homework', {
-      method: 'POST',
-      body: JSON.stringify(assignment),
-    });
-    return response.data;
-  },
-
-  async updateHomeworkAssignment(assignment: HomeworkAssignment) {
-    const response = await authFetch<{ data: HomeworkAssignment }>(
-      `/homework/${encodeURIComponent(assignment.id)}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify(assignment),
-      },
-    );
-    return response.data;
-  },
-
-  async deleteHomeworkAssignment(assignmentId: string) {
-    return authFetch<{ success: boolean }>(
-      `/homework/${encodeURIComponent(assignmentId)}`,
       { method: 'DELETE' },
     );
   },

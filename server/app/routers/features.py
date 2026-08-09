@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,13 +11,11 @@ router = APIRouter(prefix="/api/v1/features", tags=["Feature management"])
 
 FEATURE_KEYS = (
     "dashboard",
-    "learning_path",
     "mock_test",
     "vocabulary",
     "grammar",
     "mistake_notebook",
     "history",
-    "homework",
     "ranking",
     "profile",
     "settings",
@@ -71,16 +68,6 @@ def global_flags():
     return values
 
 
-def parse_json_list(value):
-    if isinstance(value, list):
-        return value
-    try:
-        parsed = json.loads(value or "[]")
-        return parsed if isinstance(parsed, list) else []
-    except (TypeError, json.JSONDecodeError):
-        return []
-
-
 def class_or_404(class_id: str, admin_id: str):
     row = db.fetch_one(
         """
@@ -97,17 +84,8 @@ def class_or_404(class_id: str, admin_id: str):
 
 
 def feature_impact_count(feature_key: str, class_id: str = ""):
-    if feature_key in CORE_FEATURES or feature_key in {"learning_path", "grammar"}:
+    if feature_key in CORE_FEATURES or feature_key == "grammar":
         return 0
-
-    if feature_key == "homework":
-        rows = db.fetch_all(
-            "SELECT class_ids FROM homework_assignments WHERE deadline >= CURDATE()",
-            use_cache=False,
-        )
-        if not class_id:
-            return len(rows)
-        return sum(class_id in parse_json_list(row.get("class_ids")) for row in rows)
 
     if feature_key == "ranking":
         if class_id and class_id != "all":
@@ -171,16 +149,6 @@ def feature_impact_counts(class_ids):
         class_id: {feature_key: 0 for feature_key in FEATURE_KEYS}
         for class_id in class_ids
     }
-
-    homework_rows = db.fetch_all(
-        "SELECT class_ids FROM homework_assignments WHERE deadline >= CURDATE()",
-        use_cache=False,
-    )
-    global_counts["homework"] = len(homework_rows)
-    known_class_ids = set(class_ids)
-    for row in homework_rows:
-        for class_id in known_class_ids.intersection(parse_json_list(row.get("class_ids"))):
-            class_counts[class_id]["homework"] += 1
 
     ranking_rows = db.fetch_all(
         "SELECT cm.class_id, COUNT(cm.user_id) AS total FROM class_memberships cm JOIN users u ON u.id = cm.user_id WHERE u.role = 'student' GROUP BY cm.class_id",

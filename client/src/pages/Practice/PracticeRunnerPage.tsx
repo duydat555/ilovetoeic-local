@@ -614,7 +614,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
                 <div className="flex-1 space-y-4 overflow-visible p-4 lg:overflow-y-auto">
                   {currentGroup.audioUrl && (
-                    <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
                     <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
@@ -931,7 +931,7 @@ export const PracticeRunnerPage: React.FC = () => {
                     </div>
                   )}
                   {currentGroup.audioUrl && (
-                    <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
                     <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">

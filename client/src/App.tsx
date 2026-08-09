@@ -12,11 +12,12 @@ import { FeatureRouteGuard } from './components/auth/FeatureRouteGuard';
 import { AuthLayout } from './components/auth/AuthLayout';
 import { LoginPage } from './pages/Auth/LoginPage';
 import { RegisterPage } from './pages/Auth/RegisterPage';
+import { PendingApprovalPage } from './pages/Auth/PendingApprovalPage';
+import { FrozenAccountPage } from './pages/Auth/FrozenAccountPage';
 
 const LandingPage = lazy(() => import('./pages/Landing/LandingPage').then((m) => ({ default: m.LandingPage })));
 const AuthCallbackPage = lazy(() => import('./pages/Auth/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })));
 const DashboardLivePage = lazy(() => import('./pages/Dashboard/DashboardLivePage').then((m) => ({ default: m.DashboardLivePage })));
-const LearningPathLivePage = lazy(() => import('./pages/LearningPath/LearningPathLivePage').then((m) => ({ default: m.LearningPathLivePage })));
 const PracticeRunnerPage = lazy(() => import('./pages/Practice/PracticeRunnerPage').then((m) => ({ default: m.PracticeRunnerPage })));
 const MockTestPage = lazy(() => import('./pages/MockTest/MockTestPage').then((m) => ({ default: m.MockTestPage })));
 const TestExamPage = lazy(() => import('./pages/MockTest/TestExamPage').then((m) => ({ default: m.TestExamPage })));
@@ -27,13 +28,11 @@ const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLiveP
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
 const MistakeNotebookLivePage = lazy(() => import('./pages/MistakeNotebook/MistakeNotebookLivePage').then((m) => ({ default: m.MistakeNotebookLivePage })));
 const RankingPage = lazy(() => import('./pages/Ranking/RankingPage').then((m) => ({ default: m.RankingPage })));
-const StudentHomeworkPage = lazy(() => import('./pages/Homework/StudentHomeworkPage').then((m) => ({ default: m.StudentHomeworkPage })));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ClassStudentsLivePage = lazy(() => import('./pages/Admin/ClassStudentsLivePage').then((m) => ({ default: m.ClassStudentsLivePage })));
 const StudentDetailLivePage = lazy(() => import('./pages/Admin/StudentDetailLivePage').then((m) => ({ default: m.StudentDetailLivePage })));
-const AdminHomeworkPage = lazy(() => import('./pages/Admin/AdminHomeworkPage').then((m) => ({ default: m.AdminHomeworkPage })));
 const AdminOverviewLivePage = lazy(() => import('./pages/Admin/AdminOverviewLivePage').then((m) => ({ default: m.AdminOverviewLivePage })));
 const ClassesManagementPage = lazy(() => import('./pages/Admin/ClassesManagementPage').then((m) => ({ default: m.ClassesManagementPage })));
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
@@ -64,11 +63,12 @@ export const App: React.FC = () => {
               <Route path="/register" element={<RegisterPage />} />
             </Route>
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/pending-approval" element={<PendingApprovalPage />} />
+            <Route path="/account-frozen" element={<FrozenAccountPage />} />
 
             {/* Application Dashboard Routes with Common Layout */}
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardLivePage />} />
-              <Route element={<FeatureRouteGuard feature="learning_path" />}><Route path="/learning-path" element={<LearningPathLivePage />} /></Route>
               <Route element={<FeatureRouteGuard feature="mock_test" />}>
                 <Route path="/practice/runner/:partId" element={<PracticeRunnerPage />} />
                 <Route path="/mock-test" element={<MockTestPage />} />
@@ -83,7 +83,6 @@ export const App: React.FC = () => {
               <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>
               <Route element={<FeatureRouteGuard feature="mistake_notebook" />}><Route path="/mistake-notebook" element={<MistakeNotebookLivePage />} /></Route>
               <Route element={<FeatureRouteGuard feature="ranking" />}><Route path="/ranking" element={<RankingPage />} /></Route>
-              <Route element={<FeatureRouteGuard feature="homework" />}><Route path="/homework" element={<StudentHomeworkPage />} /></Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
@@ -96,8 +95,6 @@ export const App: React.FC = () => {
                 <Route path="/admin/classes" element={<AdminFeatureRoute route="/admin/classes"><ClassesManagementPage /></AdminFeatureRoute>} />
                 <Route path="/admin/classes/:classId" element={<ClassStudentsLivePage />} />
                 <Route path="/admin/students/:studentId" element={<StudentDetailLivePage />} />
-                <Route path="/admin/homework" element={<AdminFeatureRoute route="/admin/homework"><AdminHomeworkPage /></AdminFeatureRoute>} />
-                <Route path="/admin/homework/new" element={<Navigate to="/admin/homework" replace />} />
                 <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />
               </Route>

@@ -1,7 +1,7 @@
 import json
 import re
 import uuid
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from urllib.parse import quote, urlencode, urlparse
 
 import httpx
@@ -20,7 +20,9 @@ from app.security import (
     decode_oauth_state,
     encode_oauth_state,
     get_current_user,
+    get_session_user,
     hash_password,
+    is_access_expired,
     normalize_date,
     revoke_session,
     user_payload,
@@ -49,6 +51,11 @@ class ProfileRequest(BaseModel):
     avatar: str = Field(default="", max_length=2048)
     target_score: int = Field(default=750, ge=10, le=990)
     exam_date: str = ""
+
+
+class AccountAccessRequest(BaseModel):
+    action: str
+    duration_months: int | None = Field(default=None, ge=0, le=24)
 
 
 class PasswordRequest(BaseModel):
@@ -99,12 +106,137 @@ def login(payload: LoginRequest):
     user = db.fetch_one("SELECT * FROM users WHERE email = ?", (email,), use_cache=False)
     if not user or not verify_password(payload.password, user.get("password_hash")):
         raise HTTPException(status_code=401, detail="Email hoặc mật khẩu không chính xác.")
+    if is_access_expired(user):
+        db.execute("DELETE FROM user_sessions WHERE user_id = ?", (user["id"],))
+        raise HTTPException(status_code=403, detail="Tài khoản đã hết thời hạn sử dụng. Vui lòng liên hệ Giảng viên.")
     return auth_response(user, create_session(user["id"], payload.remember))
 
 
 @router.get("/me")
-def me(user=Depends(get_current_user)):
+def me(user=Depends(get_session_user)):
     return {"user": user_payload(user)}
+
+
+def require_admin(user=Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Chỉ Giảng viên mới có thể phê duyệt tài khoản.")
+    return user
+
+
+@router.get("/approval-requests")
+def approval_requests(_admin=Depends(require_admin)):
+    rows = db.fetch_all(
+        """
+        SELECT * FROM users
+        WHERE role = 'student'
+        ORDER BY CASE approval_status WHEN 'pending' THEN 0 ELSE 1 END, created_at DESC
+        """,
+        use_cache=False,
+    )
+    return {"data": [user_payload(row) | {
+        "createdAt": row.get("created_at").isoformat() if isinstance(row.get("created_at"), datetime) else str(row.get("created_at") or ""),
+    } for row in rows]}
+
+
+@router.put("/approval-requests/{user_id}")
+def update_approval(user_id: str, payload: dict, admin=Depends(require_admin)):
+    status = str(payload.get("status") or "").strip().lower()
+    if status != "approved":
+        raise HTTPException(status_code=422, detail="Trạng thái phê duyệt không hợp lệ.")
+    target = db.fetch_one(
+        "SELECT id FROM users WHERE id = ? AND role = 'student'",
+        (user_id,),
+        use_cache=False,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh.")
+    db.execute(
+        """
+        UPDATE users
+        SET approval_status = ?,
+            approved_at = UTC_TIMESTAMP(),
+            approved_by = ?
+        WHERE id = ?
+        """,
+        (status, admin["id"], user_id),
+    )
+    updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
+    return {"user": user_payload(updated)}
+
+
+@router.delete("/approval-requests/{user_id}")
+def reject_approval(user_id: str, _admin=Depends(require_admin)):
+    target = db.fetch_one(
+        """
+        SELECT id FROM users
+        WHERE id = ? AND role = 'student' AND approval_status = 'pending'
+        """,
+        (user_id,),
+        use_cache=False,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản đang chờ phê duyệt.")
+    # Related sessions and student-owned data use ON DELETE CASCADE. The
+    # transaction ensures the account is either removed completely or retained.
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    return {"success": True, "deleted_user_id": user_id}
+
+
+@router.put("/accounts/{user_id}/access")
+def update_account_access(user_id: str, payload: AccountAccessRequest, _admin=Depends(require_admin)):
+    target = db.fetch_one(
+        "SELECT * FROM users WHERE id = ? AND role = 'student' AND approval_status = 'approved'",
+        (user_id,),
+        use_cache=False,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh đã phê duyệt.")
+    action = payload.action.strip().lower()
+    if action == "freeze":
+        db.execute(
+            "UPDATE users SET is_frozen = 1, frozen_at = COALESCE(frozen_at, UTC_TIMESTAMP()) WHERE id = ?",
+            (user_id,),
+        )
+    elif action == "unfreeze":
+        db.execute(
+            """
+            UPDATE users
+            SET access_expires_at = CASE
+                    WHEN access_expires_at IS NOT NULL AND frozen_at IS NOT NULL
+                    THEN TIMESTAMPADD(SECOND, TIMESTAMPDIFF(SECOND, frozen_at, UTC_TIMESTAMP()), access_expires_at)
+                    ELSE access_expires_at
+                END,
+                is_frozen = 0,
+                frozen_at = NULL
+            WHERE id = ?
+            """,
+            (user_id,),
+        )
+    elif action == "set_duration":
+        months = payload.duration_months
+        if months is None:
+            raise HTTPException(status_code=422, detail="Vui lòng chọn thời hạn sử dụng.")
+        db.execute(
+            """
+            UPDATE users
+            SET access_expires_at = CASE
+                    WHEN ? = 0 THEN NULL
+                    ELSE TIMESTAMPADD(MONTH, ?, UTC_TIMESTAMP())
+                END,
+                frozen_at = CASE
+                    WHEN is_frozen = 1 THEN UTC_TIMESTAMP()
+                    ELSE frozen_at
+                END
+            WHERE id = ?
+            """,
+            (months, months, user_id),
+        )
+    else:
+        raise HTTPException(status_code=422, detail="Thao tác tài khoản không hợp lệ.")
+    updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
+    return {"user": user_payload(updated)}
 
 
 @router.post("/logout")
@@ -319,6 +451,10 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
                     google_sub,
                 ),
             )
+        session_user = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
+        if session_user and is_access_expired(session_user):
+            db.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+            raise ValueError("Tài khoản đã hết thời hạn sử dụng. Vui lòng liên hệ Giảng viên.")
         session_token = create_session(user_id, remember=True)
         fragment = urlencode({
             "token": session_token,

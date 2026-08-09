@@ -13,7 +13,6 @@ from app.routers import (
     classes,
     features,
     gemini,
-    homework,
     leaderboard,
     notifications,
     practice,
@@ -53,7 +52,6 @@ app.include_router(practice.router)
 app.include_router(submissions.router)
 app.include_router(audio_proxy.router)
 app.include_router(gemini.router)
-app.include_router(homework.router)
 app.include_router(auth.router)
 app.include_router(classes.router)
 app.include_router(features.router)

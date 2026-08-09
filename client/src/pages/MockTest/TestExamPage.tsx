@@ -12,6 +12,7 @@ import {
   LockKeyhole,
   Send,
 } from 'lucide-react';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { PassageContent } from '../../components/common/PassageContent';
@@ -202,9 +203,8 @@ export const TestExamPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-        <Loader2 className="size-10 animate-spin text-brand-600" />
-        <div className="text-sm font-bold text-slate-600 dark:text-content-muted">Đang chuẩn bị đề thi...</div>
+      <div className="grid min-h-[60vh] place-items-center px-4" role="status" aria-label="Đang chuẩn bị đề thi">
+        <BoneyardSkeleton name="test-exam-shell" height={420} width="min(100%, 64rem)" />
       </div>
     );
   }
@@ -342,7 +342,7 @@ export const TestExamPage: React.FC = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                   {currentGroup.audioUrl && (
-                    <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho Questions ${firstNumber} - ${lastNumber}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho Questions ${firstNumber} - ${lastNumber}`} />
                   )}
                   {currentGroup.imageUrl && (
                     <img
@@ -440,7 +440,7 @@ export const TestExamPage: React.FC = () => {
               {(currentGroup.audioUrl || currentGroup.passageText || currentGroup.imageUrl) && (
                 <section className="surface rounded-2xl p-5 space-y-4">
                   {currentGroup.audioUrl && (
-                    <AudioPlayer audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho Questions ${firstNumber} - ${lastNumber}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho Questions ${firstNumber} - ${lastNumber}`} />
                   )}
                   {currentGroup.imageUrl && (
                     <img

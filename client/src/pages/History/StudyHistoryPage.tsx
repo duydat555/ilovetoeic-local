@@ -6,11 +6,11 @@ import {
   Clock3,
   Database,
   History,
-  Loader2,
   Target,
   Trophy,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { backendService } from '../../services/backend';
 import { StudyAttempt, StudyAttemptMode } from '../../types';
@@ -148,9 +148,7 @@ export const StudyHistoryPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="surface flex min-h-56 items-center justify-center gap-2 rounded-2xl text-sm font-semibold text-slate-500">
-          <Loader2 className="size-5 animate-spin" /> Đang tải lịch sử từ MySQL...
-        </div>
+        <BoneyardSkeleton name="study-history-list" height={320} />
       ) : error ? (
         <div className="surface rounded-2xl p-8 text-center">
           <Database className="mx-auto size-9 text-rose-500" />

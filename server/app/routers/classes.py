@@ -1,4 +1,3 @@
-import json
 import re
 import uuid
 from datetime import date, datetime
@@ -177,29 +176,13 @@ def owned_class_or_404(class_id: str, admin_id: str):
     return row
 
 
-def assignment_uses_class(class_id: str):
-    rows = db.fetch_all(
-        "SELECT class_ids FROM homework_assignments",
-        use_cache=False,
-    )
-    for row in rows:
-        value = row.get("class_ids")
-        try:
-            ids = value if isinstance(value, list) else json.loads(value or "[]")
-        except (TypeError, json.JSONDecodeError):
-            ids = []
-        if class_id in ids:
-            return True
-    return False
-
-
 def notify_student_added(student_id: str, class_id: str, name: str, code: str):
     try:
         create_notification(
             student_id,
             "system",
             f"Bạn đã tham gia lớp {name}",
-            f"Mã lớp {code}. Giáo viên sẽ giao bài và theo dõi tiến độ tại lớp này.",
+            f"Mã lớp {code}. Giáo viên sẽ theo dõi tiến độ học tập tại lớp này.",
             action_url="/dashboard",
             dedupe_key=f"class-membership:{class_id}:{student_id}",
         )
@@ -219,7 +202,7 @@ def get_available_students(_user=Depends(require_admin)):
         SELECT id, full_name, email, avatar_url, current_score, target_score,
                streak_days, last_study_date, created_at
         FROM users
-        WHERE role = 'student'
+        WHERE role = 'student' AND approval_status = 'approved'
         ORDER BY full_name ASC, email ASC
         """,
         use_cache=False,
@@ -319,11 +302,6 @@ def update_class(
 @router.delete("/{class_id}")
 def delete_class(class_id: str, user=Depends(require_admin)):
     owned_class_or_404(class_id, user["id"])
-    if assignment_uses_class(class_id):
-        raise HTTPException(
-            status_code=409,
-            detail="Không thể xóa lớp đã được dùng để giao bài. Hãy lưu trữ lớp thay thế.",
-        )
     db.execute(
         "DELETE FROM learning_classes WHERE id = ? AND created_by = ?",
         (class_id, user["id"]),

@@ -87,6 +87,72 @@ class Database:
                                 "ALTER TABLE users ADD UNIQUE KEY "
                                 "uq_users_single_admin (admin_guard)"
                             )
+                        cursor.execute("SHOW COLUMNS FROM users LIKE 'approval_status'")
+                        approval_status_created = cursor.fetchone() is None
+                        if approval_status_created:
+                            cursor.execute(
+                                "ALTER TABLE users ADD COLUMN approval_status "
+                                "ENUM('pending', 'approved', 'rejected') "
+                                "NOT NULL DEFAULT 'pending' AFTER role"
+                            )
+                        cursor.execute("SHOW COLUMNS FROM users LIKE 'approved_at'")
+                        if cursor.fetchone() is None:
+                            cursor.execute(
+                                "ALTER TABLE users ADD COLUMN approved_at DATETIME NULL "
+                                "AFTER approval_status"
+                            )
+                        cursor.execute("SHOW COLUMNS FROM users LIKE 'approved_by'")
+                        if cursor.fetchone() is None:
+                            cursor.execute(
+                                "ALTER TABLE users ADD COLUMN approved_by CHAR(36) NULL "
+                                "AFTER approved_at"
+                            )
+                        if approval_status_created:
+                            # Accounts created before approval was introduced must
+                            # keep working. New accounts retain the pending default.
+                            cursor.execute(
+                                "UPDATE users SET approval_status = 'approved', "
+                                "approved_at = COALESCE(approved_at, created_at)"
+                            )
+                        cursor.execute(
+                            "SHOW INDEX FROM users WHERE Key_name = 'idx_users_approval_status'"
+                        )
+                        if cursor.fetchone() is None:
+                            cursor.execute(
+                                "ALTER TABLE users ADD INDEX "
+                                "idx_users_approval_status (approval_status)"
+                            )
+                        # Rejected rows from older builds are no longer retained.
+                        cursor.execute(
+                            "DELETE FROM users "
+                            "WHERE role = 'student' AND approval_status = 'rejected'"
+                        )
+                        access_columns = {
+                            "is_frozen": (
+                                "ALTER TABLE users ADD COLUMN is_frozen "
+                                "TINYINT(1) NOT NULL DEFAULT 0 AFTER approved_by"
+                            ),
+                            "frozen_at": (
+                                "ALTER TABLE users ADD COLUMN frozen_at DATETIME NULL "
+                                "AFTER is_frozen"
+                            ),
+                            "access_expires_at": (
+                                "ALTER TABLE users ADD COLUMN access_expires_at DATETIME NULL "
+                                "AFTER frozen_at"
+                            ),
+                        }
+                        for column_name, statement in access_columns.items():
+                            cursor.execute("SHOW COLUMNS FROM users LIKE %s", (column_name,))
+                            if cursor.fetchone() is None:
+                                cursor.execute(statement)
+                        cursor.execute(
+                            "SHOW INDEX FROM users WHERE Key_name = 'idx_users_access_expires_at'"
+                        )
+                        if cursor.fetchone() is None:
+                            cursor.execute(
+                                "ALTER TABLE users ADD INDEX "
+                                "idx_users_access_expires_at (access_expires_at)"
+                            )
                         class_columns = {
                             "description": "ALTER TABLE learning_classes ADD COLUMN description TEXT NULL AFTER code",
                             "is_active": (

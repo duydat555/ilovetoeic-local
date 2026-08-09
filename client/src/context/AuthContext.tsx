@@ -12,6 +12,7 @@ import { storage } from '../utils/storage';
 interface AuthResult {
   requiresEmailConfirmation?: boolean;
   role: UserRole;
+  approvalStatus: User['approvalStatus'];
 }
 
 interface ProfileUpdateInput {
@@ -91,6 +92,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void refreshSession();
   }, [refreshSession]);
 
+  useEffect(() => {
+    if (!user?.accessExpiresAt || user.isFrozen) return undefined;
+    const expiresAt = new Date(user.accessExpiresAt).getTime();
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+      sessionService.clear();
+      setUser(null);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      sessionService.clear();
+      setUser(null);
+    }, Math.min(remaining, 2_147_483_647));
+    return () => window.clearTimeout(timer);
+  }, [user?.accessExpiresAt, user?.isFrozen]);
+
+  useEffect(() => {
+    if (!user || user.role === 'admin') return undefined;
+
+    const syncAccessState = () => {
+      void refreshSession();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') syncAccessState();
+    };
+    const timer = window.setInterval(syncAccessState, 30_000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshSession, user?.id, user?.role]);
+
   const login = async (
     email: string,
     password: string,
@@ -100,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionService.set(response.token, remember);
     setUser(withSyncedStudyStreak(response.user));
     setIsLoading(false);
-    return { role: response.user.role || 'student' };
+    return { role: response.user.role || 'student', approvalStatus: response.user.approvalStatus };
   };
 
   const loginWithGoogle = async (remember = true) => {
@@ -117,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionService.set(response.token, true);
     setUser(withSyncedStudyStreak(response.user));
     setIsLoading(false);
-    return { role: response.user.role || 'student' };
+    return { role: response.user.role || 'student', approvalStatus: response.user.approvalStatus };
   };
 
   const logout = async () => {

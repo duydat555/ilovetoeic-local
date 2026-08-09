@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { History, Loader2 } from 'lucide-react';
+import { History } from 'lucide-react';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { LazyAnswerReviewList } from '../../components/results/LazyAnswerReviewList';
 import { PartBreakdownList } from '../../components/results/PartBreakdownList';
 import { formatScopeDescription, ResultsHeader } from '../../components/results/ResultsHeader';
@@ -244,10 +245,7 @@ export const TestResultPage: React.FC = () => {
 
         {/* Danh sách câu hỏi xem lại Lazy Load */}
         {loadingQuestions ? (
-          <div className="flex items-center justify-center gap-2.5 py-12 text-sm font-extrabold text-content-muted">
-            <Loader2 className="size-5 animate-spin text-brand-600 dark:text-brand-400" />
-            <span>Đang tải dữ liệu xem lại...</span>
-          </div>
+          <BoneyardSkeleton name="test-result-review" height={280} />
         ) : reviewQuestions.length > 0 ? (
           <LazyAnswerReviewList
             questions={reviewQuestions}

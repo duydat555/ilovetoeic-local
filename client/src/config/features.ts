@@ -1,12 +1,10 @@
 import {
   BookMarked,
   ClipboardCheck,
-  ClipboardList,
   History,
   Languages,
   LayoutDashboard,
   LibraryBig,
-  Map as MapIcon,
   Settings,
   Trophy,
   UserRound,
@@ -14,13 +12,11 @@ import {
 
 export type FeatureKey =
   | 'dashboard'
-  | 'learning_path'
   | 'mock_test'
   | 'vocabulary'
   | 'grammar'
   | 'mistake_notebook'
   | 'history'
-  | 'homework'
   | 'ranking'
   | 'profile'
   | 'settings';
@@ -89,14 +85,6 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     icon: Settings,
   },
   {
-    key: 'learning_path',
-    name: 'Lộ trình học',
-    description: 'Hướng dẫn học theo mục tiêu và tiến độ cá nhân.',
-    category: 'learning',
-    core: false,
-    icon: MapIcon,
-  },
-  {
     key: 'mock_test',
     name: 'Đề thi',
     description: 'Kho đề thi thử và các bài luyện Part.',
@@ -137,14 +125,6 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     icon: History,
   },
   {
-    key: 'homework',
-    name: 'Bài tập về nhà',
-    description: 'Hiển thị bài được Giáo viên giao và hạn nộp.',
-    category: 'tracking',
-    core: false,
-    icon: ClipboardList,
-  },
-  {
     key: 'ranking',
     name: 'Bảng xếp hạng',
     description: 'Hiển thị xếp hạng thi đua giữa học sinh.',
@@ -162,12 +142,10 @@ const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/practice/runner', 'mock_test'],
   ['/mock-test/exam', 'mock_test'],
   ['/mistake-notebook', 'mistake_notebook'],
-  ['/learning-path', 'learning_path'],
   ['/vocabulary', 'vocabulary'],
   ['/mock-test', 'mock_test'],
   ['/grammar', 'grammar'],
   ['/history', 'history'],
-  ['/homework', 'homework'],
   ['/ranking', 'ranking'],
   ['/results', 'mock_test'],
   ['/dashboard', 'dashboard'],

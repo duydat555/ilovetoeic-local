@@ -13,6 +13,7 @@ import {
 interface AudioPlayerProps {
   audioUrl?: string;
   title?: string;
+  autoPlay?: boolean;
 }
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
@@ -21,6 +22,7 @@ const SEEK_SECONDS = 5;
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   audioUrl,
   title = 'Bài nghe TOEIC',
+  autoPlay = false,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -38,6 +40,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setDuration(0);
     setHasError(false);
   }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl || !autoPlay) return undefined;
+
+    let cancelled = false;
+    audio.currentTime = 0;
+    void audio.play().catch((error) => {
+      if (!cancelled) {
+        // Autoplay can be rejected before the browser has received a user
+        // gesture. This is not a broken media file, so keep manual play usable.
+        console.warn('[!] Audio autoplay was blocked:', error);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioUrl, autoPlay]);
 
   // Read the media clock every animation frame so the progress indicator does
   // not jump between the browser's relatively sparse `timeupdate` events.
@@ -168,6 +188,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       <audio
         ref={audioRef}
         src={audioUrl}
+        autoPlay={autoPlay}
         preload="metadata"
         onLoadedMetadata={handleLoadedMetadata}
         onDurationChange={handleLoadedMetadata}

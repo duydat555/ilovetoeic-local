@@ -1,4 +1,5 @@
 export type UserRole = 'student' | 'admin';
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 export interface User {
   id: string;
@@ -15,6 +16,11 @@ export interface User {
   longestStreak?: number;
   lastStudyDate?: string | null;
   role?: UserRole;
+  approvalStatus?: ApprovalStatus;
+  approvedAt?: string | null;
+  isFrozen?: boolean;
+  frozenAt?: string | null;
+  accessExpiresAt?: string | null;
 }
 
 export interface ActivityItem {

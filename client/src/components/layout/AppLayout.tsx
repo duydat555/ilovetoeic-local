@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SelectionTranslator } from '../common/SelectionTranslator';
 import { AdminSidebar } from './RoleSidebars';
 import { getUserRole } from '../../utils/rbac';
+import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 
 export const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -31,14 +32,22 @@ export const AppLayout: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas text-content transition-colors duration-300">
-        <div className="w-9 h-9 rounded-full border-4 border-brand-100 border-t-brand animate-spin" aria-label="Đang tải" />
+      <div className="grid min-h-[100dvh] place-items-center bg-canvas px-4" role="status" aria-label="Đang tải ứng dụng">
+        <BoneyardSkeleton name="app-layout-session" height={96} width="min(100%, 32rem)" />
       </div>
     );
   }
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  if (user && role === 'student' && user.approvalStatus !== 'approved') {
+    return <Navigate to="/pending-approval" replace />;
+  }
+
+  if (user && role === 'student' && user.isFrozen) {
+    return <Navigate to="/account-frozen" replace />;
   }
 
   const isTestRunnerPage =

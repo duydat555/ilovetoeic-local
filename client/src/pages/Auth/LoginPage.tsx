@@ -22,7 +22,7 @@ export const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
-      navigate(getRoleHome(getUserRole(user)), { replace: true });
+      navigate(user.approvalStatus === 'approved' || getUserRole(user) === 'admin' ? getRoleHome(getUserRole(user)) : '/pending-approval', { replace: true });
     }
   }, [isAuthenticated, isLoading, user, navigate]);
 
@@ -48,7 +48,7 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const result = await login(email, password, remember);
-      navigate(getRoleHome(result.role), { replace: true });
+      navigate(result.approvalStatus === 'approved' || result.role === 'admin' ? getRoleHome(result.role) : '/pending-approval', { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

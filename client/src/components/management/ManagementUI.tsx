@@ -2,7 +2,6 @@ import React, { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { LucideIcon, X } from 'lucide-react';
-import { HomeworkStatus } from '../../types/management';
 import { UserRole } from '../../types';
 import { ROLE_LABELS } from '../../utils/rbac';
 import { getModalMotion } from '../common/modalMotion';
@@ -53,24 +52,6 @@ export const StatCard: React.FC<StatCardProps> = ({ label, value, helper, icon: 
       </span>
     </div>
   </article>
-);
-
-const homeworkStyles: Record<HomeworkStatus, string> = {
-  submitted: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300',
-  missing: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-700 dark:bg-slate-500/10 dark:text-slate-300',
-  late: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-500/10 dark:text-red-300',
-};
-
-const homeworkLabels: Record<HomeworkStatus, string> = {
-  submitted: 'Đã nộp',
-  missing: 'Chưa nộp',
-  late: 'Trễ hạn',
-};
-
-export const HomeworkStatusBadge: React.FC<{ status: HomeworkStatus }> = ({ status }) => (
-  <span className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[10px] font-extrabold ${homeworkStyles[status]}`}>
-    {homeworkLabels[status]}
-  </span>
 );
 
 const roleStyles: Record<UserRole, string> = {

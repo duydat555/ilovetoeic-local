@@ -95,6 +95,12 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NULL,
     full_name VARCHAR(100) NOT NULL,
     role ENUM('student', 'admin') NOT NULL DEFAULT 'student',
+    approval_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
+    approved_at DATETIME NULL,
+    approved_by CHAR(36) NULL,
+    is_frozen TINYINT(1) NOT NULL DEFAULT 0,
+    frozen_at DATETIME NULL,
+    access_expires_at DATETIME NULL,
     admin_guard TINYINT GENERATED ALWAYS AS (
         CASE WHEN role = 'admin' THEN 1 ELSE NULL END
     ) STORED,
@@ -148,26 +154,6 @@ CREATE TABLE IF NOT EXISTS notification_preferences (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT fk_notification_preferences_user
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS homework_assignments (
-    id VARCHAR(100) PRIMARY KEY,
-    class_ids JSON NOT NULL,
-    test_id VARCHAR(100) NOT NULL,
-    scope ENUM('full', 'parts') NOT NULL DEFAULT 'full',
-    selected_parts JSON NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT NULL,
-    deadline DATE NOT NULL,
-    allow_late TINYINT(1) NOT NULL DEFAULT 0,
-    submitted_student_ids JSON NOT NULL,
-    late_student_ids JSON NOT NULL,
-    created_by CHAR(36) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_homework_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_homework_deadline (deadline),
-    INDEX idx_homework_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS test_attempts (
@@ -328,7 +314,6 @@ INSERT INTO admin_feature_statuses (
 ) VALUES
     ('/admin/overview', 'coming_soon', 'Thống kê hệ thống', 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.', 'chart', NULL, NULL, 10),
     ('/admin/classes', 'ready', 'Quản lý lớp học', 'Quản lý lớp học và học viên.', 'school', NULL, NULL, 20),
-    ('/admin/homework', 'ready', 'Bài tập về nhà', 'Tạo và theo dõi bài tập về nhà.', 'clipboard', NULL, NULL, 30),
     ('/admin/accounts', 'ready', 'Quản lý tài khoản', 'Quản lý tài khoản học viên.', 'users', NULL, NULL, 40),
     ('/admin/features', 'ready', 'Quản lý tính năng', 'Kiểm soát các trang học sinh được phép truy cập.', 'wrench', NULL, NULL, 50),
     ('/profile', 'ready', 'Hồ sơ cá nhân', 'Quản lý hồ sơ Giáo viên.', 'user', NULL, NULL, 60),
@@ -386,13 +371,11 @@ CREATE TABLE IF NOT EXISTS feature_flag_audit_logs (
 
 INSERT INTO feature_flags (feature_key, is_enabled) VALUES
     ('dashboard', 1),
-    ('learning_path', 1),
     ('mock_test', 1),
     ('vocabulary', 1),
     ('grammar', 1),
     ('mistake_notebook', 1),
     ('history', 1),
-    ('homework', 1),
     ('ranking', 1),
     ('profile', 1),
     ('settings', 1)

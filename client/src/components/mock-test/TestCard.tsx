@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Clock,
   FileText,
-  History,
   Play,
   RotateCcw,
   Trash2,
@@ -15,19 +14,20 @@ import { TestMode } from './SelectModeModal';
 interface TestCardProps {
   test: MockTestItem;
   onOpenMode?: (test: MockTestItem, mode: TestMode) => void;
-  onViewHistory?: (testId: string) => void;
+  wrongCount?: number;
+  onRetryWrong?: (test: MockTestItem) => void;
+  onDeleteWrong?: (test: MockTestItem) => void;
   variant?: 'default' | 'picker';
   selected?: boolean;
   onSelect?: (test: MockTestItem) => void;
 }
 
-const ACTION_BUTTON_CLASS =
-  'rounded-md p-1 transition-colors duration-200 ease-out';
-
 export const TestCard: React.FC<TestCardProps> = ({
   test,
   onOpenMode,
-  onViewHistory,
+  wrongCount = 0,
+  onRetryWrong,
+  onDeleteWrong,
   variant = 'default',
   selected = false,
   onSelect,
@@ -47,7 +47,7 @@ export const TestCard: React.FC<TestCardProps> = ({
     }`}
   >
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h3
           id={`test-card-title-${test.id}`}
           className="min-w-0 truncate text-base font-extrabold text-content"
@@ -55,42 +55,33 @@ export const TestCard: React.FC<TestCardProps> = ({
         >
           {test.title}
         </h3>
-
-        {!picker && <div className="flex shrink-0 items-center gap-1.5 text-content-muted">
-          <button
-            type="button"
-            aria-label={`Xóa lịch sử ${test.title}`}
-            title="Xóa lịch sử"
-            className={`${ACTION_BUTTON_CLASS} hover:bg-negative/10 hover:text-negative`}
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onViewHistory?.(test.id)}
-            aria-label={`Xem lịch sử làm bài ${test.title}`}
-            title="Lịch sử"
-            className={`${ACTION_BUTTON_CLASS} hover:bg-accent/10 hover:text-accent-strong`}
-          >
-            <History className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Làm lại ${test.title}`}
-            title="Làm lại"
-            className={`${ACTION_BUTTON_CLASS} hover:bg-accent/10 hover:text-accent-strong`}
-          >
-            <RotateCcw className="size-3.5" />
-          </button>
-          <button
-            type="button"
-            aria-label={`Xem chi tiết ${test.title}`}
-            title="Chi tiết"
-            className={`${ACTION_BUTTON_CLASS} hover:bg-accent/10 hover:text-accent-strong`}
-          >
-            <FileText className="size-3.5" />
-          </button>
-        </div>}
+        {!picker && (
+          <div className="flex shrink-0 items-center gap-1 text-content-muted">
+            <button
+              type="button"
+              disabled={wrongCount === 0}
+              onClick={() => onRetryWrong?.(test)}
+              aria-label={`Làm lại ${wrongCount} câu sai của ${test.title}`}
+              title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
+              className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <RotateCcw className="size-3.5" />
+              <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
+                {wrongCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={wrongCount === 0}
+              onClick={() => onDeleteWrong?.(test)}
+              aria-label={`Xoá lịch sử câu sai của ${test.title}`}
+              title={wrongCount === 0 ? 'Không có câu sai để xoá' : 'Xoá lịch sử câu sai'}
+              className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={`flex items-center gap-3 font-medium text-content-muted ${picker ? 'text-sm' : 'text-xs'}`}>

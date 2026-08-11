@@ -28,6 +28,7 @@ import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, stripChoicePrefix } from '../../utils/practice';
 import { storage } from '../../utils/storage';
+import { clearSyncedLocalWrongQuestions, updateLocalWrongQuestions } from '../../utils/localWrongQuestions';
 import {
   getExamDurationSeconds,
   getTestPartScopeLabel,
@@ -124,12 +125,15 @@ export const TestExamPage: React.FC = () => {
       );
       const listeningCorrect = correctAnswers.filter((question) => question.partId <= 4).length;
       const readingCorrect = correctAnswers.length - listeningCorrect;
+      const attemptId = result.attemptId || createClientId();
 
       try {
         await backendService.saveStudyAttempt({
-          id: result.attemptId || createClientId(),
+          id: attemptId,
           userId: user.id,
           testId,
+          testName: result.testName || result.testTitle,
+          testYear: result.testYear,
           mode: 'exam',
           part: selectedParts.length === 1 ? selectedParts[0] : undefined,
           totalQuestions: questions.length,
@@ -152,6 +156,25 @@ export const TestExamPage: React.FC = () => {
           },
           completedAt,
         });
+
+        const answeredQuestions = questions.filter((question) => Boolean(userAnswers[question.id]));
+        for (let index = 0; index < answeredQuestions.length; index += 20) {
+          const batch = answeredQuestions.slice(index, index + 20);
+          const synced = await backendService.saveQuestionActivity({
+            attemptId,
+            sourceType: 'test',
+            testId,
+            answers: batch.map((question) => ({
+              questionId: question.id,
+              selectedAnswer: userAnswers[question.id],
+            })),
+            answeredAt: completedAt,
+          });
+          if (synced) {
+            clearSyncedLocalWrongQuestions(user.id, 'test', batch.map((question) => question.id));
+          }
+        }
+
       } catch (err) {
         console.warn('[!] Cloud sync attempt error, fallback to local storage:', err);
       }
@@ -217,6 +240,16 @@ export const TestExamPage: React.FC = () => {
 
   const selectChoice = (questionId: string, choiceId: ChoiceId) => {
     setUserAnswers((previous) => ({ ...previous, [questionId]: choiceId }));
+    const question = questions.find((item) => item.id === questionId);
+    if (user && testId && question) {
+      updateLocalWrongQuestions(
+        user.id,
+        'test',
+        { testId },
+        [question],
+        { [questionId]: choiceId },
+      );
+    }
   };
 
   const toggleFlag = (questionId: string) => {

@@ -3,6 +3,7 @@ import {
   NotificationItem,
   StudyActivityResponse,
   StudyAttempt,
+  StudyAttemptReviewQuestion,
   User,
   VocabularyWord,
 } from '../types';
@@ -142,6 +143,19 @@ export interface LeaderboardResponse {
 export interface NotificationsResponse {
   data: NotificationItem[];
   unreadCount: number;
+}
+
+export interface WrongQuestionItem {
+  questionId: string;
+  testId: string | null;
+  sourceType: 'test' | 'level';
+  part: number;
+  level: number | null;
+  wrongCount: number;
+  firstWrongAt: string;
+  lastWrongAt: string;
+  testName?: string | null;
+  testYear?: number | null;
 }
 
 export interface ManagedClassStudent {
@@ -462,6 +476,19 @@ export const backendService = {
     }
   },
 
+  async deleteTestStudyHistory(testId: string) {
+    return authFetch<{ success: boolean; deletedCount: number }>(
+      `/study-attempts?test_id=${encodeURIComponent(testId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async getStudyAttemptReview(attemptId: string) {
+    return authFetch<{ success: boolean; questions: StudyAttemptReviewQuestion[] }>(
+      `/study-attempts/${encodeURIComponent(attemptId)}`,
+    );
+  },
+
   async getStudyActivity(year: number) {
     return authFetch<StudyActivityResponse>(
       `/study-activity?year=${encodeURIComponent(String(year))}`,
@@ -470,6 +497,9 @@ export const backendService = {
 
   async saveQuestionActivity(payload: {
     attemptId: string;
+    sourceType: 'test' | 'level';
+    testId?: string;
+    level?: number;
     answers: Array<{ questionId: string; selectedAnswer: string }>;
     answeredAt: string;
   }) {
@@ -478,11 +508,40 @@ export const backendService = {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       return true;
     } catch (error) {
       console.warn('[!] Chưa thể đồng bộ hoạt động câu hỏi lên MySQL:', error);
       return false;
     }
+  },
+
+  async getWrongQuestions(
+    sourceType: 'test' | 'level',
+    filters: { testId?: string; part?: number; level?: number } = {},
+  ): Promise<WrongQuestionItem[]> {
+    const params = new URLSearchParams({ source_type: sourceType });
+    if (filters.testId) params.set('test_id', filters.testId);
+    if (filters.part !== undefined) params.set('part', String(filters.part));
+    if (filters.level !== undefined) params.set('level', String(filters.level));
+    const response = await authFetch<{ success: boolean; data: WrongQuestionItem[] }>(
+      `/wrong-questions?${params.toString()}`,
+    );
+    return response.data;
+  },
+
+  async deleteWrongQuestions(
+    sourceType: 'test' | 'level',
+    filters: { testId?: string; part?: number; level?: number },
+  ) {
+    const params = new URLSearchParams({ source_type: sourceType });
+    if (filters.testId) params.set('test_id', filters.testId);
+    if (filters.part !== undefined) params.set('part', String(filters.part));
+    if (filters.level !== undefined) params.set('level', String(filters.level));
+    return authFetch<{ success: boolean; deletedCount: number }>(
+      `/wrong-questions?${params.toString()}`,
+      { method: 'DELETE' },
+    );
   },
 
   async getVocabularyWords(_userId: string) {

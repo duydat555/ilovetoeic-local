@@ -204,6 +204,42 @@ export interface TestResultData {
 
 export type StudyAttemptMode = 'practice' | 'exam';
 
+export interface StudyAttemptPartStats {
+  part: number;
+  total: number;
+  answered: number;
+  correct: number;
+  wrong: number;
+  skipped: number;
+}
+
+export type StudyAttemptQuestionStatus = 'correct' | 'wrong' | 'skipped';
+
+export interface StudyAttemptReviewQuestion {
+  id: string;
+  displayNumber: number;
+  questionNumber: number;
+  testId?: string;
+  testName?: string;
+  testYear?: number;
+  part: number;
+  level?: number;
+  promptText: string;
+  choices: QuestionChoice[];
+  selectedAnswer?: string;
+  correctAnswer: string;
+  status: StudyAttemptQuestionStatus;
+  explanation: string;
+  explanationEn: string;
+  translation: string;
+  optionsTranslation: string;
+  passageText: string;
+  passageTranslationHtml: string;
+  transcript: string;
+  audioUrl?: string;
+  imageUrl?: string;
+}
+
 export interface StudyAttempt {
   id: string;
   userId: string;
@@ -224,6 +260,8 @@ export interface StudyAttempt {
   totalScore?: number;
   answers: Record<string, string>;
   questionIds: string[];
+  partStats?: StudyAttemptPartStats[];
+  testYears?: number[];
   metadata?: Record<string, unknown>;
   completedAt: string;
 }

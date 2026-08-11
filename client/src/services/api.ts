@@ -56,8 +56,14 @@ export const apiService = {
     }
     const json = await res.json();
     const source = Array.isArray(json.questions) ? json.questions : [];
-    return source.map((raw: any) => {
+    return source.map((raw: any, index: number) => {
       const question = formatQuestionObject(raw);
+      // Level practice combines matching questions from multiple tests. Their
+      // original TOEIC numbers repeat (for example, every test has a question
+      // 101), so keeping those numbers makes buildPracticeGroups re-sort and
+      // interleave otherwise unrelated tests. Use the API's deterministic
+      // result order as the numbering/navigation order for this practice set.
+      question.questionNumber = index + 1;
       if (raw.passage_id) {
         question.sharedGroupId = `level:${raw.test_id}:${raw.passage_id}`;
         const passageParts = [raw.passage_text, raw.passage_text_2, raw.passage_text_3].filter(Boolean);

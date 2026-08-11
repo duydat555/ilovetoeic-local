@@ -407,9 +407,6 @@ export const DashboardLivePage: React.FC = () => {
               <CalendarDays className="size-5 text-brand-600 dark:text-brand-400" />
               <h2 className="text-base font-extrabold text-content">Hoạt động gần đây</h2>
             </div>
-            <Link to="/history" className="text-xs font-bold text-brand-600 hover:underline dark:text-brand-400">
-              Xem tất cả
-            </Link>
           </div>
 
           <div className="mt-4 space-y-2.5">
@@ -417,13 +414,12 @@ export const DashboardLivePage: React.FC = () => {
               <BoneyardSkeleton name="dashboard-activities-skeleton" count={5} variant="row" />
             ) : attempts.length > 0 ? (
               attempts.slice(0, 6).map((item) => (
-                <Link
+                <div
                   key={item.id}
-                  to={`/history?testId=${item.testId || ''}`}
-                  className="group flex items-center justify-between rounded-xl border border-line/60 bg-surface-elevated/50 p-3 transition hover:border-brand-300 hover:bg-surface-hover dark:hover:border-brand-800"
+                  className="flex items-center justify-between rounded-xl border border-line/60 bg-surface-elevated/50 p-3"
                 >
                   <div className="min-w-0 flex-1 pr-2">
-                    <p className="truncate text-xs font-bold text-content group-hover:text-brand-600 dark:group-hover:text-brand-400">
+                    <p className="truncate text-xs font-bold text-content">
                       {item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài thi TOEIC')}
                     </p>
                     <p className="mt-1 text-[11px] font-medium text-content-muted">
@@ -440,7 +436,7 @@ export const DashboardLivePage: React.FC = () => {
                       {item.correctAnswers}/{item.totalQuestions} câu
                     </p>
                   </div>
-                </Link>
+                </div>
               ))
             ) : (
               <div className="rounded-xl border border-dashed border-line p-6 text-center text-xs text-content-muted">

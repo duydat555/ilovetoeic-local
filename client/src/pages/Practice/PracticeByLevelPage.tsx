@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, ChevronDown, Database, Play, RefreshCcw } from 'lucide-react';
+import { Award, ChevronDown, Database, Play, RefreshCcw, RotateCcw, Trash2 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+import { TopToast } from '../../components/common/TopToast';
+import { DeleteWrongQuestionsModal } from '../../components/mock-test/DeleteTestHistoryModal';
 import { LevelSlider } from '../../components/practice/LevelSlider';
 import { SkillToggle } from '../../components/practice/SkillToggle';
 import { useAuth } from '../../context/AuthContext';
@@ -13,8 +16,10 @@ import {
 import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
+import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
 
 type CountMap = Record<number, Record<number, number>>;
+type DeleteWrongScope = { part: number; level: number; label: string; count: number };
 
 const createFallbackCounts = (): CountMap => Object.fromEntries(
   PRACTICE_LEVEL_PARTS.map((part) => [part.part, part.fallbackQuestionCounts]),
@@ -45,6 +50,11 @@ export const PracticeByLevelPage: React.FC = () => {
   );
   const [counts, setCounts] = useState<CountMap>(createFallbackCounts);
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
+  const [wrongCounts, setWrongCounts] = useState<Record<string, number>>({});
+  const [deleteScope, setDeleteScope] = useState<DeleteWrongScope | null>(null);
+  const [deletingWrong, setDeletingWrong] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [usingFallback, setUsingFallback] = useState(false);
 
@@ -52,9 +62,10 @@ export const PracticeByLevelPage: React.FC = () => {
     let active = true;
     const loadPageData = async () => {
       setIsLoading(true);
-      const [countResult, historyResult] = await Promise.allSettled([
+      const [countResult, historyResult, wrongResult] = await Promise.allSettled([
         apiService.getPracticeLevelSummary(),
         user ? backendService.getStudyHistory(user.id) : Promise.resolve([]),
+        user ? backendService.getWrongQuestions('level') : Promise.resolve([]),
       ]);
       if (!active) return;
 
@@ -76,10 +87,84 @@ export const PracticeByLevelPage: React.FC = () => {
       if (historyResult.status === 'fulfilled' && Array.isArray(historyResult.value)) {
         setAttempts(historyResult.value);
       }
+      if (wrongResult.status === 'fulfilled') {
+        const next: Record<string, number> = {};
+        wrongResult.value.forEach((item) => {
+          if (item.level !== null) {
+            const key = `${item.part}:${item.level}`;
+            next[key] = (next[key] || 0) + 1;
+          }
+        });
+        readLocalWrongQuestions(user?.id)
+          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
+          .forEach((item) => {
+            const key = `${item.part}:${item.level}`;
+            next[key] = (next[key] || 0) + (
+              wrongResult.value.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
+            );
+          });
+        setWrongCounts(next);
+      } else {
+        const localCounts: Record<string, number> = {};
+        readLocalWrongQuestions(user?.id)
+          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
+          .forEach((item) => {
+            const key = `${item.part}:${item.level}`;
+            localCounts[key] = (localCounts[key] || 0) + 1;
+          });
+        setWrongCounts(localCounts);
+      }
       setIsLoading(false);
     };
     void loadPageData();
     return () => { active = false; };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!toastMessage) return undefined;
+    const timeout = window.setTimeout(() => setToastMessage(''), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [toastMessage]);
+
+  useEffect(() => {
+    if (!user) return undefined;
+    let active = true;
+    const loadWrongCounts = () => {
+      void backendService.getWrongQuestions('level').then((items) => {
+        if (!active) return;
+        const next: Record<string, number> = {};
+        items.forEach((item) => {
+          if (item.level !== null) {
+            const key = `${item.part}:${item.level}`;
+            next[key] = (next[key] || 0) + 1;
+          }
+        });
+        readLocalWrongQuestions(user.id)
+          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
+          .forEach((item) => {
+            const key = `${item.part}:${item.level}`;
+            next[key] = (next[key] || 0) + (
+              items.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
+            );
+          });
+        setWrongCounts(next);
+      }).catch(() => {
+        if (!active) return;
+        const localCounts: Record<string, number> = {};
+        readLocalWrongQuestions(user.id)
+          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
+          .forEach((item) => {
+            const key = `${item.part}:${item.level}`;
+            localCounts[key] = (localCounts[key] || 0) + 1;
+          });
+        setWrongCounts(localCounts);
+      });
+    };
+    window.addEventListener('wrong-questions-updated', loadWrongCounts);
+    return () => {
+      active = false;
+      window.removeEventListener('wrong-questions-updated', loadWrongCounts);
+    };
   }, [user?.id]);
 
   const completedByPart = useMemo(() => {
@@ -150,6 +235,38 @@ export const PracticeByLevelPage: React.FC = () => {
 
   const updatePartLevel = (part: number, level: number) => {
     setSelectedLevels((current) => ({ ...current, [part]: level }));
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingWrong) return;
+    setDeleteScope(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteWrong = async () => {
+    if (!deleteScope || deletingWrong) return;
+    setDeletingWrong(true);
+    setDeleteError('');
+    try {
+      const result = await backendService.deleteWrongQuestions('level', {
+        part: deleteScope.part,
+        level: deleteScope.level,
+      });
+      const localDeleted = user
+        ? deleteLocalWrongQuestions(user.id, 'level', {
+          part: deleteScope.part,
+          level: deleteScope.level,
+        })
+        : 0;
+      const key = `${deleteScope.part}:${deleteScope.level}`;
+      setWrongCounts((current) => ({ ...current, [key]: 0 }));
+      setToastMessage(`Đã xoá ${result.deletedCount + localDeleted} câu sai của ${deleteScope.label}.`);
+      setDeleteScope(null);
+    } catch (requestError) {
+      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử câu sai.');
+    } finally {
+      setDeletingWrong(false);
+    }
   };
 
   return (
@@ -234,16 +351,50 @@ export const PracticeByLevelPage: React.FC = () => {
         {visibleParts.map((part) => {
           const selectedLevel = selectedLevels[part.part];
           const questionCount = counts[part.part]?.[selectedLevel] ?? 0;
+          const wrongCount = wrongCounts[`${part.part}:${selectedLevel}`] || 0;
           return (
             <article key={part.part} className="surface flex flex-col rounded-2xl p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-base font-extrabold tracking-tight">Part {part.part}: {part.title}</h2>
                   <p className="mt-1 text-xs leading-relaxed text-content-muted">{part.description}</p>
                 </div>
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent/15 text-[11px] font-black text-accent-strong ring-1 ring-accent/25 dark:text-brand-300">
-                  {part.part}
-                </span>
+                <div className="flex shrink-0 items-center gap-1 text-content-muted">
+                  <button
+                    type="button"
+                    disabled={wrongCount === 0}
+                    onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
+                    aria-label={`Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
+                    title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
+                    className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
+                      {wrongCount}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={wrongCount === 0}
+                    onClick={() => {
+                      setDeleteError('');
+                      setDeleteScope({
+                        part: part.part,
+                        level: selectedLevel,
+                        label: `Part ${part.part} - Level ${selectedLevel}`,
+                        count: wrongCount,
+                      });
+                    }}
+                    aria-label={`Xoá lịch sử câu sai Part ${part.part} Level ${selectedLevel}`}
+                    title={wrongCount === 0 ? 'Không có câu sai để xoá' : 'Xoá lịch sử câu sai'}
+                    className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                  <span className="ml-1 grid size-8 place-items-center rounded-lg bg-accent/15 text-[11px] font-black text-accent-strong ring-1 ring-accent/25 dark:text-brand-300">
+                    {part.part}
+                  </span>
+                </div>
               </div>
 
               <LevelSlider
@@ -261,20 +412,36 @@ export const PracticeByLevelPage: React.FC = () => {
                     {isLoading ? 'Đang kiểm tra số câu...' : `${questionCount} câu khả dụng`}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={isLoading || usingFallback || questionCount === 0}
-                  onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}`)}
-                  className="btn-primary w-full whitespace-nowrap text-xs sm:w-auto"
-                >
-                  {usingFallback || questionCount === 0 ? <RefreshCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
-                  {usingFallback ? 'Thử lại sau' : questionCount === 0 ? 'Chưa có câu hỏi' : 'Bắt đầu luyện tập'}
-                </button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto">
+                  <button
+                    type="button"
+                    disabled={isLoading || usingFallback || questionCount === 0}
+                    onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}`)}
+                    className="btn-primary w-full whitespace-nowrap text-xs sm:w-auto"
+                  >
+                    {usingFallback || questionCount === 0 ? <RefreshCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
+                    {usingFallback ? 'Thử lại sau' : questionCount === 0 ? 'Chưa có câu hỏi' : 'Bắt đầu luyện tập'}
+                  </button>
+                </div>
               </div>
             </article>
           );
         })}
       </section>
+      <AnimatePresence initial={false}>
+        {deleteScope && (
+          <DeleteWrongQuestionsModal
+            key={`delete-level-${deleteScope.part}-${deleteScope.level}`}
+            scopeLabel={deleteScope.label}
+            wrongCount={deleteScope.count}
+            deleting={deletingWrong}
+            error={deleteError}
+            onConfirm={() => void handleDeleteWrong()}
+            onClose={closeDeleteModal}
+          />
+        )}
+        {toastMessage && <TopToast key={toastMessage} message={toastMessage} />}
+      </AnimatePresence>
     </div>
   );
 };

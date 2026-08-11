@@ -1,7 +1,6 @@
 import {
   BookMarked,
   ClipboardCheck,
-  History,
   Languages,
   LayoutDashboard,
   LibraryBig,
@@ -16,7 +15,6 @@ export type FeatureKey =
   | 'vocabulary'
   | 'grammar'
   | 'mistake_notebook'
-  | 'history'
   | 'ranking'
   | 'profile'
   | 'settings';
@@ -117,14 +115,6 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     icon: BookMarked,
   },
   {
-    key: 'history',
-    name: 'Lịch sử làm bài',
-    description: 'Theo dõi các lần làm bài và kết quả đã lưu.',
-    category: 'tracking',
-    core: false,
-    icon: History,
-  },
-  {
     key: 'ranking',
     name: 'Bảng xếp hạng',
     description: 'Hiển thị xếp hạng thi đua giữa học sinh.',
@@ -145,7 +135,6 @@ const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/vocabulary', 'vocabulary'],
   ['/mock-test', 'mock_test'],
   ['/grammar', 'grammar'],
-  ['/history', 'history'],
   ['/ranking', 'ranking'],
   ['/results', 'mock_test'],
   ['/dashboard', 'dashboard'],

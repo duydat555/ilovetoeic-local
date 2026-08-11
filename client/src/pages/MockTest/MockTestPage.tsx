@@ -5,9 +5,14 @@ import { ClipboardCheck, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SelectModeModal, SelectedParts, TestMode } from '../../components/mock-test/SelectModeModal';
 import { TestCard } from '../../components/mock-test/TestCard';
+import { DeleteWrongQuestionsModal } from '../../components/mock-test/DeleteTestHistoryModal';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+import { TopToast } from '../../components/common/TopToast';
 import { AnimatePresence } from 'framer-motion';
 import { ALL_TEST_PARTS, serializeTestPartScope } from '../../utils/testScope';
+import { backendService } from '../../services/backend';
+import { useAuth } from '../../context/AuthContext';
+import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
 
 export const MockTestPage: React.FC = () => {
   const [allTests, setAllTests] = useState<MockTestItem[]>([]);
@@ -19,8 +24,14 @@ export const MockTestPage: React.FC = () => {
   const [modalTest, setModalTest] = useState<MockTestItem | null>(null);
   const [activeMode, setActiveMode] = useState<TestMode>('practice');
   const [selectedParts, setSelectedParts] = useState<SelectedParts>([]);
+  const [wrongCounts, setWrongCounts] = useState<Record<string, number>>({});
+  const [deleteTest, setDeleteTest] = useState<MockTestItem | null>(null);
+  const [deletingWrong, setDeletingWrong] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
 
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,6 +48,52 @@ export const MockTestPage: React.FC = () => {
     };
     loadData();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (!user) {
+      setWrongCounts({});
+      return () => { active = false; };
+    }
+    const loadWrongCounts = () => {
+      void backendService.getWrongQuestions('test').then((items) => {
+        if (!active) return;
+        const next: Record<string, number> = {};
+        items.forEach((item) => {
+          if (item.testId) next[item.testId] = (next[item.testId] || 0) + 1;
+        });
+        readLocalWrongQuestions(user.id)
+          .filter((item) => item.sourceType === 'test' && item.testId)
+          .forEach((item) => {
+            next[item.testId!] = Math.max(next[item.testId!] || 0, 0) + (
+              items.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
+            );
+          });
+        setWrongCounts(next);
+      }).catch(() => {
+        if (!active) return;
+        const localCounts: Record<string, number> = {};
+        readLocalWrongQuestions(user.id)
+          .filter((item) => item.sourceType === 'test' && item.testId)
+          .forEach((item) => {
+            localCounts[item.testId!] = (localCounts[item.testId!] || 0) + 1;
+          });
+        setWrongCounts(localCounts);
+      });
+    };
+    loadWrongCounts();
+    window.addEventListener('wrong-questions-updated', loadWrongCounts);
+    return () => {
+      active = false;
+      window.removeEventListener('wrong-questions-updated', loadWrongCounts);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!toastMessage) return undefined;
+    const timeout = window.setTimeout(() => setToastMessage(''), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [toastMessage]);
 
   const yearOptions = useMemo(() => {
     const counts = new Map<number, number>();
@@ -73,6 +130,31 @@ export const MockTestPage: React.FC = () => {
       navigate(`/mock-test/exam/${modalTest.id}?parts=${encodeURIComponent(partScope)}`);
     } else {
       navigate(`/practice/runner/${partScope}?testId=${encodeURIComponent(modalTest.id)}`);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    if (deletingWrong) return;
+    setDeleteTest(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteWrong = async () => {
+    if (!deleteTest || deletingWrong) return;
+    setDeletingWrong(true);
+    setDeleteError('');
+    try {
+      const result = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
+      const localDeleted = user
+        ? deleteLocalWrongQuestions(user.id, 'test', { testId: deleteTest.id })
+        : 0;
+      setWrongCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
+      setToastMessage(`Đã xoá ${result.deletedCount + localDeleted} câu sai của ${deleteTest.title}.`);
+      setDeleteTest(null);
+    } catch (requestError) {
+      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử câu sai.');
+    } finally {
+      setDeletingWrong(false);
     }
   };
 
@@ -127,7 +209,14 @@ export const MockTestPage: React.FC = () => {
               key={test.id}
               test={test}
               onOpenMode={openModeModal}
-              onViewHistory={(testId) => navigate(`/history?testId=${testId}`)}
+              wrongCount={wrongCounts[test.id] || 0}
+              onRetryWrong={(selectedTest) => navigate(
+                `/practice/runner/all?testId=${encodeURIComponent(selectedTest.id)}&wrongSource=test`,
+              )}
+              onDeleteWrong={(selectedTest) => {
+                setDeleteError('');
+                setDeleteTest(selectedTest);
+              }}
             />
           ))}
         </div>
@@ -152,6 +241,18 @@ export const MockTestPage: React.FC = () => {
             onClose={() => setModalTest(null)}
           />
         )}
+        {deleteTest && (
+          <DeleteWrongQuestionsModal
+            key={`delete-wrong-${deleteTest.id}`}
+            scopeLabel={deleteTest.title}
+            wrongCount={wrongCounts[deleteTest.id] || 0}
+            deleting={deletingWrong}
+            error={deleteError}
+            onConfirm={() => void handleDeleteWrong()}
+            onClose={closeDeleteModal}
+          />
+        )}
+        {toastMessage && <TopToast key={toastMessage} message={toastMessage} />}
       </AnimatePresence>
     </div>
   );

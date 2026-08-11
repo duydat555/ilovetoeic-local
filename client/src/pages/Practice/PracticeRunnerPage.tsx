@@ -43,6 +43,11 @@ import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
+import {
+  clearSyncedLocalWrongQuestions,
+  readLocalWrongQuestions,
+  updateLocalWrongQuestions,
+} from '../../utils/localWrongQuestions';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
 
@@ -94,6 +99,10 @@ export const PracticeRunnerPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const testId = searchParams.get('testId');
   const levelParam = searchParams.get('level');
+  const wrongSourceParam = searchParams.get('wrongSource');
+  const wrongSource = wrongSourceParam === 'test' || wrongSourceParam === 'level'
+    ? wrongSourceParam
+    : null;
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attemptId, setAttemptId] = useState(() => createClientId());
@@ -115,6 +124,7 @@ export const PracticeRunnerPage: React.FC = () => {
   const [annotatorEnabled, setAnnotatorEnabled] = useState(false);
   const [savedVocabWords, setSavedVocabWords] = useState<Record<string, boolean>>({});
   const [showPart5TranslationMap, setShowPart5TranslationMap] = useState<Record<string, boolean>>({});
+  const [checkingAnswers, setCheckingAnswers] = useState(false);
 
   const togglePart5TranslationMap = (qId: string) => {
     setShowPart5TranslationMap((prev) => ({ ...prev, [qId]: !prev[qId] }));
@@ -145,9 +155,12 @@ export const PracticeRunnerPage: React.FC = () => {
     ? parsedLevel
     : null;
   const isLevelPractice = !testId && selectedLevel !== null && scopeParts.length === 1;
+  const isWrongRetry = Boolean(wrongSource);
   const returnPath = isLevelPractice ? '/practice-by-level' : '/mock-test';
   const returnLabel = isLevelPractice ? 'Luyện theo Level' : 'Kho đề';
-  const storageSource = testId || (isLevelPractice ? `level-${selectedLevel}` : 'quick');
+  const storageSource = isWrongRetry
+    ? `wrong-${wrongSource}-${testId || `${scopeParts[0]}-${selectedLevel}`}`
+    : testId || (isLevelPractice ? `level-${selectedLevel}` : 'quick');
   const storageKey = `toeic-practice:${storageSource}:${scopeKey}`;
 
   useEffect(() => {
@@ -172,7 +185,29 @@ export const PracticeRunnerPage: React.FC = () => {
           : isLevelPractice
             ? await apiService.getPracticeLevelQuestions(scopeParts[0], selectedLevel)
             : (() => { throw new Error('Vui lòng chọn một đề thi hoặc Level trước khi bắt đầu.'); })();
-        const filtered = source.filter((question) => scopeParts.includes(question.partId));
+        let filtered = source.filter((question) => scopeParts.includes(question.partId));
+        if (wrongSource) {
+          const wrongQuestions = await backendService.getWrongQuestions(wrongSource, {
+            testId: wrongSource === 'test' ? testId || undefined : undefined,
+            part: wrongSource === 'level' ? scopeParts[0] : undefined,
+            level: wrongSource === 'level' ? selectedLevel || undefined : undefined,
+          }).catch(() => []);
+          const localWrongQuestions = readLocalWrongQuestions(user?.id).filter((question) => (
+            question.sourceType === wrongSource
+            && (wrongSource !== 'test' || question.testId === testId)
+            && (wrongSource !== 'level' || (
+              question.part === scopeParts[0] && question.level === selectedLevel
+            ))
+          ));
+          const selectedIds = new Set([
+            ...wrongQuestions.map((question) => question.questionId),
+            ...localWrongQuestions.map((question) => question.questionId),
+          ]);
+          filtered = filtered.filter((question) => selectedIds.has(question.id));
+          if (filtered.length === 0) {
+            throw new Error('Bạn không còn câu sai nào trong mục này để luyện lại.');
+          }
+        }
 
         if (!active) return;
         setQuestions(filtered);
@@ -184,7 +219,9 @@ export const PracticeRunnerPage: React.FC = () => {
         setAnnotations({});
         setShowTranscript(false);
 
-        const session = readPracticeSession(storageKey);
+        // A retry queue is database-driven and may shrink after every correct
+        // answer, so it must always reopen from the latest server state.
+        const session = isWrongRetry ? null : readPracticeSession(storageKey);
         if (session) {
           setAttemptId(session.attemptId || createClientId());
           const validQuestionIds = new Set(filtered.map((question) => question.id));
@@ -214,7 +251,7 @@ export const PracticeRunnerPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [isLevelPractice, scopeParts, selectedLevel, storageKey, testId]);
+  }, [isLevelPractice, isWrongRetry, scopeParts, selectedLevel, storageKey, testId, user?.id, wrongSource]);
 
   const groups = useMemo(() => buildPracticeGroups(questions), [questions]);
   const safeGroupIndex = Math.min(currentGroupIndex, Math.max(groups.length - 1, 0));
@@ -225,7 +262,7 @@ export const PracticeRunnerPage: React.FC = () => {
   const currentAnnotations = annotations[annotationGroupKey] || [];
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || isWrongRetry) return;
     const session: SavedPracticeSession = {
       attemptId,
       answers: userAnswers,
@@ -236,7 +273,7 @@ export const PracticeRunnerPage: React.FC = () => {
       annotations,
     };
     savePracticeSession(storageKey, session);
-  }, [annotations, attemptId, checkedGroupIds, loading, notes, safeGroupIndex, secondsSpent, storageKey, userAnswers]);
+  }, [annotations, attemptId, checkedGroupIds, isWrongRetry, loading, notes, safeGroupIndex, secondsSpent, storageKey, userAnswers]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -271,26 +308,24 @@ export const PracticeRunnerPage: React.FC = () => {
     setUserAnswers((previous) => ({ ...previous, [questionId]: choiceId }));
   };
 
-  const checkCurrentGroup = () => {
-    if (!currentGroup || !allCurrentAnswered) return;
+  const checkCurrentGroup = async () => {
+    if (!currentGroup || !allCurrentAnswered || checkingAnswers) return;
+    setCheckingAnswers(true);
     const nextChecked = new Set(checkedGroupIds);
     nextChecked.add(currentGroup.id);
     setCheckedGroupIds(nextChecked);
-
-    if (user) {
-      void backendService.saveQuestionActivity({
-        attemptId,
-        answers: currentGroup.questions.map((question) => ({
-          questionId: question.id,
-          selectedAnswer: userAnswers[question.id],
-        })),
-        answeredAt: new Date().toISOString(),
-      });
-    }
-
-    if (nextChecked.size >= groups.length && !activityRecorded) {
-      void recordStudyActivity().then(() => refreshNotifications());
-      setActivityRecorded(true);
+    try {
+      if (user) {
+        updateLocalWrongQuestions(
+          user.id,
+          testId ? 'test' : 'level',
+          { testId: testId || undefined, level: isLevelPractice ? selectedLevel || undefined : undefined },
+          currentGroup.questions,
+          userAnswers,
+        );
+      }
+    } finally {
+      setCheckingAnswers(false);
     }
   };
 
@@ -332,13 +367,39 @@ export const PracticeRunnerPage: React.FC = () => {
       completedAt: new Date().toISOString(),
     });
 
+    if (saved) {
+      for (let index = 0; index < questions.length; index += 20) {
+        const batch = questions.slice(index, index + 20);
+        const synced = await backendService.saveQuestionActivity({
+          attemptId,
+          sourceType: testId ? 'test' : 'level',
+          testId: testId || undefined,
+          level: isLevelPractice ? selectedLevel || undefined : undefined,
+          answers: batch.map((question) => ({
+            questionId: question.id,
+            selectedAnswer: userAnswers[question.id],
+          })),
+          answeredAt: new Date().toISOString(),
+        });
+        if (synced) {
+          clearSyncedLocalWrongQuestions(
+            user.id,
+            testId ? 'test' : 'level',
+            batch.map((question) => question.id),
+          );
+        }
+      }
+      if (!activityRecorded) await recordStudyActivity();
+      await refreshNotifications();
+      setActivityRecorded(true);
+    }
     setHistorySaveState(saved ? 'saved' : 'error');
-    if (saved) await refreshNotifications();
   };
 
-  const continuePractice = () => {
+  const continuePractice = async () => {
+    if (checkingAnswers) return;
     if (!currentGroupChecked) {
-      checkCurrentGroup();
+      await checkCurrentGroup();
       return;
     }
     if (safeGroupIndex < groups.length - 1) {
@@ -502,7 +563,9 @@ export const PracticeRunnerPage: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-brand-100 px-2 py-0.5 text-[11px] font-black text-brand-700 dark:bg-brand-950 dark:text-brand-200">
-                Part {currentGroup.partId}
+                {isWrongRetry && wrongSource === 'test'
+                  ? `Câu sai • Part ${currentGroup.partId}`
+                  : `Part ${currentGroup.partId}`}
               </span>
               <h1 className="truncate text-sm font-black tracking-tight text-slate-950 sm:text-base dark:text-content">
                 {practiceTitle}
@@ -930,10 +993,12 @@ export const PracticeRunnerPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={continuePractice}
-                  disabled={!currentGroupChecked && !allCurrentAnswered}
+                  disabled={checkingAnswers || (!currentGroupChecked && !allCurrentAnswered)}
                   className="btn-primary text-xs py-1.5 disabled:opacity-40"
                 >
-                  {!currentGroupChecked
+                  {checkingAnswers
+                    ? <>Đang lưu đáp án... <RefreshCcw className="size-4 animate-spin" /></>
+                    : !currentGroupChecked
                     ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
                     : safeGroupIndex < groups.length - 1
                     ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>
@@ -1150,10 +1215,12 @@ export const PracticeRunnerPage: React.FC = () => {
               <button
                 type="button"
                 onClick={continuePractice}
-                disabled={!currentGroupChecked && !allCurrentAnswered}
+                disabled={checkingAnswers || (!currentGroupChecked && !allCurrentAnswered)}
                 className="btn-primary text-xs py-1.5 disabled:opacity-40"
               >
-                {!currentGroupChecked
+                {checkingAnswers
+                  ? <>Đang lưu đáp án... <RefreshCcw className="size-4 animate-spin" /></>
+                  : !currentGroupChecked
                   ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
                   : safeGroupIndex < groups.length - 1
                   ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>

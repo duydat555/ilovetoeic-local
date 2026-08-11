@@ -63,6 +63,9 @@ class QuestionActivityItem(BaseModel):
 
 class QuestionActivityPayload(BaseModel):
     attemptId: str = Field(min_length=1, max_length=36)
+    sourceType: Literal["test", "level"]
+    testId: Optional[str] = Field(default=None, max_length=100)
+    level: Optional[int] = Field(default=None, ge=1, le=5)
     answers: List[QuestionActivityItem] = Field(min_length=1, max_length=20)
     answeredAt: str
 
@@ -224,9 +227,60 @@ def get_study_attempts(
     query += " ORDER BY a.completed_at DESC"
     rows = db.fetch_all(query, tuple(params), use_cache=False)
     data = []
+    all_question_ids = []
+    parsed_rows = []
     for row in rows:
         metadata = parse_json(row.get("metadata"), {})
+        question_ids = parse_json(row.get("question_ids"), [])
+        answers = parse_json(row.get("answers"), {})
+        parsed_rows.append((row, metadata, question_ids, answers))
+        all_question_ids.extend(str(question_id) for question_id in question_ids)
+
+    question_lookup = {}
+    unique_question_ids = list(dict.fromkeys(all_question_ids))
+    if unique_question_ids:
+        placeholders = ", ".join("?" for _ in unique_question_ids)
+        question_rows = db.fetch_all(
+            f"""
+            SELECT q.id, q.part, q.correct_answer, q.test_id,
+                   t.name AS test_name, t.year AS test_year
+            FROM questions q
+            LEFT JOIN tests t ON t.id = q.test_id
+            WHERE q.id IN ({placeholders})
+            """,
+            tuple(unique_question_ids),
+            use_cache=False,
+        )
+        question_lookup = {str(item["id"]): item for item in question_rows}
+
+    for row, metadata, question_ids, answers in parsed_rows:
         completed_at = row.get("completed_at")
+        part_totals = defaultdict(lambda: {
+            "total": 0, "answered": 0, "correct": 0, "wrong": 0, "skipped": 0,
+        })
+        test_years = set()
+        for question_id in question_ids:
+            question = question_lookup.get(str(question_id))
+            if not question:
+                continue
+            part = int(question.get("part") or 0)
+            if not 1 <= part <= 7:
+                continue
+            selected_answer = str(answers.get(str(question_id)) or "").upper()
+            correct_answer = str(question.get("correct_answer") or "").upper()
+            stats = part_totals[part]
+            stats["total"] += 1
+            if not selected_answer:
+                stats["skipped"] += 1
+            elif selected_answer == correct_answer:
+                stats["answered"] += 1
+                stats["correct"] += 1
+            else:
+                stats["answered"] += 1
+                stats["wrong"] += 1
+            if question.get("test_year") is not None:
+                test_years.add(int(question["test_year"]))
+
         data.append({
             "id": row["id"],
             "userId": row["user_id"],
@@ -245,12 +299,178 @@ def get_study_attempts(
             "listeningScore": int(row.get("listening_score") or 0),
             "readingScore": int(row.get("reading_score") or 0),
             "totalScore": int(row.get("total_score") or 0),
-            "answers": parse_json(row.get("answers"), {}),
-            "questionIds": parse_json(row.get("question_ids"), []),
+            "answers": answers,
+            "questionIds": question_ids,
+            "partStats": [
+                {"part": part, **part_totals[part]}
+                for part in sorted(part_totals)
+            ],
+            "testYears": sorted(test_years, reverse=True),
             "metadata": metadata,
             "completedAt": completed_at.isoformat() if completed_at else "",
         })
     return {"data": data}
+
+
+@router.get("/study-attempts/{attempt_id}")
+def get_study_attempt_detail(
+    attempt_id: str,
+    user=Depends(get_current_user),
+):
+    attempt = db.fetch_one(
+        """
+        SELECT a.*, t.name AS test_name, t.year AS test_year
+        FROM test_attempts a
+        LEFT JOIN tests t ON t.id = a.test_id
+        WHERE a.id = ? AND a.user_id = ?
+        """,
+        (attempt_id, user["id"]),
+        use_cache=False,
+    )
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt làm bài này.")
+
+    question_ids = [str(value) for value in parse_json(attempt.get("question_ids"), [])]
+    answers = parse_json(attempt.get("answers"), {})
+    question_rows = []
+    if question_ids:
+        placeholders = ", ".join("?" for _ in question_ids)
+        question_rows = db.fetch_all(
+            f"""
+            SELECT q.id, q.test_id, q.passage_id, q.part, q.question_number,
+                   q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
+                   q.correct_answer, q.explanation_vi, q.explanation_en,
+                   q.dich_nghia, q.dich_nghia_dap_an, q.audio_url, q.image_url,
+                   q.difficulty_level, t.name AS test_name, t.year AS test_year,
+                   p.passage_text, p.passage_text_2, p.passage_text_3,
+                   p.transcript, p.audio_url AS passage_audio_url,
+                   p.image_url AS passage_image_url, p.passage_text_vi_html,
+                   p.passage_text_2_vi_html, p.passage_text_3_vi_html
+            FROM questions q
+            LEFT JOIN tests t ON t.id = q.test_id
+            LEFT JOIN passages p ON p.id = q.passage_id AND p.test_id = q.test_id
+            WHERE q.id IN ({placeholders})
+            """,
+            tuple(question_ids),
+            use_cache=False,
+        )
+
+    row_lookup = {str(row["id"]): row for row in question_rows}
+    review_questions = []
+    for display_index, question_id in enumerate(question_ids, start=1):
+        question = row_lookup.get(question_id)
+        if not question:
+            continue
+        selected_answer = str(answers.get(question_id) or "").upper()
+        correct_answer = str(question.get("correct_answer") or "").upper()
+        status = (
+            "skipped" if not selected_answer
+            else "correct" if selected_answer == correct_answer
+            else "wrong"
+        )
+        choices = [
+            {"id": choice_id, "text": question.get(f"option_{choice_id.lower()}") or f"({choice_id})"}
+            for choice_id in (["A", "B", "C"] if int(question.get("part") or 0) == 2 else ["A", "B", "C", "D"])
+        ]
+        passage_parts = [
+            question.get("passage_text"),
+            question.get("passage_text_2"),
+            question.get("passage_text_3"),
+        ]
+        review_questions.append({
+            "id": question_id,
+            "displayNumber": display_index,
+            "questionNumber": int(question.get("question_number") or display_index),
+            "testId": question.get("test_id"),
+            "testName": question.get("test_name"),
+            "testYear": question.get("test_year"),
+            "part": int(question.get("part") or 0),
+            "level": question.get("difficulty_level"),
+            "promptText": question.get("question_text") or "",
+            "choices": choices,
+            "selectedAnswer": selected_answer or None,
+            "correctAnswer": correct_answer,
+            "status": status,
+            "explanation": question.get("explanation_vi") or "",
+            "explanationEn": question.get("explanation_en") or "",
+            "translation": question.get("dich_nghia") or "",
+            "optionsTranslation": question.get("dich_nghia_dap_an") or "",
+            "passageText": "\n\n".join(str(value) for value in passage_parts if value),
+            "passageTranslationHtml": "\n".join(str(value) for value in [
+                question.get("passage_text_vi_html"),
+                question.get("passage_text_2_vi_html"),
+                question.get("passage_text_3_vi_html"),
+            ] if value),
+            "transcript": question.get("transcript") or "",
+            "audioUrl": question.get("audio_url") or question.get("passage_audio_url"),
+            "imageUrl": question.get("image_url") or question.get("passage_image_url"),
+        })
+
+    return {"success": True, "questions": review_questions}
+
+
+@router.delete("/study-attempts")
+def delete_study_attempts_for_test(
+    test_id: str = Query(..., min_length=1, max_length=100),
+    user=Depends(get_current_user),
+):
+    user_id = user["id"]
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            # Question activity has no attempt foreign key, so remove it before
+            # deleting the matching submitted attempts.
+            cursor.execute(
+                """
+                DELETE activity
+                FROM user_question_activity activity
+                INNER JOIN test_attempts attempt
+                    ON attempt.id = activity.attempt_id
+                   AND attempt.user_id = activity.user_id
+                WHERE attempt.user_id = %s AND attempt.test_id = %s
+                """,
+                (user_id, test_id),
+            )
+            cursor.execute(
+                """
+                DELETE notification
+                FROM user_notifications notification
+                INNER JOIN test_attempts attempt
+                    ON attempt.user_id = notification.user_id
+                   AND notification.dedupe_key = CONCAT('study-attempt:', attempt.id)
+                WHERE attempt.user_id = %s AND attempt.test_id = %s
+                """,
+                (user_id, test_id),
+            )
+            cursor.execute(
+                "DELETE FROM test_attempts WHERE user_id = %s AND test_id = %s",
+                (user_id, test_id),
+            )
+            deleted_count = cursor.rowcount
+
+            # Keep the user's TOEIC goal score consistent when their best full
+            # attempt belongs to the test whose history was removed.
+            cursor.execute(
+                """
+                UPDATE users
+                SET current_score = COALESCE((
+                    SELECT MAX(total_score)
+                    FROM test_attempts
+                    WHERE user_id = %s
+                      AND mode = 'exam'
+                      AND total_questions = 200
+                      AND answered_questions = 200
+                      AND part IS NULL
+                      AND COALESCE(
+                          JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
+                          'false'
+                      ) <> 'true'
+                ), 0)
+                WHERE id = %s
+                """,
+                (user_id, user_id),
+            )
+
+    return {"success": True, "deletedCount": deleted_count}
 
 
 @router.put("/study-activity/questions")
@@ -258,16 +478,31 @@ def save_question_activity(
     payload: QuestionActivityPayload,
     user=Depends(get_current_user),
 ):
+    if payload.sourceType == "test" and not payload.testId:
+        raise HTTPException(status_code=400, detail="Thiếu mã đề thi.")
+    if payload.sourceType == "level" and payload.level is None:
+        raise HTTPException(status_code=400, detail="Thiếu Level luyện tập.")
+
     question_ids = list(dict.fromkeys(item.questionId for item in payload.answers))
     placeholders = ", ".join("?" for _ in question_ids)
     question_rows = db.fetch_all(
-        f"SELECT id, part, correct_answer FROM questions WHERE id IN ({placeholders})",
+        f"SELECT id, test_id, part, difficulty_level, correct_answer FROM questions WHERE id IN ({placeholders})",
         tuple(question_ids),
         use_cache=False,
     )
     question_map = {str(row["id"]): row for row in question_rows}
     if len(question_map) != len(question_ids):
         raise HTTPException(status_code=400, detail="Danh sách câu hỏi luyện tập không hợp lệ.")
+    if payload.sourceType == "test" and any(
+        str(question_map[question_id]["test_id"]) != payload.testId
+        for question_id in question_ids
+    ):
+        raise HTTPException(status_code=400, detail="Câu hỏi không thuộc đề thi đã chọn.")
+    if payload.sourceType == "level" and any(
+        int(question_map[question_id]["difficulty_level"]) != payload.level
+        for question_id in question_ids
+    ):
+        raise HTTPException(status_code=400, detail="Câu hỏi không thuộc Level đã chọn.")
 
     answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
     answered_at = parse_datetime(payload.answeredAt)
@@ -284,18 +519,134 @@ def save_question_activity(
             1 if selected_answer == str(question.get("correct_answer") or "").upper() else 0,
             answered_at,
         ))
-    db.executemany(
-        """
-        INSERT INTO user_question_activity (
-            user_id, attempt_id, question_id, part, selected_answer, is_correct, answered_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            part = VALUES(part), selected_answer = VALUES(selected_answer),
-            is_correct = VALUES(is_correct), answered_at = VALUES(answered_at)
-        """,
-        values,
-    )
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                """
+                INSERT INTO user_question_activity (
+                    user_id, attempt_id, question_id, part, selected_answer, is_correct, answered_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    part = VALUES(part), selected_answer = VALUES(selected_answer),
+                    is_correct = VALUES(is_correct), answered_at = VALUES(answered_at)
+                """,
+                values,
+            )
+            for question_id in question_ids:
+                question = question_map[question_id]
+                selected_answer = answer_map[question_id]
+                is_correct = selected_answer == str(question.get("correct_answer") or "").upper()
+                if is_correct:
+                    cursor.execute(
+                        """
+                        DELETE FROM user_wrong_questions
+                        WHERE user_id = %s AND question_id = %s AND source_type = %s
+                        """,
+                        (user["id"], question_id, payload.sourceType),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        INSERT INTO user_wrong_questions (
+                            user_id, question_id, source_type, test_id, part, level,
+                            wrong_count, first_wrong_at, last_wrong_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s)
+                        ON DUPLICATE KEY UPDATE
+                            test_id = VALUES(test_id), part = VALUES(part), level = VALUES(level),
+                            wrong_count = wrong_count + 1, last_wrong_at = VALUES(last_wrong_at)
+                        """,
+                        (
+                            user["id"], question_id, payload.sourceType,
+                            str(question["test_id"]), int(question["part"]),
+                            payload.level if payload.sourceType == "level" else None,
+                            answered_at, answered_at,
+                        ),
+                    )
     return {"success": True, "saved": len(values)}
+
+
+@router.get("/wrong-questions")
+def get_wrong_questions(
+    source_type: Literal["test", "level"] = Query(...),
+    test_id: Optional[str] = Query(default=None, max_length=100),
+    part: Optional[int] = Query(default=None, ge=1, le=7),
+    level: Optional[int] = Query(default=None, ge=1, le=5),
+    user=Depends(get_current_user),
+):
+    clauses = ["w.user_id = ?", "w.source_type = ?"]
+    params: List[Any] = [user["id"], source_type]
+    if test_id:
+        clauses.append("w.test_id = ?")
+        params.append(test_id)
+    if part is not None:
+        clauses.append("w.part = ?")
+        params.append(part)
+    if level is not None:
+        clauses.append("w.level = ?")
+        params.append(level)
+    rows = db.fetch_all(
+        f"""
+        SELECT w.question_id, w.test_id, w.source_type, w.part, w.level,
+               w.wrong_count, w.first_wrong_at, w.last_wrong_at,
+               t.name AS test_name, t.test_year
+        FROM user_wrong_questions w
+        LEFT JOIN tests t ON t.id = w.test_id
+        WHERE {' AND '.join(clauses)}
+        ORDER BY w.last_wrong_at DESC
+        """,
+        tuple(params),
+        use_cache=False,
+    )
+    return {
+        "success": True,
+        "data": [
+            {
+                "questionId": str(row["question_id"]),
+                "testId": str(row["test_id"]) if row.get("test_id") else None,
+                "sourceType": str(row["source_type"]),
+                "part": int(row["part"]),
+                "level": int(row["level"]) if row.get("level") is not None else None,
+                "wrongCount": int(row["wrong_count"]),
+                "firstWrongAt": row["first_wrong_at"].isoformat(),
+                "lastWrongAt": row["last_wrong_at"].isoformat(),
+                "testName": row.get("test_name"),
+                "testYear": int(row["test_year"]) if row.get("test_year") else None,
+            }
+            for row in rows
+        ],
+    }
+
+
+@router.delete("/wrong-questions")
+def delete_wrong_questions(
+    source_type: Literal["test", "level"] = Query(...),
+    test_id: Optional[str] = Query(default=None, max_length=100),
+    part: Optional[int] = Query(default=None, ge=1, le=7),
+    level: Optional[int] = Query(default=None, ge=1, le=5),
+    user=Depends(get_current_user),
+):
+    if source_type == "test" and not test_id:
+        raise HTTPException(status_code=400, detail="Thiếu mã đề thi cần xoá câu sai.")
+    if source_type == "level" and (part is None or level is None):
+        raise HTTPException(status_code=400, detail="Thiếu Part hoặc Level cần xoá câu sai.")
+
+    clauses = ["user_id = %s", "source_type = %s"]
+    params: List[Any] = [user["id"], source_type]
+    if source_type == "test":
+        clauses.append("test_id = %s")
+        params.append(test_id)
+    else:
+        clauses.extend(["part = %s", "level = %s"])
+        params.extend([part, level])
+
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"DELETE FROM user_wrong_questions WHERE {' AND '.join(clauses)}",
+                tuple(params),
+            )
+            deleted_count = cursor.rowcount
+    return {"success": True, "deletedCount": deleted_count}
 
 
 @router.get("/study-activity")

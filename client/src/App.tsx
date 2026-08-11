@@ -23,7 +23,6 @@ const PracticeByLevelPage = lazy(() => import('./pages/Practice/PracticeByLevelP
 const MockTestPage = lazy(() => import('./pages/MockTest/MockTestPage').then((m) => ({ default: m.MockTestPage })));
 const TestExamPage = lazy(() => import('./pages/MockTest/TestExamPage').then((m) => ({ default: m.TestExamPage })));
 const TestResultPage = lazy(() => import('./pages/Results/TestResultPage').then((m) => ({ default: m.TestResultPage })));
-const StudyHistoryPage = lazy(() => import('./pages/History/StudyHistoryPage').then((m) => ({ default: m.StudyHistoryPage })));
 const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then((m) => ({ default: m.TopicListPage })));
 const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
@@ -77,7 +76,6 @@ export const App: React.FC = () => {
                 <Route path="/mock-test/exam/:testId" element={<TestExamPage />} />
                 <Route path="/results" element={<TestResultPage />} />
               </Route>
-              <Route element={<FeatureRouteGuard feature="history" />}><Route path="/history" element={<StudyHistoryPage />} /></Route>
               <Route element={<FeatureRouteGuard feature="vocabulary" />}>
                 <Route path="/vocabulary" element={<TopicListPage />} />
                 <Route path="/vocabulary/:topicId" element={<TopicFlashcardPage />} />

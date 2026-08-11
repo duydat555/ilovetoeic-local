@@ -74,8 +74,9 @@ const useCountUp = (target: number, duration = 750) => {
 
 const GoalCard: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
   const { user } = useAuth();
-  const targetScore = user?.targetScore || 750;
-  const currentScore = user?.currentScore || 620;
+  const targetScore = Number(user?.targetScore) > 0 ? Number(user?.targetScore) : 750;
+  const currentScore = Math.max(0, Number(user?.currentScore) || 0);
+  const hasScore = currentScore > 0;
   const animatedScore = useCountUp(currentScore);
   const progress = Math.min(100, Math.max(0, (currentScore / targetScore) * 100));
 
@@ -96,14 +97,16 @@ const GoalCard: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
               style={{
                 background: `conic-gradient(#ffc72c ${progress * 3.6}deg, #e2e8f0 0deg)`,
               }}
-              aria-label={`Mục tiêu TOEIC: đã đạt ${currentScore} trên ${targetScore} điểm`}
+              aria-label={hasScore
+                ? `Mục tiêu TOEIC: đã đạt ${currentScore} trên ${targetScore} điểm`
+                : `Mục tiêu TOEIC: chưa có kết quả, mục tiêu ${targetScore} điểm`}
             >
                 <span className="grid size-full place-items-center rounded-full bg-sidebar text-accent-strong">
                 <Target className="size-4" aria-hidden="true" />
               </span>
             </div>
             <span className="pointer-events-none absolute left-[calc(100%+12px)] top-1/2 z-50 w-max -translate-y-1/2 rounded-lg bg-slate-950 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-xl transition duration-150 group-hover/goal:translate-x-1 group-hover/goal:opacity-100 dark:bg-white dark:text-slate-950">
-              Mục tiêu: {currentScore}/{targetScore}
+              {hasScore ? `Mục tiêu: ${currentScore}/${targetScore}` : `Chưa có điểm · Mục tiêu ${targetScore}`}
             </span>
           </motion.div>
         ) : (
@@ -121,7 +124,11 @@ const GoalCard: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
                   Mục tiêu TOEIC
                 </p>
                 <p className="mt-1 whitespace-nowrap text-[11px] font-semibold text-content-muted">
-                Đã đạt: <span className="text-accent-strong">{animatedScore}</span>/{targetScore}
+                {hasScore ? (
+                  <>Đã đạt: <span className="text-accent-strong">{animatedScore}</span>/{targetScore}</>
+                ) : (
+                  <>Chưa có điểm thi thử · Mục tiêu {targetScore}</>
+                )}
                 </p>
               </div>
               <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-surface text-xs font-black text-accent-strong shadow-sm ring-1 ring-line dark:shadow-none">
@@ -139,7 +146,7 @@ const GoalCard: React.FC<{ collapsed: boolean }> = ({ collapsed }) => {
             </div>
             <div className="mt-1.5 flex items-center justify-between text-[10px] font-bold text-content-muted">
               <span>{Math.round(progress)}% hoàn thành</span>
-              <span>Còn {Math.max(0, targetScore - currentScore)} điểm</span>
+              <span>{hasScore ? `Còn ${Math.max(0, targetScore - currentScore)} điểm` : 'Chưa có kết quả thi'}</span>
             </div>
           </motion.div>
         )}

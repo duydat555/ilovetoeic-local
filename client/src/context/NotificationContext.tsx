@@ -31,13 +31,14 @@ const messageFromError = (error: unknown) => (
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const userId = user?.id;
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async (showLoading: boolean) => {
-    if (!user) {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
       setError(null);
@@ -55,7 +56,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } finally {
       if (showLoading) setIsLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   const refreshNotifications = useCallback(
     () => fetchNotifications(true),
@@ -63,7 +64,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   );
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       setNotifications([]);
       setUnreadCount(0);
       setError(null);
@@ -80,7 +81,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshOnFocus);
     };
-  }, [fetchNotifications, user]);
+  }, [fetchNotifications, userId]);
 
   const markAsRead = useCallback(async (notificationId: string) => {
     const target = notifications.find((item) => item.id === notificationId);

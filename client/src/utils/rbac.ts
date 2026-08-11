@@ -7,7 +7,9 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const ROLE_HOME: Record<UserRole, string> = {
   student: '/dashboard',
-  admin: '/admin/overview',
+  // Admins start in the same learning workspace as students. The admin
+  // workspace is entered explicitly from the account menu.
+  admin: '/dashboard',
 };
 
 const ROLE_LEVEL: Record<UserRole, number> = {

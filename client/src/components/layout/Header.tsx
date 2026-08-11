@@ -13,10 +13,11 @@ import {
   Moon,
   RefreshCw,
   Search,
+  ShieldCheck,
   Sun,
   UserRound,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getUserRole, ROLE_LABELS } from '../../utils/rbac';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { useNotifications } from '../../context/NotificationContext';
@@ -45,10 +46,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const notificationsMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const role = getUserRole(user);
-  const searchPlaceholder = role === 'student'
-    ? 'Tìm kiếm bài tập, từ vựng, ngữ pháp...'
-    : 'Tìm lớp, học sinh hoặc bài tập...';
+  const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
+  const searchPlaceholder = isAdminArea
+    ? 'Tìm lớp, học sinh hoặc bài tập...'
+    : 'Tìm kiếm bài tập, từ vựng, ngữ pháp...';
 
   useEffect(() => {
     const closeMenus = (event: KeyboardEvent) => {
@@ -101,7 +104,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       {/* Header Actions */}
       <div className="flex items-center gap-2 sm:gap-4">
         {/* Streak Counter */}
-        {user && role === 'student' && (
+        {user && !isAdminArea && (
           <div
             className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 shadow-sm dark:text-amber-400 sm:text-sm"
             role="status"
@@ -306,6 +309,16 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   <UserRound className="w-4 h-4" />
                   <span>Hồ sơ cá nhân</span>
                 </Link>
+                {role === 'admin' && (
+                  <Link
+                    to={isAdminArea ? '/dashboard' : '/admin/overview'}
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-content transition-colors duration-200 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/25"
+                  >
+                    <ShieldCheck className="size-4 text-accent-strong" aria-hidden="true" />
+                    <span>{isAdminArea ? 'Giao diện học sinh' : 'Admin'}</span>
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-negative transition-colors duration-300 hover:bg-negative/10"

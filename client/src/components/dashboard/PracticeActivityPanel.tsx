@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays,
   ChevronLeft,
@@ -79,6 +79,7 @@ export const PracticeActivityPanel: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState('');
+  const lastAutomaticRefreshAt = useRef(0);
   const selectedYear = parseLocalDate(selectedDate).getFullYear();
 
   const loadActivity = useCallback(async (background = false) => {
@@ -102,7 +103,14 @@ export const PracticeActivityPanel: React.FC = () => {
   }, [loadActivity]);
 
   useEffect(() => {
-    const refresh = () => void loadActivity(true);
+    const refresh = () => {
+      const now = Date.now();
+      // Browsers normally emit both focus and visibilitychange when returning
+      // to a tab. Treat them as one refresh to avoid duplicate state updates.
+      if (now - lastAutomaticRefreshAt.current < 2_000) return;
+      lastAutomaticRefreshAt.current = now;
+      void loadActivity(true);
+    };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') refresh();
     };

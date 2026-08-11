@@ -63,11 +63,12 @@ export const AppLayout: React.FC = () => {
   const isTestRunnerPage =
     location.pathname.includes('/mock-test/exam') ||
     location.pathname.includes('/practice/runner');
+  const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
 
   return (
     <div className="app-shell h-screen text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden">
       {/* Desktop & Tablet Sidebar */}
-      {role === 'admin' ? (
+      {isAdminArea ? (
         <AdminSidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
       ) : (
         <Sidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
@@ -141,7 +142,7 @@ export const AppLayout: React.FC = () => {
           </div>
         </main>
       </div>
-      {role === 'student' && <SelectionTranslator />}
+      {!isAdminArea && <SelectionTranslator />}
     </div>
   );
 };

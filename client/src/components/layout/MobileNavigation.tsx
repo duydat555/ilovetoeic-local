@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { X, Menu } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 import { BrandName } from '../common/BrandName';
@@ -18,8 +18,10 @@ interface MobileNavigationProps {
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOpen, onClose }) => {
   const { user } = useAuth();
   const role = getUserRole(user);
-  const navigation = getNavigationForRole(role);
-  const quickNavigation = getMobileNavigationForRole(role);
+  const location = useLocation();
+  const navigationRole = role === 'admin' && location.pathname.startsWith('/admin') ? 'admin' : 'student';
+  const navigation = getNavigationForRole(navigationRole);
+  const quickNavigation = getMobileNavigationForRole(navigationRole);
   const { getStatus } = useAdminFeatureStatus();
   const { isFeatureEnabled } = useFeatureFlags();
 
@@ -61,7 +63,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOp
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const isComingSoon = role === 'admin'
+            const isComingSoon = navigationRole === 'admin'
               ? getStatus(item.path)?.status === 'coming_soon'
               : Boolean(item.featureKey && !isFeatureEnabled(item.featureKey));
             return (

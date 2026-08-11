@@ -63,6 +63,15 @@ const withSyncedStudyStreak = (apiUser: User): User => {
   };
 };
 
+const hasSameUserSnapshot = (current: User | null, next: User) => {
+  if (!current || current.id !== next.id) return false;
+  const keys = new Set<keyof User>([
+    ...(Object.keys(current) as Array<keyof User>),
+    ...(Object.keys(next) as Array<keyof User>),
+  ]);
+  return Array.from(keys).every((key) => Object.is(current[key], next[key]));
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,7 +85,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     try {
       const response = await authApi.me();
-      setUser(withSyncedStudyStreak(response.user));
+      const nextUser = withSyncedStudyStreak(response.user);
+      // Returning to a browser tab revalidates access, but an unchanged
+      // session must retain the same object reference. Otherwise every auth
+      // consumer treats the background check as a fresh login and reloads.
+      setUser((current) => hasSameUserSnapshot(current, nextUser) ? current : nextUser);
       return true;
     } catch (error) {
       sessionService.clear();

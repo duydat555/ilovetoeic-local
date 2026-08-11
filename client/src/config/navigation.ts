@@ -42,7 +42,6 @@ export const adminNavItems: NavigationItem[] = [
   { path: '/admin/classes', label: 'Quản lý lớp học', icon: School },
   { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
-  { path: '/profile', label: 'Hồ sơ cá nhân', icon: ShieldCheck },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 

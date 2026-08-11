@@ -4,7 +4,6 @@ import {
   BookOpenCheck,
   CalendarDays,
   CheckCircle2,
-  Clock3,
   Flame,
   RefreshCw,
   Target,
@@ -32,7 +31,6 @@ export const DashboardLivePage: React.FC = () => {
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [todayActiveSeconds, setTodayActiveSeconds] = useState<number>(0);
 
   // Tải lịch sử làm bài từ backend
   const loadHistory = async () => {
@@ -57,47 +55,8 @@ export const DashboardLivePage: React.FC = () => {
     void loadHistory();
   }, [user?.id]);
 
-  // Đồng bộ thời gian học thực tế hôm nay từ localStorage (Giống Header ActiveTimeTracker)
-  useEffect(() => {
-    if (!user) return;
-
-    const getActiveSeconds = () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const uid = user?.id || 'guest';
-      const saved = localStorage.getItem(`toeic_active_time_${uid}_${today}`);
-      return saved ? parseInt(saved, 10) || 0 : 0;
-    };
-
-    setTodayActiveSeconds(getActiveSeconds());
-
-    const interval = setInterval(() => {
-      setTodayActiveSeconds(getActiveSeconds());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [user?.id]);
-
-  // Định dạng tổng thời gian học (kết hợp thời gian bài thi + thời gian active hôm nay)
-  const formatTotalTime = (totalSecs: number) => {
-    if (totalSecs <= 0) return '0 phút';
-    const hours = Math.floor(totalSecs / 3600);
-    const mins = Math.floor((totalSecs % 3600) / 60);
-    const secs = totalSecs % 60;
-
-    if (hours > 0) {
-      return `${hours}g ${mins}p`;
-    }
-    if (mins > 0) {
-      return `${mins}p ${secs}s`;
-    }
-    return `${secs} giây`;
-  };
-
-  // Tính toán chỉ số chính xác & thời gian
+  // Tính toán các chỉ số học tập chính.
   const metrics = useMemo(() => {
-    const historySeconds = attempts.reduce((total, item) => total + (item.timeSpentSeconds || 0), 0);
-    const totalActiveSeconds = historySeconds + todayActiveSeconds;
-
     const totalQuestions = attempts.reduce((total, item) => total + (item.totalQuestions || 0), 0);
     const totalCorrect = attempts.reduce((total, item) => total + (item.correctAnswers || 0), 0);
 
@@ -122,7 +81,6 @@ export const DashboardLivePage: React.FC = () => {
       : null;
 
     return {
-      displayTime: formatTotalTime(totalActiveSeconds),
       averageAccuracy,
       totalCorrect,
       totalQuestions,
@@ -131,7 +89,7 @@ export const DashboardLivePage: React.FC = () => {
       listeningAcc,
       readingAcc,
     };
-  }, [attempts, todayActiveSeconds]);
+  }, [attempts]);
 
   // Chuẩn bị dữ liệu cho biểu đồ Tiến trình điểm số (Tối đa 8 bài gần đây)
   const chartData = useMemo(() => {
@@ -179,13 +137,6 @@ export const DashboardLivePage: React.FC = () => {
       subtext: `${progress}% tiến độ hoàn thành`,
       icon: TrendingUp,
       color: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10 dark:text-sky-300 border-sky-200/60 dark:border-sky-900/40',
-    },
-    {
-      label: 'Tổng thời gian học',
-      value: metrics.displayTime,
-      subtext: 'Đồng bộ thời gian thực với Header',
-      icon: Clock3,
-      color: 'text-amber-600 bg-amber-50 dark:bg-amber-500/10 dark:text-amber-300 border-amber-200/60 dark:border-amber-900/40',
     },
     {
       label: 'Độ chính xác trung bình',
@@ -278,10 +229,10 @@ export const DashboardLivePage: React.FC = () => {
         </div>
       )}
 
-      {/* Metric Cards (Điểm cao nhất, Mục tiêu, Thời gian học, Độ chính xác) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Metric Cards (Điểm cao nhất, Mục tiêu, Độ chính xác) */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
-          [1, 2, 3, 4].map((id) => (
+          [1, 2, 3].map((id) => (
             <BoneyardSkeleton key={id} name={`dashboard-metric-${id}`} variant="card" height={124} />
           ))
         ) : (

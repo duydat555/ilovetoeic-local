@@ -156,6 +156,15 @@ export const PracticeRunnerPage: React.FC = () => {
     const loadQuestions = async () => {
       setLoading(true);
       setError('');
+      setQuestions([]);
+      setShowSummary(false);
+      setShowTranslation(false);
+      setShowTranscript(false);
+      setShowQuestionDrawer(false);
+      setActivityRecorded(false);
+      setHistorySaveState('idle');
+      setActiveTool(null);
+      setAnnotatorEnabled(false);
 
       try {
         const source = testId

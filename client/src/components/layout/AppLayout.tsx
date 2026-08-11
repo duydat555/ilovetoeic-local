@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Navigate, useLocation, useOutlet } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNavigation } from './MobileNavigation';
@@ -17,10 +17,19 @@ export const AppLayout: React.FC = () => {
   const role = getUserRole(user);
   const location = useLocation();
   const outlet = useOutlet();
+  const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  useLayoutEffect(() => {
+    // The app shell scrolls <main>, not window. Reset it before paint so a
+    // runner with overflow-hidden cannot inherit an off-screen scrollTop from
+    // Practice by Level or another long page.
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [location.key, location.pathname, location.search]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -74,40 +83,26 @@ export const AppLayout: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
         <main
+          ref={mainRef}
           className={
             isTestRunnerPage
               ? 'relative flex-1 w-full max-w-[1540px] mx-auto p-1.5 sm:p-2.5 h-[calc(100vh-72px)] overflow-hidden flex flex-col'
               : 'relative flex-1 w-full max-w-[1540px] mx-auto p-3 sm:p-4 md:p-5 overflow-x-hidden overflow-y-auto'
           }
         >
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 15, scale: 0.995 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.995 }}
-              transition={{
-                duration: 0.2,
-                ease: 'easeInOut',
-              }}
-              onAnimationStart={(definition) => {
-                if (
-                  typeof definition === 'object' &&
-                  'opacity' in definition &&
-                  definition.opacity === 1
-                ) {
-                  window.scrollTo({ top: 0, behavior: 'auto' });
-                }
-              }}
-              className={
-                isTestRunnerPage
-                  ? 'flex-1 h-full w-full overflow-hidden'
-                  : 'min-h-[calc(100vh-8rem)]'
-              }
-            >
-              {outlet}
-            </motion.div>
-          </AnimatePresence>
+          <motion.div
+            key={location.key}
+            initial={{ opacity: 0, y: 10, scale: 0.997 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className={
+              isTestRunnerPage
+                ? 'flex-1 h-full w-full overflow-hidden'
+                : 'min-h-[calc(100vh-8rem)]'
+            }
+          >
+            {outlet}
+          </motion.div>
         </main>
       </div>
       {role === 'student' && <SelectionTranslator />}

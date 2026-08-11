@@ -54,7 +54,7 @@ export const App: React.FC = () => {
         <FeatureFlagsProvider>
         <AdminFeatureStatusProvider>
         <NotificationProvider>
-          <BrowserRouter>
+          <BrowserRouter future={{ v7_startTransition: true }}>
           <Suspense fallback={<RouteFallback />}>
             <Routes>
             {/* Public Routes */}

@@ -1,6 +1,6 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Navigate, useLocation, useOutlet } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { MobileNavigation } from './MobileNavigation';
@@ -18,6 +18,7 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const outlet = useOutlet();
   const mainRef = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -90,19 +91,54 @@ export const AppLayout: React.FC = () => {
               : 'relative flex-1 w-full max-w-[1540px] mx-auto p-3 sm:p-4 md:p-5 overflow-x-hidden overflow-y-auto'
           }
         >
-          <motion.div
-            key={location.key}
-            initial={{ opacity: 0, y: 10, scale: 0.997 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
+          <div
             className={
               isTestRunnerPage
-                ? 'flex-1 h-full w-full overflow-hidden'
-                : 'min-h-[calc(100vh-8rem)]'
+                ? 'grid flex-1 h-full w-full overflow-hidden'
+                : 'grid min-h-[calc(100vh-8rem)] w-full'
             }
           >
-            {outlet}
-          </motion.div>
+            <AnimatePresence initial={false} mode="sync">
+              <motion.div
+                key={location.key}
+                className={
+                  isTestRunnerPage
+                    ? 'col-start-1 row-start-1 min-w-0 h-full w-full overflow-hidden'
+                    : 'col-start-1 row-start-1 min-w-0 w-full'
+                }
+                initial={reduceMotion ? false : { opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={reduceMotion ? { opacity: 1 } : { opacity: 0, x: -10 }}
+                transition={
+                  reduceMotion
+                    ? { duration: 0 }
+                    : {
+                        opacity: { duration: 0.18, ease: 'linear' },
+                        x: { duration: 0.22, ease: [0.4, 0, 0.2, 1] },
+                      }
+                }
+              >
+                <Suspense
+                  fallback={
+                    <div
+                      className="grid min-h-[55vh] place-items-center"
+                      role="status"
+                      aria-label="Đang tải nội dung"
+                    >
+                      <BoneyardSkeleton
+                        name={`app-layout-route-${location.pathname}`}
+                        height={64}
+                        width={260}
+                        className="shadow-lg"
+                      />
+                    </div>
+                  }
+                >
+                  {outlet}
+                </Suspense>
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
       </div>
       {role === 'student' && <SelectionTranslator />}

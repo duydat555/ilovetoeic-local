@@ -229,7 +229,7 @@ export const PracticeByLevelPage: React.FC = () => {
         id={`${skill}-parts`}
         role="tabpanel"
         aria-labelledby={`practice-skill-${skill}`}
-        className="grid grid-cols-1 gap-4 lg:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2"
       >
         {visibleParts.map((part) => {
           const selectedLevel = selectedLevels[part.part];

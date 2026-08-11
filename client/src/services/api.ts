@@ -306,7 +306,8 @@ export const apiService = {
       ? scopedQuestions.filter((question) => Boolean(answers[question.id])).length
       : Object.keys(answers).length;
     const totalQuestions = hasQuestionScope ? scopedQuestions.length : 200;
-    const isPartial = hasQuestionScope && selectedParts.length < 7;
+    const isPartial = hasQuestionScope
+      && (selectedParts.length < 7 || totalQuestions !== 200);
     const partBreakdown = hasQuestionScope
       ? selectedParts.map((part) => {
           const partQuestions = scopedQuestions.filter((question) => question.partId === part);

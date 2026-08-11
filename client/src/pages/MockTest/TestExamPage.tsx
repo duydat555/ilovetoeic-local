@@ -148,7 +148,7 @@ export const TestExamPage: React.FC = () => {
             test_name: result.testTitle,
             selected_parts: selectedParts,
             scope_label: scopeLabel,
-            is_partial: selectedParts.length < 7,
+            is_partial: selectedParts.length < 7 || questions.length !== 200,
           },
           completedAt,
         });

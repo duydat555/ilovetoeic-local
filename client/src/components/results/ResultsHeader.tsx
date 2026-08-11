@@ -193,7 +193,7 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
 }) => {
   const displayName = formatTestDisplayName(testTitle, testName, testYear);
   const scopeInfo = formatScopeSummary(selectedParts, totalQuestions);
-  const isFullyCompleted200 = !isPartial && totalQuestions >= 200;
+  const isFullyCompleted200 = !isPartial && totalQuestions === 200;
   const statusInfo = getResultStatus(accuracyRate);
 
   // Tạo dòng thông tin phụ duy nhất gộp gọn

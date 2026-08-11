@@ -25,6 +25,7 @@ import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
+import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
 
 export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
@@ -106,7 +107,7 @@ export const DashboardLivePage: React.FC = () => {
       ? Math.round(attempts.reduce((total, item) => total + item.accuracyRate, 0) / attempts.length)
       : 0;
 
-    const bestScore = attempts.reduce((best, item) => Math.max(best, item.totalScore || 0), 0);
+    const bestScore = getBestToeicGoalScore(attempts);
 
     // Tính chính xác cho Listening & Reading
     const listeningAttempts = attempts.filter((a) => a.listeningScore !== undefined || (a.part && a.part <= 4));
@@ -135,16 +136,16 @@ export const DashboardLivePage: React.FC = () => {
   // Chuẩn bị dữ liệu cho biểu đồ Tiến trình điểm số (Tối đa 8 bài gần đây)
   const chartData = useMemo(() => {
     return [...attempts]
+      .filter(isToeicGoalAttempt)
       .reverse()
       .slice(-8)
       .map((item) => {
         const dateStr = item.completedAt
           ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(item.completedAt))
           : 'Gần đây';
-        const computedScore = item.totalScore || Math.min(990, Math.round((item.accuracyRate / 100) * 990));
         return {
           label: dateStr,
-          score: computedScore,
+          score: item.totalScore || 0,
           accuracy: item.accuracyRate,
           correct: `${item.correctAnswers}/${item.totalQuestions}`,
           name: item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài tập TOEIC'),
@@ -154,7 +155,10 @@ export const DashboardLivePage: React.FC = () => {
 
   if (!user) return null;
 
-  const currentScore = Math.max(user.currentScore || 0, metrics.bestScore);
+  // History is the source of truth. Cached scores from before this eligibility
+  // rule must not make practice or partial exams count toward the TOEIC goal.
+  const currentScore = metrics.bestScore;
+  const hasToeicScore = currentScore > 0;
   const targetScore = user.targetScore || 750;
   const progress = Math.min(100, Math.round((currentScore / targetScore) * 100));
   const pointsRemaining = Math.max(0, targetScore - currentScore);
@@ -162,8 +166,10 @@ export const DashboardLivePage: React.FC = () => {
   const metricCards = [
     {
       label: 'Điểm cao nhất',
-      value: currentScore > 0 ? `${currentScore} điểm` : 'Chưa có',
-      subtext: currentScore >= targetScore ? 'Đã đạt mục tiêu 🎉' : `Còn thiếu ${pointsRemaining} điểm`,
+      value: hasToeicScore ? `${currentScore} điểm` : 'Chưa có điểm',
+      subtext: hasToeicScore
+        ? (currentScore >= targetScore ? 'Đã đạt mục tiêu 🎉' : `Còn thiếu ${pointsRemaining} điểm`)
+        : 'Cần hoàn thành đề thi đủ 200 câu',
       icon: Target,
       color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40',
     },
@@ -225,7 +231,9 @@ export const DashboardLivePage: React.FC = () => {
             {/* Thanh tiến độ mục tiêu */}
             <div className="mt-4 rounded-2xl bg-white/40 p-4 backdrop-blur-xs">
               <div className="flex items-center justify-between text-xs font-extrabold text-brand-ink">
-                <span>Tiến độ đạt mục tiêu ({currentScore}/{targetScore})</span>
+                <span>
+                  Tiến độ đạt mục tiêu ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
+                </span>
                 <span>{progress}%</span>
               </div>
               <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/50">
@@ -235,7 +243,9 @@ export const DashboardLivePage: React.FC = () => {
                 />
               </div>
               <div className="mt-2 text-[11px] font-bold text-brand-ink/80">
-                {currentScore >= targetScore
+                {!hasToeicScore
+                  ? 'Hoàn thành một đề thi đầy đủ 200 câu để bắt đầu tính tiến độ.'
+                  : currentScore >= targetScore
                   ? '🎉 Xuất sắc! Bạn đã đạt mục tiêu điểm số đề ra.'
                   : `💪 Bạn còn thiếu ${pointsRemaining} điểm để chạm mốc ${targetScore} TOEIC.`}
               </div>
@@ -304,10 +314,11 @@ export const DashboardLivePage: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
             <div>
               <h2 className="text-base font-extrabold text-content">Tiến trình điểm số</h2>
-              <p className="mt-0.5 text-xs text-content-muted">Theo dõi 8 kết quả làm bài gần nhất</p>
+              <p className="mt-0.5 text-xs text-content-muted">Theo dõi 8 đề thi đầy đủ 200 câu gần nhất</p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-              <CheckCircle2 className="size-3.5" /> {progress}% mục tiêu ({currentScore}/{targetScore})
+              <CheckCircle2 className="size-3.5" /> {progress}% mục tiêu
+              ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
             </span>
           </div>
 

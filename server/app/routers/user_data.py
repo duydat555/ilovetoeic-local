@@ -161,7 +161,26 @@ def save_study_attempt(
     else:
         streak = 1
     longest = max(int(user.get("longest_streak") or 0), streak)
-    new_score = max(int(user.get("current_score") or 0), int(payload.totalScore or 0))
+    # Only the best fully answered, non-Part TOEIC exam contributes to the goal.
+    # Recalculation also clears legacy scores produced by practice/partial work.
+    score_row = db.fetch_one(
+        """
+        SELECT COALESCE(MAX(total_score), 0) AS best_score
+        FROM test_attempts
+        WHERE user_id = ?
+          AND mode = 'exam'
+          AND total_questions = 200
+          AND answered_questions = 200
+          AND part IS NULL
+          AND COALESCE(
+              JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
+              'false'
+          ) <> 'true'
+        """,
+        (user["id"],),
+        use_cache=False,
+    )
+    new_score = int((score_row or {}).get("best_score") or 0)
     db.execute(
         """
         UPDATE users

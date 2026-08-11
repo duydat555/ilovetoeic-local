@@ -31,7 +31,7 @@ export const ResultsSummaryCards: React.FC<ResultsSummaryCardsProps> = ({
   totalQuestions,
 }) => {
   const incorrectCount = wrongAnswers + skippedAnswers;
-  const isFull200 = !isPartial && totalQuestions >= 200;
+  const isFull200 = !isPartial && totalQuestions === 200;
 
   const visibleCardsCount = (hasListening ? 1 : 0) + (hasReading ? 1 : 0) + 2;
 

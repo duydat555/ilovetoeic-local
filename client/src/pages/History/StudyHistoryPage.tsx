@@ -14,6 +14,7 @@ import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { backendService } from '../../services/backend';
 import { StudyAttempt, StudyAttemptMode } from '../../types';
+import { getBestToeicGoalScore } from '../../utils/toeicGoal';
 import {
   ALL_TEST_PARTS,
   getTestPartScopeLabel,
@@ -75,9 +76,7 @@ export const StudyHistoryPage: React.FC = () => {
   const averageAccuracy = attempts.length
     ? Math.round(attempts.reduce((total, attempt) => total + attempt.accuracyRate, 0) / attempts.length)
     : 0;
-  const bestScore = attempts
-    .filter((attempt) => attempt.mode === 'exam')
-    .reduce((best, attempt) => Math.max(best, attempt.totalScore || 0), 0);
+  const bestScore = getBestToeicGoalScore(attempts);
 
   return (
     <div className="space-y-6 pb-12">

@@ -208,8 +208,6 @@ jobs:
             )
           fi
 
-          unset DBPASS MYSQL_PWD
-
           echo "==> Installing backend dependencies"
           if [ ! -x .venv/bin/python ]; then
             echo "Missing server/.venv"
@@ -219,6 +217,32 @@ jobs:
           .venv/bin/python -m pip install \
             --disable-pip-version-check \
             -r requirements.txt
+
+          echo "==> Importing Grammar data"
+          GRAMMAR_IMPORT_VERSION="20260812_02_import_grammar_csv"
+          GRAMMAR_IMPORT_APPLIED="$(
+            mysql \
+              --host=127.0.0.1 \
+              --user=toeic_app \
+              --batch \
+              --skip-column-names \
+              toeic_db \
+              -e "SELECT COUNT(*) FROM schema_migrations WHERE version = '$GRAMMAR_IMPORT_VERSION'"
+          )"
+
+          if [ "$GRAMMAR_IMPORT_APPLIED" = "0" ]; then
+            .venv/bin/python import_grammar_csv.py data/grammar_questions_flat.csv
+
+            mysql \
+              --host=127.0.0.1 \
+              --user=toeic_app \
+              toeic_db \
+              -e "INSERT INTO schema_migrations (version) VALUES ('$GRAMMAR_IMPORT_VERSION')"
+          else
+            echo "Skipping applied Grammar import: $GRAMMAR_IMPORT_VERSION"
+          fi
+
+          unset DBPASS MYSQL_PWD
 
           echo "==> Building frontend"
           cd "$DEPLOY_PATH/client"

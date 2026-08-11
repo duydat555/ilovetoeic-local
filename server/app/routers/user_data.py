@@ -410,11 +410,33 @@ def get_study_attempt_detail(
 
 
 @router.delete("/study-attempts")
-def delete_study_attempts_for_test(
-    test_id: str = Query(..., min_length=1, max_length=100),
+def delete_study_attempts(
+    test_id: Optional[str] = Query(default=None, min_length=1, max_length=100),
+    source_type: Literal["test", "level"] = Query(default="test"),
+    part: Optional[int] = Query(default=None, ge=1, le=7),
+    level: Optional[int] = Query(default=None, ge=1, le=5),
     user=Depends(get_current_user),
 ):
+    if source_type == "test" and not test_id:
+        raise HTTPException(status_code=400, detail="Thiếu mã đề thi cần xoá lịch sử.")
+    if source_type == "level" and (part is None or level is None):
+        raise HTTPException(status_code=400, detail="Thiếu Part hoặc Level cần xoá lịch sử.")
+
     user_id = user["id"]
+    attempt_clauses = ["attempt.user_id = %s"]
+    attempt_params: List[Any] = [user_id]
+    if source_type == "test":
+        attempt_clauses.append("attempt.test_id = %s")
+        attempt_params.append(test_id)
+    else:
+        attempt_clauses.extend([
+            "JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.source')) = 'level_practice'",
+            "COALESCE(attempt.part, JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.selected_part'))) = %s",
+            "JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.selected_level')) = %s",
+        ])
+        attempt_params.extend([part, level])
+    attempt_where = " AND ".join(attempt_clauses)
+
     with db.transaction() as conn:
         with conn.cursor() as cursor:
             # Question activity has no attempt foreign key, so remove it before
@@ -426,9 +448,8 @@ def delete_study_attempts_for_test(
                 INNER JOIN test_attempts attempt
                     ON attempt.id = activity.attempt_id
                    AND attempt.user_id = activity.user_id
-                WHERE attempt.user_id = %s AND attempt.test_id = %s
-                """,
-                (user_id, test_id),
+                WHERE """ + attempt_where,
+                tuple(attempt_params),
             )
             cursor.execute(
                 """
@@ -437,13 +458,12 @@ def delete_study_attempts_for_test(
                 INNER JOIN test_attempts attempt
                     ON attempt.user_id = notification.user_id
                    AND notification.dedupe_key = CONCAT('study-attempt:', attempt.id)
-                WHERE attempt.user_id = %s AND attempt.test_id = %s
-                """,
-                (user_id, test_id),
+                WHERE """ + attempt_where,
+                tuple(attempt_params),
             )
             cursor.execute(
-                "DELETE FROM test_attempts WHERE user_id = %s AND test_id = %s",
-                (user_id, test_id),
+                "DELETE attempt FROM test_attempts attempt WHERE " + attempt_where,
+                tuple(attempt_params),
             )
             deleted_count = cursor.rowcount
 

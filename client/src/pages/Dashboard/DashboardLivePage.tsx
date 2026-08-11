@@ -26,6 +26,71 @@ import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
 import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
 
+const DashboardLoadingState: React.FC = () => (
+  <div className="space-y-6 pb-12" role="status" aria-label="Đang tải trang tổng quan">
+    <section className="overflow-hidden rounded-[28px] border border-brand-300/80 bg-brand p-6 sm:p-8">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="w-full max-w-2xl">
+          <div className="flex gap-2">
+            <BoneyardSkeleton name="dashboard-hero-streak" height={28} width={124} className="!rounded-xl !bg-white/35" />
+            <BoneyardSkeleton name="dashboard-hero-goal" height={28} width={148} className="!rounded-xl !bg-white/35" />
+          </div>
+          <BoneyardSkeleton name="dashboard-hero-title" height={40} width="min(100%, 34rem)" className="mt-4 !rounded-xl !bg-white/35" />
+          <BoneyardSkeleton name="dashboard-hero-copy" variant="text" width="min(100%, 38rem)" className="mt-3 !bg-white/30" />
+          <div className="mt-5 rounded-2xl bg-white/30 p-4">
+            <div className="flex justify-between gap-4">
+              <BoneyardSkeleton name="dashboard-goal-label" variant="text" width="min(70%, 18rem)" className="!bg-white/40" />
+              <BoneyardSkeleton name="dashboard-goal-percent" variant="text" width={42} className="!bg-white/40" />
+            </div>
+            <BoneyardSkeleton name="dashboard-goal-bar" height={10} className="mt-3 !rounded-full !bg-white/40" />
+            <BoneyardSkeleton name="dashboard-goal-note" variant="text" width="min(85%, 25rem)" className="mt-3 !bg-white/35" />
+          </div>
+        </div>
+        <BoneyardSkeleton name="dashboard-hero-action" variant="button" height={48} width={176} className="!rounded-2xl !bg-brand-ink/35" />
+      </div>
+    </section>
+
+    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Đang tải chỉ số học tập">
+      {Array.from({ length: 3 }, (_, index) => (
+        <article key={index} className="surface rounded-2xl border border-line p-5">
+          <BoneyardSkeleton name={`dashboard-metric-icon-${index}`} height={44} width={44} className="rounded-2xl" />
+          <BoneyardSkeleton name={`dashboard-metric-value-${index}`} height={28} width="58%" className="mt-4 rounded-lg" />
+          <BoneyardSkeleton name={`dashboard-metric-label-${index}`} variant="text" width="42%" className="mt-2" />
+          <BoneyardSkeleton name={`dashboard-metric-note-${index}`} variant="text" width="72%" className="mt-2" />
+        </article>
+      ))}
+    </section>
+
+    <section className="surface rounded-2xl border border-line p-4 sm:p-5">
+      <div className="flex items-start gap-3 border-b border-line pb-4">
+        <BoneyardSkeleton name="dashboard-activity-icon" height={36} width={36} className="shrink-0 rounded-xl" />
+        <div className="flex-1 space-y-2">
+          <BoneyardSkeleton name="dashboard-activity-title" variant="text" width={150} />
+          <BoneyardSkeleton name="dashboard-activity-copy" variant="text" width="min(80%, 28rem)" />
+        </div>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <BoneyardSkeleton name="dashboard-activity-parts" height={286} className="rounded-2xl border border-line" />
+        <BoneyardSkeleton name="dashboard-activity-calendar" height={286} className="rounded-2xl border border-line" />
+      </div>
+    </section>
+
+    <section className="grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
+      <article className="surface rounded-2xl border border-line p-5">
+        <div className="space-y-2 border-b border-line pb-4">
+          <BoneyardSkeleton name="dashboard-chart-title" variant="text" width={156} />
+          <BoneyardSkeleton name="dashboard-chart-copy" variant="text" width={248} />
+        </div>
+        <BoneyardSkeleton name="dashboard-chart" height={256} className="mt-4 rounded-xl" />
+      </article>
+      <article className="surface rounded-2xl border border-line p-5">
+        <BoneyardSkeleton name="dashboard-recent-title" variant="text" width={164} className="mb-4" />
+        <BoneyardSkeleton name="dashboard-recent-rows" count={4} variant="row" />
+      </article>
+    </section>
+  </div>
+);
+
 export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
@@ -112,6 +177,7 @@ export const DashboardLivePage: React.FC = () => {
   }, [attempts]);
 
   if (!user) return null;
+  if (loading) return <DashboardLoadingState />;
 
   // History is the source of truth. Cached scores from before this eligibility
   // rule must not make practice or partial exams count toward the TOEIC goal.

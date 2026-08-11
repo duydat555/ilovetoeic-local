@@ -110,6 +110,18 @@ export const storage = {
     return [];
   },
 
+  deleteTestHistory(testId: string) {
+    try {
+      const history = this.getTestHistory();
+      const remaining = history.filter((result) => String(result.testId) !== String(testId));
+      localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));
+      return history.length - remaining.length;
+    } catch (e) {
+      console.warn('[!] Failed to delete test history', e);
+      return 0;
+    }
+  },
+
   getStudyStreak(
     userId: string,
     fallbackStreak = 0,

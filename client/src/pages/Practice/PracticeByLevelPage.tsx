@@ -17,9 +17,10 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
+import { countLevelPracticeSessions, deleteLevelPracticeSessions } from '../../utils/practiceSessions';
 
 type CountMap = Record<number, Record<number, number>>;
-type DeleteWrongScope = { part: number; level: number; label: string; count: number };
+type DeleteHistoryScope = { part: number; level: number; label: string; attemptCount: number; displayCount: number };
 
 const createFallbackCounts = (): CountMap => Object.fromEntries(
   PRACTICE_LEVEL_PARTS.map((part) => [part.part, part.fallbackQuestionCounts]),
@@ -51,7 +52,7 @@ export const PracticeByLevelPage: React.FC = () => {
   const [counts, setCounts] = useState<CountMap>(createFallbackCounts);
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
   const [wrongCounts, setWrongCounts] = useState<Record<string, number>>({});
-  const [deleteScope, setDeleteScope] = useState<DeleteWrongScope | null>(null);
+  const [deleteScope, setDeleteScope] = useState<DeleteHistoryScope | null>(null);
   const [deletingWrong, setDeletingWrong] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
@@ -243,12 +244,16 @@ export const PracticeByLevelPage: React.FC = () => {
     setDeleteError('');
   };
 
-  const handleDeleteWrong = async () => {
+  const handleDeleteHistory = async () => {
     if (!deleteScope || deletingWrong) return;
     setDeletingWrong(true);
     setDeleteError('');
     try {
-      const result = await backendService.deleteWrongQuestions('level', {
+      const historyResult = await backendService.deleteLevelStudyHistory(
+        deleteScope.part,
+        deleteScope.level,
+      );
+      const wrongResult = await backendService.deleteWrongQuestions('level', {
         part: deleteScope.part,
         level: deleteScope.level,
       });
@@ -258,12 +263,17 @@ export const PracticeByLevelPage: React.FC = () => {
           level: deleteScope.level,
         })
         : 0;
+      deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
       const key = `${deleteScope.part}:${deleteScope.level}`;
+      setAttempts((current) => current.filter((attempt) => {
+        const parsed = getLevelAttempt(attempt);
+        return !parsed || parsed.part !== deleteScope.part || parsed.level !== deleteScope.level;
+      }));
       setWrongCounts((current) => ({ ...current, [key]: 0 }));
-      setToastMessage(`Đã xoá ${result.deletedCount + localDeleted} câu sai của ${deleteScope.label}.`);
+      setToastMessage(`Đã xoá ${historyResult.deletedCount} lượt làm và ${wrongResult.deletedCount + localDeleted} câu sai của ${deleteScope.label}.`);
       setDeleteScope(null);
     } catch (requestError) {
-      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử câu sai.');
+      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
     } finally {
       setDeletingWrong(false);
     }
@@ -352,6 +362,13 @@ export const PracticeByLevelPage: React.FC = () => {
           const selectedLevel = selectedLevels[part.part];
           const questionCount = counts[part.part]?.[selectedLevel] ?? 0;
           const wrongCount = wrongCounts[`${part.part}:${selectedLevel}`] || 0;
+          const attemptCount = attempts.filter((attempt) => {
+            const parsed = getLevelAttempt(attempt);
+            return parsed?.part === part.part && parsed.level === selectedLevel;
+          }).length;
+          const savedSessionCount = countLevelPracticeSessions(part.part, selectedLevel);
+          const displayCount = Math.max(attemptCount, savedSessionCount);
+          const hasHistory = displayCount > 0 || wrongCount > 0;
           return (
             <article key={part.part} className="surface flex flex-col rounded-2xl p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
@@ -362,7 +379,7 @@ export const PracticeByLevelPage: React.FC = () => {
                 <div className="flex shrink-0 items-center gap-1 text-content-muted">
                   <button
                     type="button"
-                    disabled={wrongCount === 0}
+                    disabled={!hasHistory}
                     onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
                     aria-label={`Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
                     title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
@@ -382,11 +399,12 @@ export const PracticeByLevelPage: React.FC = () => {
                         part: part.part,
                         level: selectedLevel,
                         label: `Part ${part.part} - Level ${selectedLevel}`,
-                        count: wrongCount,
+                        attemptCount,
+                        displayCount,
                       });
                     }}
-                    aria-label={`Xoá lịch sử câu sai Part ${part.part} Level ${selectedLevel}`}
-                    title={wrongCount === 0 ? 'Không có câu sai để xoá' : 'Xoá lịch sử câu sai'}
+                    aria-label={`Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
+                    title={!hasHistory ? 'Chưa có lịch sử làm bài để xoá' : 'Xoá lịch sử làm bài'}
                     className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Trash2 className="size-3.5" />
@@ -433,10 +451,14 @@ export const PracticeByLevelPage: React.FC = () => {
           <DeleteWrongQuestionsModal
             key={`delete-level-${deleteScope.part}-${deleteScope.level}`}
             scopeLabel={deleteScope.label}
-            wrongCount={deleteScope.count}
+            wrongCount={deleteScope.displayCount}
             deleting={deletingWrong}
             error={deleteError}
-            onConfirm={() => void handleDeleteWrong()}
+            title="Xoá lịch sử làm bài?"
+            description={<>Toàn bộ <strong className="text-content">{deleteScope.displayCount} lượt hoặc phiên làm bài đã lưu</strong>, gồm kết quả câu đúng và câu sai của <strong className="text-content">{deleteScope.label}</strong>, sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>}
+            confirmLabel="Xoá toàn bộ lịch sử"
+            closeLabel="Đóng xác nhận xoá lịch sử làm bài"
+            onConfirm={() => void handleDeleteHistory()}
             onClose={closeDeleteModal}
           />
         )}

@@ -13,6 +13,8 @@ import { ALL_TEST_PARTS, serializeTestPartScope } from '../../utils/testScope';
 import { backendService } from '../../services/backend';
 import { useAuth } from '../../context/AuthContext';
 import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
+import { storage } from '../../utils/storage';
+import { countTestPracticeSessions, deleteTestPracticeSessions } from '../../utils/practiceSessions';
 
 export const MockTestPage: React.FC = () => {
   const [allTests, setAllTests] = useState<MockTestItem[]>([]);
@@ -25,6 +27,7 @@ export const MockTestPage: React.FC = () => {
   const [activeMode, setActiveMode] = useState<TestMode>('practice');
   const [selectedParts, setSelectedParts] = useState<SelectedParts>([]);
   const [wrongCounts, setWrongCounts] = useState<Record<string, number>>({});
+  const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
   const [deleteTest, setDeleteTest] = useState<MockTestItem | null>(null);
   const [deletingWrong, setDeletingWrong] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -90,6 +93,30 @@ export const MockTestPage: React.FC = () => {
   }, [user?.id]);
 
   useEffect(() => {
+    let active = true;
+    if (!user) {
+      setHistoryCounts({});
+      return () => { active = false; };
+    }
+    const loadHistoryCounts = () => {
+      void backendService.getStudyHistory(user.id).then((attempts) => {
+        if (!active || !attempts) return;
+        const next: Record<string, number> = {};
+        attempts.forEach((attempt) => {
+          if (attempt.testId) next[attempt.testId] = (next[attempt.testId] || 0) + 1;
+        });
+        setHistoryCounts(next);
+      });
+    };
+    loadHistoryCounts();
+    window.addEventListener('wrong-questions-updated', loadHistoryCounts);
+    return () => {
+      active = false;
+      window.removeEventListener('wrong-questions-updated', loadHistoryCounts);
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!toastMessage) return undefined;
     const timeout = window.setTimeout(() => setToastMessage(''), 3200);
     return () => window.clearTimeout(timeout);
@@ -139,24 +166,33 @@ export const MockTestPage: React.FC = () => {
     setDeleteError('');
   };
 
-  const handleDeleteWrong = async () => {
+  const handleDeleteHistory = async () => {
     if (!deleteTest || deletingWrong) return;
     setDeletingWrong(true);
     setDeleteError('');
     try {
-      const result = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
+      const historyResult = await backendService.deleteTestStudyHistory(deleteTest.id);
+      const wrongResult = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
       const localDeleted = user
         ? deleteLocalWrongQuestions(user.id, 'test', { testId: deleteTest.id })
         : 0;
+      const localHistoryDeleted = storage.deleteTestHistory(deleteTest.id);
+      storage.clearExamDraft(deleteTest.id);
+      deleteTestPracticeSessions(deleteTest.id);
       setWrongCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
-      setToastMessage(`Đã xoá ${result.deletedCount + localDeleted} câu sai của ${deleteTest.title}.`);
+      setHistoryCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
+      setToastMessage(`Đã xoá ${historyResult.deletedCount + localHistoryDeleted} lượt làm và ${wrongResult.deletedCount + localDeleted} câu sai của ${deleteTest.title}.`);
       setDeleteTest(null);
     } catch (requestError) {
-      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử câu sai.');
+      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
     } finally {
       setDeletingWrong(false);
     }
   };
+
+  const deleteTestHistoryCount = deleteTest
+    ? Math.max(historyCounts[deleteTest.id] || 0, countTestPracticeSessions(deleteTest.id))
+    : 0;
 
   return (
     <div className="space-y-6 pb-12 text-content transition-colors duration-300">
@@ -210,10 +246,11 @@ export const MockTestPage: React.FC = () => {
               test={test}
               onOpenMode={openModeModal}
               wrongCount={wrongCounts[test.id] || 0}
+              historyCount={Math.max(historyCounts[test.id] || 0, countTestPracticeSessions(test.id))}
               onRetryWrong={(selectedTest) => navigate(
                 `/practice/runner/all?testId=${encodeURIComponent(selectedTest.id)}&wrongSource=test`,
               )}
-              onDeleteWrong={(selectedTest) => {
+              onDeleteHistory={(selectedTest) => {
                 setDeleteError('');
                 setDeleteTest(selectedTest);
               }}
@@ -245,10 +282,14 @@ export const MockTestPage: React.FC = () => {
           <DeleteWrongQuestionsModal
             key={`delete-wrong-${deleteTest.id}`}
             scopeLabel={deleteTest.title}
-            wrongCount={wrongCounts[deleteTest.id] || 0}
+            wrongCount={deleteTestHistoryCount}
             deleting={deletingWrong}
             error={deleteError}
-            onConfirm={() => void handleDeleteWrong()}
+            title="Xoá lịch sử làm bài?"
+            description={<>Toàn bộ <strong className="text-content">{deleteTestHistoryCount} lượt hoặc phiên làm bài đã lưu</strong>, gồm kết quả câu đúng và câu sai của <strong className="text-content">{deleteTest.title}</strong>, sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>}
+            confirmLabel="Xoá toàn bộ lịch sử"
+            closeLabel="Đóng xác nhận xoá lịch sử làm bài"
+            onConfirm={() => void handleDeleteHistory()}
             onClose={closeDeleteModal}
           />
         )}

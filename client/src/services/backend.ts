@@ -478,7 +478,19 @@ export const backendService = {
 
   async deleteTestStudyHistory(testId: string) {
     return authFetch<{ success: boolean; deletedCount: number }>(
-      `/study-attempts?test_id=${encodeURIComponent(testId)}`,
+      `/study-attempts?source_type=test&test_id=${encodeURIComponent(testId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async deleteLevelStudyHistory(part: number, level: number) {
+    const params = new URLSearchParams({
+      source_type: 'level',
+      part: String(part),
+      level: String(level),
+    });
+    return authFetch<{ success: boolean; deletedCount: number }>(
+      `/study-attempts?${params.toString()}`,
       { method: 'DELETE' },
     );
   },

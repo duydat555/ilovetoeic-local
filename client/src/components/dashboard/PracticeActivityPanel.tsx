@@ -267,8 +267,33 @@ export const PracticeActivityPanel: React.FC = () => {
 
       {loading ? (
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <BoneyardSkeleton name="dashboard-part-activity" variant="card" height={330} />
-          <BoneyardSkeleton name="dashboard-contribution-calendar" variant="card" height={330} />
+          <div className="rounded-2xl border border-line bg-surface-elevated/45 p-4">
+            <div className="grid grid-cols-3 gap-2">
+              {Array.from({ length: 3 }, (_, index) => (
+                <BoneyardSkeleton key={index} name={`dashboard-part-stat-${index}`} height={66} className="rounded-xl border border-line" />
+              ))}
+            </div>
+            <div className="mt-5 space-y-4">
+              {Array.from({ length: 7 }, (_, index) => (
+                <div key={index}>
+                  <div className="flex justify-between gap-3">
+                    <BoneyardSkeleton name={`dashboard-part-label-${index}`} variant="text" width="48%" />
+                    <BoneyardSkeleton name={`dashboard-part-count-${index}`} variant="text" width={48} />
+                  </div>
+                  <BoneyardSkeleton name={`dashboard-part-bar-${index}`} height={6} className="mt-2 rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-2xl border border-line bg-surface-elevated/45 p-4">
+            <BoneyardSkeleton name="dashboard-calendar-title" variant="text" width="min(75%, 19rem)" />
+            <BoneyardSkeleton name="dashboard-calendar-copy" variant="text" width="min(62%, 15rem)" className="mt-2" />
+            <div className="mt-6 grid grid-cols-12 gap-1.5" aria-hidden="true">
+              {Array.from({ length: 72 }, (_, index) => (
+                <BoneyardSkeleton key={index} name={`dashboard-calendar-cell-${index}`} height={12} className="rounded-[3px]" />
+              ))}
+            </div>
+          </div>
         </div>
       ) : (
         <div className="mt-4 grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">

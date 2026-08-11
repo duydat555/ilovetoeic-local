@@ -12,6 +12,7 @@ from app.routers import (
     auth,
     classes,
     features,
+    grammar,
     gemini,
     leaderboard,
     notifications,
@@ -55,6 +56,7 @@ app.include_router(gemini.router)
 app.include_router(auth.router)
 app.include_router(classes.router)
 app.include_router(features.router)
+app.include_router(grammar.router)
 app.include_router(user_data.router)
 app.include_router(leaderboard.router)
 app.include_router(notifications.router)

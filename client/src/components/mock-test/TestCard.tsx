@@ -15,8 +15,9 @@ interface TestCardProps {
   test: MockTestItem;
   onOpenMode?: (test: MockTestItem, mode: TestMode) => void;
   wrongCount?: number;
+  historyCount?: number;
   onRetryWrong?: (test: MockTestItem) => void;
-  onDeleteWrong?: (test: MockTestItem) => void;
+  onDeleteHistory?: (test: MockTestItem) => void;
   variant?: 'default' | 'picker';
   selected?: boolean;
   onSelect?: (test: MockTestItem) => void;
@@ -26,8 +27,9 @@ export const TestCard: React.FC<TestCardProps> = ({
   test,
   onOpenMode,
   wrongCount = 0,
+  historyCount = 0,
   onRetryWrong,
-  onDeleteWrong,
+  onDeleteHistory,
   variant = 'default',
   selected = false,
   onSelect,
@@ -72,10 +74,10 @@ export const TestCard: React.FC<TestCardProps> = ({
             </button>
             <button
               type="button"
-              disabled={wrongCount === 0}
-              onClick={() => onDeleteWrong?.(test)}
-              aria-label={`Xoá lịch sử câu sai của ${test.title}`}
-              title={wrongCount === 0 ? 'Không có câu sai để xoá' : 'Xoá lịch sử câu sai'}
+              disabled={historyCount === 0 && wrongCount === 0}
+              onClick={() => onDeleteHistory?.(test)}
+              aria-label={`Xoá lịch sử làm bài của ${test.title}`}
+              title={historyCount === 0 && wrongCount === 0 ? 'Chưa có lịch sử làm bài để xoá' : 'Xoá lịch sử làm bài'}
               className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Trash2 className="size-3.5" />
@@ -96,7 +98,7 @@ export const TestCard: React.FC<TestCardProps> = ({
       </div>
 
       <p className={`${picker ? 'text-sm' : 'text-xs'} font-medium text-content-muted`}>
-        {picker ? `${test.type} - ${test.difficulty}` : 'Chưa luyện tập'}
+        {picker ? `${test.type} - ${test.difficulty}` : historyCount > 0 ? `${historyCount} lượt đã làm` : 'Chưa luyện tập'}
       </p>
     </div>
 

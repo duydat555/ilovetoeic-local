@@ -23,3 +23,18 @@ npm run dev
 
 Xem hướng dẫn cấu hình và chuyển dữ liệu tại
 [MYSQL_MIGRATION.md](./MYSQL_MIGRATION.md).
+
+## Nhập dữ liệu ngữ pháp
+
+Sau khi MySQL đã chạy và biến môi trường trong `server/.env` đã đúng, nhập file
+CSV phẳng bằng lệnh sau. Trình nhập dùng upsert nên có thể chạy lại khi dữ liệu
+nguồn được cập nhật.
+
+```powershell
+cd server
+python import_grammar_csv.py data/grammar_questions_flat.csv
+```
+
+Schema MySQL tương ứng nằm trong `server/mysql_schema.sql` và được backend tự
+khởi tạo khi khởi động. Trên production, GitHub Actions áp dụng migration tạo
+bảng rồi nhập file CSV một lần, có ghi nhận trong `schema_migrations`.

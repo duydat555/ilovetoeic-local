@@ -9,6 +9,10 @@ interface DeleteWrongQuestionsModalProps {
   wrongCount: number;
   deleting: boolean;
   error: string;
+  title?: string;
+  description?: React.ReactNode;
+  confirmLabel?: string;
+  closeLabel?: string;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -18,6 +22,10 @@ export const DeleteWrongQuestionsModal: React.FC<DeleteWrongQuestionsModalProps>
   wrongCount,
   deleting,
   error,
+  title = 'Xoá lịch sử câu sai?',
+  description,
+  confirmLabel = 'Xoá câu sai',
+  closeLabel = 'Đóng xác nhận xoá lịch sử câu sai',
   onConfirm,
   onClose,
 }) => {
@@ -58,7 +66,7 @@ export const DeleteWrongQuestionsModal: React.FC<DeleteWrongQuestionsModalProps>
           type="button"
           onClick={onClose}
           disabled={deleting}
-          aria-label="Đóng xác nhận xoá lịch sử câu sai"
+          aria-label={closeLabel}
           className="absolute right-4 top-4 rounded-full p-2 text-content-muted transition-colors duration-200 hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
         >
           <X className="size-5" />
@@ -68,10 +76,10 @@ export const DeleteWrongQuestionsModal: React.FC<DeleteWrongQuestionsModalProps>
           <AlertTriangle className="size-5" />
         </div>
         <h2 id="delete-wrong-questions-title" className="mt-4 pr-10 text-lg font-extrabold">
-          Xoá lịch sử câu sai?
+          {title}
         </h2>
         <p id="delete-wrong-questions-description" className="mt-2 text-sm leading-relaxed text-content-muted">
-          <strong className="text-content">{wrongCount} câu sai</strong> của <strong className="text-content">{scopeLabel}</strong> sẽ bị xoá. Kết quả bài làm khác không bị ảnh hưởng.
+          {description || <><strong className="text-content">{wrongCount} câu sai</strong> của <strong className="text-content">{scopeLabel}</strong> sẽ bị xoá. Kết quả bài làm khác không bị ảnh hưởng.</>}
         </p>
 
         {error && (
@@ -96,7 +104,7 @@ export const DeleteWrongQuestionsModal: React.FC<DeleteWrongQuestionsModalProps>
             className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-negative px-4 py-2 text-xs font-bold text-white transition-colors duration-200 hover:brightness-95 disabled:cursor-wait disabled:opacity-70"
           >
             {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-            {deleting ? 'Đang xoá...' : 'Xoá câu sai'}
+            {deleting ? 'Đang xoá...' : confirmLabel}
           </button>
         </div>
       </motion.div>

@@ -9,6 +9,7 @@ import {
   School,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Trophy,
   UserCog,
   UserRound,
@@ -27,6 +28,7 @@ export interface NavigationItem {
 
 export const studentNavItems: NavigationItem[] = [
   { path: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard, end: true, featureKey: 'dashboard' },
+  { path: '/practice-by-level', label: 'Luyện theo Level', icon: SlidersHorizontal, featureKey: 'mock_test' },
   { path: '/mock-test', label: 'Đề thi', icon: ClipboardCheck, featureKey: 'mock_test' },
   { path: '/vocabulary', label: 'Từ vựng Flashcard', icon: Languages, featureKey: 'vocabulary' },
   { path: '/grammar', label: 'Ngữ pháp TOEIC', icon: LibraryBig, featureKey: 'grammar' },

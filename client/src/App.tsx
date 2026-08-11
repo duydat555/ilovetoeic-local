@@ -19,6 +19,7 @@ const LandingPage = lazy(() => import('./pages/Landing/LandingPage').then((m) =>
 const AuthCallbackPage = lazy(() => import('./pages/Auth/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })));
 const DashboardLivePage = lazy(() => import('./pages/Dashboard/DashboardLivePage').then((m) => ({ default: m.DashboardLivePage })));
 const PracticeRunnerPage = lazy(() => import('./pages/Practice/PracticeRunnerPage').then((m) => ({ default: m.PracticeRunnerPage })));
+const PracticeByLevelPage = lazy(() => import('./pages/Practice/PracticeByLevelPage').then((m) => ({ default: m.PracticeByLevelPage })));
 const MockTestPage = lazy(() => import('./pages/MockTest/MockTestPage').then((m) => ({ default: m.MockTestPage })));
 const TestExamPage = lazy(() => import('./pages/MockTest/TestExamPage').then((m) => ({ default: m.TestExamPage })));
 const TestResultPage = lazy(() => import('./pages/Results/TestResultPage').then((m) => ({ default: m.TestResultPage })));
@@ -70,6 +71,7 @@ export const App: React.FC = () => {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardLivePage />} />
               <Route element={<FeatureRouteGuard feature="mock_test" />}>
+                <Route path="/practice-by-level" element={<PracticeByLevelPage />} />
                 <Route path="/practice/runner/:partId" element={<PracticeRunnerPage />} />
                 <Route path="/mock-test" element={<MockTestPage />} />
                 <Route path="/mock-test/exam/:testId" element={<TestExamPage />} />

@@ -29,7 +29,54 @@ export interface ApiTestItem {
   audio_url?: string;
 }
 
+export interface PracticeLevelCount {
+  part: number;
+  level: number;
+  questionCount: number;
+}
+
 export const apiService = {
+  async getPracticeLevelSummary(): Promise<PracticeLevelCount[]> {
+    const res = await fetch(`${API_BASE_URL}/practice-by-level/summary`);
+    if (!res.ok) throw new Error('Không thể tải số lượng câu hỏi theo Level.');
+    const json = await res.json();
+    return (Array.isArray(json.data) ? json.data : []).map((item: any) => ({
+      part: Number(item.part),
+      level: Number(item.level),
+      questionCount: Number(item.question_count),
+    }));
+  },
+
+  async getPracticeLevelQuestions(part: number, level: number): Promise<Question[]> {
+    const query = new URLSearchParams({ part: String(part), level: String(level) });
+    const res = await fetch(`${API_BASE_URL}/practice-by-level/questions?${query.toString()}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.detail || 'Không thể tải câu hỏi theo Level.');
+    }
+    const json = await res.json();
+    const source = Array.isArray(json.questions) ? json.questions : [];
+    return source.map((raw: any) => {
+      const question = formatQuestionObject(raw);
+      if (raw.passage_id) {
+        question.sharedGroupId = `level:${raw.test_id}:${raw.passage_id}`;
+        const passageParts = [raw.passage_text, raw.passage_text_2, raw.passage_text_3].filter(Boolean);
+        if (passageParts.length > 0) {
+          question.passageText = passageParts.join('<hr class="passage-separator" />');
+        }
+        const translatedParts = [
+          raw.passage_text_vi_html,
+          raw.passage_text_2_vi_html,
+          raw.passage_text_3_vi_html,
+        ].filter(Boolean);
+        if (raw.format_status === 'done' && translatedParts.length > 0) {
+          question.passageTranslationHtml = translatedParts.join('<hr class="passage-separator" />');
+        }
+      }
+      return question;
+    });
+  },
+
   async translateWord(word: string, context = '', signal?: AbortSignal): Promise<WordTranslation> {
     const res = await fetch(`${API_BASE_URL}/translate`, {
       method: 'POST',
@@ -613,13 +660,19 @@ function formatQuestionObject(q: any): Question {
   return {
     id: q.id,
     partId: part,
+    difficultyLevel: Number(q.difficulty_level) || undefined,
     questionNumber: q.question_number || 1,
     passageId: q.passage_id || undefined,
     sharedGroupId: q.group_id || q.audio_group_id || (q.passage_id ? `passage:${q.passage_id}` : undefined),
     audioUrl: formatAudioUrl(q.audio_url),
     imageUrl: formatGDriveDirectLink(q.image_url, true),
     passageText: q.passage_text || undefined,
-    promptText: q.question_text || `Câu hỏi ${q.question_number}`,
+    // Do not turn missing imported content into a truthy placeholder. The runner
+    // needs to distinguish a real English prompt from absent Part 2 transcript
+    // data when revealing the question after answer checking.
+    promptText: typeof q.question_text === 'string' && q.question_text.trim()
+      ? q.question_text.trim()
+      : undefined,
     choices,
     correctAnswer: q.correct_answer || 'A',
     explanation: downloadedExplanation || 'Không có giải thích chi tiết.',

@@ -306,6 +306,73 @@
   @apply flex h-9 min-w-9 items-center justify-center gap-0.5 rounded-full bg-white px-2 text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700 dark:hover:bg-brand-500/10 dark:hover:text-brand-300;
 }
 
+/* Five-step difficulty slider. Native range semantics provide keyboard support
+   and step=1 guarantees snap-to-level behavior for mouse and touch input. */
+.level-range {
+  width: 100%;
+  height: 2rem;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.level-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 0% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 25% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 50% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 75% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 100% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    linear-gradient(to right, var(--level-color) 0 var(--level-progress), rgb(var(--color-border-subtle)) var(--level-progress) 100%);
+}
+
+.level-range::-webkit-slider-thumb {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: -0.625rem;
+  appearance: none;
+  border: 4px solid rgb(var(--color-bg-surface));
+  border-radius: 9999px;
+  background: var(--level-color);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 22%);
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.level-range:active::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+
+.level-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 0% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 25% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 50% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 75% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 100% 50%, rgb(var(--color-bg-surface)) 0 3px, transparent 3.5px),
+    rgb(var(--color-border-subtle));
+}
+
+.level-range::-moz-range-progress {
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--level-color);
+}
+
+.level-range::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 4px solid rgb(var(--color-bg-surface));
+  border-radius: 9999px;
+  background: var(--level-color);
+  box-shadow: 0 2px 10px rgb(15 23 42 / 22%);
+}
+
 kbd {
   @apply inline-flex min-w-5 items-center justify-center rounded border border-slate-300 bg-slate-100 px-1 py-0.5 font-mono text-[10px] font-bold text-slate-700 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200;
 }

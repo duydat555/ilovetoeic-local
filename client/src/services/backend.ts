@@ -1,4 +1,11 @@
-import { ApprovalStatus, NotificationItem, StudyAttempt, User, VocabularyWord } from '../types';
+import {
+  ApprovalStatus,
+  NotificationItem,
+  StudyActivityResponse,
+  StudyAttempt,
+  User,
+  VocabularyWord,
+} from '../types';
 import type { AdminFeatureStatus } from '../config/adminFeatureStatus';
 import type { FeatureKey } from '../config/features';
 
@@ -452,6 +459,29 @@ export const backendService = {
     } catch (error) {
       console.warn('[!] Không thể tải lịch sử làm bài từ MySQL:', error);
       return null;
+    }
+  },
+
+  async getStudyActivity(year: number) {
+    return authFetch<StudyActivityResponse>(
+      `/study-activity?year=${encodeURIComponent(String(year))}`,
+    );
+  },
+
+  async saveQuestionActivity(payload: {
+    attemptId: string;
+    answers: Array<{ questionId: string; selectedAnswer: string }>;
+    answeredAt: string;
+  }) {
+    try {
+      await authFetch('/study-activity/questions', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      return true;
+    } catch (error) {
+      console.warn('[!] Chưa thể đồng bộ hoạt động câu hỏi lên MySQL:', error);
+      return false;
     }
   },
 

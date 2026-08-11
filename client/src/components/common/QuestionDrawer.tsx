@@ -14,6 +14,7 @@ interface QuestionDrawerProps {
   userAnswers: Record<string, ChoiceId>;
   flaggedQuestions?: Record<string, boolean>;
   checkedGroupIds?: Set<string>;
+  language?: 'vi' | 'en';
 }
 
 type FilterTab = 'all' | 'answered' | 'unanswered' | 'flagged';
@@ -27,7 +28,9 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   userAnswers,
   flaggedQuestions = {},
   checkedGroupIds,
+  language = 'vi',
 }) => {
+  const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
 
   const answeredCount = Object.keys(userAnswers).length;
@@ -78,16 +81,19 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                   </div>
                   <div>
                     <h2 className="text-base font-extrabold text-slate-900 dark:text-content">
-                      Danh sách câu hỏi
+                      {english ? 'Question Navigator' : 'Danh sách câu hỏi'}
                     </h2>
                     <p className="text-xs font-medium text-slate-500 dark:text-content-muted">
-                      Đã làm {answeredCount}/{questions.length} câu ({completionPercent}%)
+                      {english
+                        ? `${answeredCount}/${questions.length} answered (${completionPercent}%)`
+                        : `Đã làm ${answeredCount}/${questions.length} câu (${completionPercent}%)`}
                     </p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label={english ? 'Close question navigator' : 'Đóng danh sách câu hỏi'}
                   className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-surface-hover dark:hover:text-slate-200"
                 >
                   <X className="size-5" />
@@ -106,10 +112,10 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               <div className="flex gap-1.5 border-b border-slate-100 bg-slate-50/50 p-3 dark:border-line dark:bg-canvas/30">
                 {(
                   [
-                    { id: 'all', label: 'Tất cả', count: questions.length },
-                    { id: 'answered', label: 'Đã làm', count: answeredCount },
-                    { id: 'unanswered', label: 'Chưa làm', count: unansweredCount },
-                    { id: 'flagged', label: 'Đã lưu', count: flaggedCount },
+                    { id: 'all', label: english ? 'All' : 'Tất cả', count: questions.length },
+                    { id: 'answered', label: english ? 'Answered' : 'Đã làm', count: answeredCount },
+                    { id: 'unanswered', label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
+                    { id: 'flagged', label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
                   ] as const
                 ).map((tab) => {
                   const active = filter === tab.id;
@@ -135,7 +141,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               <div className="flex-1 overflow-y-auto p-4">
                 {filteredQuestions.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center text-xs text-slate-400">
-                    Không có câu hỏi nào trong mục này.
+                    {english ? 'No questions match this filter.' : 'Không có câu hỏi nào trong mục này.'}
                   </div>
                 ) : (
                   <div className="grid grid-cols-5 sm:grid-cols-6 gap-2.5">
@@ -170,7 +176,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                             onClose();
                           }}
                           className={tileStyle}
-                          title={`Câu ${question.questionNumber}`}
+                          title={english ? `Question ${question.questionNumber}` : `Câu ${question.questionNumber}`}
                         >
                           <span>{question.questionNumber}</span>
 
@@ -192,19 +198,19 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                 <div className="mb-3 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600 dark:text-content-muted">
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-brand" />
-                    <span>Đang xem</span>
+                    <span>{english ? 'Current' : 'Đang xem'}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-emerald-500" />
-                    <span>Đã làm</span>
+                    <span>{english ? 'Answered' : 'Đã làm'}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-slate-200 border border-slate-300 dark:bg-surface-hover" />
-                    <span>Chưa làm</span>
+                    <span>{english ? 'Unanswered' : 'Chưa làm'}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-amber-500" />
-                    <span>Đã lưu</span>
+                    <span>{english ? 'Marked' : 'Đã lưu'}</span>
                   </div>
                 </div>
 
@@ -213,7 +219,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                   onClick={onClose}
                   className="w-full rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-surface-elevated dark:border-line dark:text-content dark:hover:bg-surface-hover"
                 >
-                  Đóng danh sách
+                  {english ? 'Close Navigator' : 'Đóng danh sách'}
                 </button>
               </div>
             </motion.div>

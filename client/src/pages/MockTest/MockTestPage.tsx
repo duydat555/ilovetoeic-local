@@ -65,6 +65,11 @@ export const MockTestPage: React.FC = () => {
     const partScope = serializeTestPartScope(selectedParts);
 
     if (activeMode === 'exam') {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        void document.documentElement.requestFullscreen().catch((error) => {
+          console.warn('[!] Trình duyệt không cho phép mở toàn màn hình:', error);
+        });
+      }
       navigate(`/mock-test/exam/${modalTest.id}?parts=${encodeURIComponent(partScope)}`);
     } else {
       navigate(`/practice/runner/${partScope}?testId=${encodeURIComponent(modalTest.id)}`);

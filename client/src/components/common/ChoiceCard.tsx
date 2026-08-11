@@ -13,6 +13,7 @@ interface ChoiceCardProps {
   checkMode?: boolean;
   isCorrect?: boolean;
   isUserChoice?: boolean;
+  hiddenListeningLabel?: (choiceId: ChoiceId) => string;
 }
 
 export const ChoiceCard: React.FC<ChoiceCardProps> = ({
@@ -25,6 +26,7 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({
   checkMode = false,
   isCorrect = false,
   isUserChoice = false,
+  hiddenListeningLabel = (id) => `Phương án ${id}`,
 }) => {
   let cardStyles =
     'relative flex min-h-[44px] w-full items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left text-sm transition-all duration-200 cursor-pointer select-none';
@@ -69,7 +71,7 @@ export const ChoiceCard: React.FC<ChoiceCardProps> = ({
     >
       <span className={badgeStyles}>{choiceId}</span>
       <span className="flex-1 leading-snug">
-        {hiddenListeningText ? `Phương án ${choiceId}` : text}
+        {hiddenListeningText ? hiddenListeningLabel(choiceId) : text}
       </span>
 
       {checkMode && isCorrect && (

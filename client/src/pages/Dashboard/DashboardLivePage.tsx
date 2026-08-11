@@ -24,6 +24,7 @@ import { useAuth } from '../../context/AuthContext';
 import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
 
 export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
@@ -293,6 +294,8 @@ export const DashboardLivePage: React.FC = () => {
           ))
         )}
       </section>
+
+      <PracticeActivityPanel />
 
       {/* Chi tiết Độ chính xác & Biểu đồ Tiến trình điểm số */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_.8fr]">

@@ -149,6 +149,29 @@ export const getEffectiveQuestionTranslation = (question: Question): string => {
   return cleanQuestionTranslation(question.questionTranslation);
 };
 
+const LISTENING_INSTRUCTION = 'Nghe và chọn phương án phù hợp nhất.';
+
+/**
+ * Part 2 hides the spoken prompt until the learner checks the answer. Some
+ * imported records have no English question_text, so use the available
+ * Vietnamese question translation instead of silently rendering a generic
+ * placeholder. A real English prompt always remains the first choice.
+ */
+export const getPracticeQuestionTitle = (question: Question, isChecked: boolean): string => {
+  if (question.partId === 2 && !isChecked) return LISTENING_INSTRUCTION;
+
+  const prompt = question.promptText?.trim();
+  if (prompt) return prompt;
+
+  if (question.partId === 2 && isChecked) {
+    const translatedPrompt = getEffectiveQuestionTranslation(question);
+    if (translatedPrompt) return `Bản dịch câu hỏi: ${translatedPrompt}`;
+    return 'Câu hỏi tiếng Anh chưa có transcript trong dữ liệu.';
+  }
+
+  return question.partId <= 2 ? LISTENING_INSTRUCTION : 'Chọn đáp án đúng.';
+};
+
 /**
  * Làm sạch văn bản giải thích, loại bỏ phần lặp lại câu hỏi dịch nghĩa và phương án đáp án ở đầu
  */

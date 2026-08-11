@@ -14,6 +14,10 @@ interface AudioPlayerProps {
   audioUrl?: string;
   title?: string;
   autoPlay?: boolean;
+  examMode?: boolean;
+  locked?: boolean;
+  onStarted?: () => void;
+  onEnded?: () => void;
 }
 
 const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
@@ -23,6 +27,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   audioUrl,
   title = 'Bài nghe TOEIC',
   autoPlay = false,
+  examMode = false,
+  locked = false,
+  onStarted,
+  onEnded,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -31,6 +39,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -39,11 +49,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setCurrentTime(0);
     setDuration(0);
     setHasError(false);
+    setHasStarted(false);
+    setHasEnded(false);
   }, [audioUrl]);
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl || !autoPlay) return undefined;
+    if (!audio || !audioUrl || !autoPlay || locked) return undefined;
 
     let cancelled = false;
     audio.currentTime = 0;
@@ -57,7 +69,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [audioUrl, autoPlay]);
+  }, [audioUrl, autoPlay, locked]);
 
   // Read the media clock every animation frame so the progress indicator does
   // not jump between the browser's relatively sparse `timeupdate` events.
@@ -87,7 +99,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const togglePlay = () => {
     const audio = audioRef.current;
-    if (!audio || !audioUrl || hasError) return;
+    if (!audio || !audioUrl || hasError || locked || (examMode && hasStarted)) return;
 
     if (audio.paused) {
       audio.play().catch((error) => {
@@ -140,6 +152,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   useEffect(() => {
+    if (examMode) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isTyping =
@@ -169,7 +182,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [examMode, hasError, audioUrl]);
 
   const formatTime = (timeInSeconds: number) => {
     if (!Number.isFinite(timeInSeconds)) return '00:00';
@@ -182,7 +195,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   return (
     <section
-      aria-label="Trình phát âm thanh"
+      aria-label={examMode ? 'Listening audio player' : 'Trình phát âm thanh'}
       className="overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-brand-50/70 shadow-sm dark:border-line dark:from-slate-800 dark:to-slate-900"
     >
       <audio
@@ -193,14 +206,52 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onLoadedMetadata={handleLoadedMetadata}
         onDurationChange={handleLoadedMetadata}
         onError={handleAudioError}
-        onPlaying={() => setIsPlaying(true)}
+        onPlaying={() => {
+          setIsPlaying(true);
+          if (!hasStarted) {
+            setHasStarted(true);
+            onStarted?.();
+          }
+        }}
         onPause={() => setIsPlaying(false)}
         onEnded={() => {
           setIsPlaying(false);
           setCurrentTime(duration);
+          setHasEnded(true);
+          onEnded?.();
         }}
       />
 
+      {examMode ? (
+        <div className="flex min-h-24 items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="min-w-0">
+            <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
+              Listening · played once only
+            </div>
+            <h3 className="mt-1 truncate text-sm font-bold text-content">{title}</h3>
+            <p className="mt-1 text-xs font-medium text-content-muted" aria-live="polite">
+              {hasError
+                ? 'The audio could not be loaded. Check your connection before continuing.'
+                : locked || hasEnded
+                  ? 'The audio has ended.'
+                  : isPlaying
+                    ? 'Audio is playing. Pause, replay, seeking, and speed controls are disabled.'
+                    : 'If autoplay was blocked, select Play Audio to begin.'}
+            </p>
+          </div>
+          {!locked && !hasEnded && !isPlaying && !hasStarted && (
+            <button
+              type="button"
+              onClick={togglePlay}
+              disabled={!audioUrl || hasError}
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-brand px-4 py-2 text-xs font-extrabold text-brand-ink transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Play className="size-4 fill-current" /> Play Audio
+            </button>
+          )}
+        </div>
+      ) : (
+      <>
       <div className="space-y-4 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -319,6 +370,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <span><kbd>Shift</kbd> + <kbd>←</kbd>/<kbd>→</kbd> Tua 10 giây</span>
           <span><kbd>M</kbd> Tắt / bật tiếng · <kbd>R</kbd> Về đầu</span>
         </div>
+      )}
+      </>
       )}
     </section>
   );

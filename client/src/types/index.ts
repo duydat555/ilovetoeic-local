@@ -130,6 +130,7 @@ export type PassageFormatStatus = 'pending' | 'done' | 'error';
 export interface Question {
   id: string;
   partId: number;
+  difficultyLevel?: number;
   questionNumber: number;
   passageId?: string;
   sharedGroupId?: string;
@@ -225,6 +226,27 @@ export interface StudyAttempt {
   questionIds: string[];
   metadata?: Record<string, unknown>;
   completedAt: string;
+}
+
+export interface StudyActivityPartCount {
+  part: number;
+  questions: number;
+}
+
+export interface StudyActivityDay {
+  date: string;
+  totalQuestions: number;
+  practiceQuestions: number;
+  examQuestions: number;
+  attempts: number;
+  parts: StudyActivityPartCount[];
+}
+
+export interface StudyActivityResponse {
+  year: number;
+  timezone: string;
+  updatedAt: string;
+  data: StudyActivityDay[];
 }
 
 export interface VocabularyWord {

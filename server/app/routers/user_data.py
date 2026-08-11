@@ -1,4 +1,5 @@
 import json
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
@@ -53,6 +54,17 @@ class StudyAttemptPayload(BaseModel):
     questionIds: List[str] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     completedAt: str
+
+
+class QuestionActivityItem(BaseModel):
+    questionId: str = Field(min_length=1, max_length=100)
+    selectedAnswer: str = Field(min_length=1, max_length=5)
+
+
+class QuestionActivityPayload(BaseModel):
+    attemptId: str = Field(min_length=1, max_length=36)
+    answers: List[QuestionActivityItem] = Field(min_length=1, max_length=20)
+    answeredAt: str
 
 
 class VocabularyPayload(BaseModel):
@@ -220,6 +232,202 @@ def get_study_attempts(
             "completedAt": completed_at.isoformat() if completed_at else "",
         })
     return {"data": data}
+
+
+@router.put("/study-activity/questions")
+def save_question_activity(
+    payload: QuestionActivityPayload,
+    user=Depends(get_current_user),
+):
+    question_ids = list(dict.fromkeys(item.questionId for item in payload.answers))
+    placeholders = ", ".join("?" for _ in question_ids)
+    question_rows = db.fetch_all(
+        f"SELECT id, part, correct_answer FROM questions WHERE id IN ({placeholders})",
+        tuple(question_ids),
+        use_cache=False,
+    )
+    question_map = {str(row["id"]): row for row in question_rows}
+    if len(question_map) != len(question_ids):
+        raise HTTPException(status_code=400, detail="Danh sách câu hỏi luyện tập không hợp lệ.")
+
+    answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
+    answered_at = parse_datetime(payload.answeredAt)
+    values = []
+    for question_id in question_ids:
+        question = question_map[question_id]
+        selected_answer = answer_map[question_id]
+        values.append((
+            user["id"],
+            payload.attemptId,
+            question_id,
+            int(question["part"]),
+            selected_answer,
+            1 if selected_answer == str(question.get("correct_answer") or "").upper() else 0,
+            answered_at,
+        ))
+    db.executemany(
+        """
+        INSERT INTO user_question_activity (
+            user_id, attempt_id, question_id, part, selected_answer, is_correct, answered_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            part = VALUES(part), selected_answer = VALUES(selected_answer),
+            is_correct = VALUES(is_correct), answered_at = VALUES(answered_at)
+        """,
+        values,
+    )
+    return {"success": True, "saved": len(values)}
+
+
+@router.get("/study-activity")
+def get_study_activity(
+    year: int = Query(..., ge=2000, le=2100),
+    user=Depends(get_current_user),
+):
+    """Return database-backed daily question counts, split by TOEIC Part."""
+    # Attempts are stored as UTC-naive datetimes. Include a one-day buffer, then
+    # convert to the product timezone before assigning an activity date.
+    range_start = datetime(year, 1, 1) - timedelta(hours=7)
+    range_end = datetime(year + 1, 1, 1) - timedelta(hours=7)
+    rows = db.fetch_all(
+        """
+        SELECT id, mode, part, answered_questions, answers, question_ids, completed_at
+        FROM test_attempts
+        WHERE user_id = ? AND completed_at >= ? AND completed_at < ?
+        ORDER BY completed_at ASC
+        """,
+        (user["id"], range_start, range_end),
+        use_cache=False,
+    )
+    activity_rows = db.fetch_all(
+        """
+        SELECT attempt_id, question_id, part, answered_at
+        FROM user_question_activity
+        WHERE user_id = ? AND answered_at >= ? AND answered_at < ?
+        ORDER BY answered_at ASC
+        """,
+        (user["id"], range_start, range_end),
+        use_cache=False,
+    )
+    synced_attempt_ids = {str(row["attempt_id"]) for row in activity_rows}
+    synced_question_ids_by_attempt = defaultdict(set)
+    for activity in activity_rows:
+        synced_question_ids_by_attempt[str(activity["attempt_id"])].add(str(activity["question_id"]))
+
+    parsed_rows = []
+    all_question_ids = set()
+    for row in rows:
+        question_ids = [str(value) for value in parse_json(row.get("question_ids"), []) if value]
+        answers = parse_json(row.get("answers"), {})
+        answered_ids = {
+            str(question_id)
+            for question_id, answer in answers.items()
+            if answer is not None and str(answer).strip()
+        }
+        # Old records occasionally have no answer object. Their answered count is
+        # still usable for a single-Part attempt, handled by the fallback below.
+        already_counted = synced_question_ids_by_attempt.get(str(row.get("id")), set())
+        countable_ids = [
+            question_id
+            for question_id in question_ids
+            if question_id in answered_ids and question_id not in already_counted
+        ]
+        all_question_ids.update(countable_ids)
+        parsed_rows.append((row, countable_ids))
+
+    question_parts = {}
+    question_id_list = list(all_question_ids)
+    for offset in range(0, len(question_id_list), 500):
+        chunk = question_id_list[offset:offset + 500]
+        placeholders = ", ".join("?" for _ in chunk)
+        question_rows = db.fetch_all(
+            f"SELECT id, part FROM questions WHERE id IN ({placeholders})",
+            tuple(chunk),
+            use_cache=False,
+        )
+        question_parts.update({str(item["id"]): int(item["part"]) for item in question_rows})
+
+    days = defaultdict(lambda: {
+        "totalQuestions": 0,
+        "practiceQuestions": 0,
+        "examQuestions": 0,
+        "attempts": 0,
+        "parts": {part: 0 for part in range(1, 8)},
+    })
+    activity_attempts_by_day = defaultdict(set)
+    for activity in activity_rows:
+        answered_at = activity.get("answered_at")
+        if isinstance(answered_at, str):
+            answered_at = parse_datetime(answered_at)
+        if not answered_at:
+            continue
+        local_date = (answered_at + timedelta(hours=7)).date()
+        if local_date.year != year:
+            continue
+        date_key = local_date.isoformat()
+        part = int(activity["part"])
+        day = days[date_key]
+        day["parts"][part] += 1
+        day["totalQuestions"] += 1
+        day["practiceQuestions"] += 1
+        activity_attempts_by_day[date_key].add(str(activity["attempt_id"]))
+
+    for row, countable_ids in parsed_rows:
+        completed_at = row.get("completed_at")
+        if not completed_at:
+            continue
+        if isinstance(completed_at, str):
+            completed_at = parse_datetime(completed_at)
+        local_date = (completed_at + timedelta(hours=7)).date()
+        if local_date.year != year:
+            continue
+
+        day = days[local_date.isoformat()]
+        part_counts = defaultdict(int)
+        for question_id in countable_ids:
+            part = question_parts.get(question_id)
+            if part and 1 <= part <= 7:
+                part_counts[part] += 1
+
+        mapped_total = sum(part_counts.values())
+        if mapped_total == 0 and row.get("part") and str(row.get("id")) not in synced_attempt_ids:
+            # Backward compatibility for legacy single-Part rows without IDs.
+            fallback_total = max(0, int(row.get("answered_questions") or 0))
+            part_counts[int(row["part"])] += fallback_total
+            mapped_total = fallback_total
+
+        for part, count in part_counts.items():
+            day["parts"][part] += count
+        day["totalQuestions"] += mapped_total
+        if row.get("mode") == "exam":
+            day["examQuestions"] += mapped_total
+        else:
+            day["practiceQuestions"] += mapped_total
+        if str(row.get("id")) not in synced_attempt_ids:
+            day["attempts"] += 1
+
+    for date_key, attempt_ids in activity_attempts_by_day.items():
+        days[date_key]["attempts"] += len(attempt_ids)
+
+    data = []
+    for activity_date, values in sorted(days.items()):
+        data.append({
+            "date": activity_date,
+            **{key: values[key] for key in (
+                "totalQuestions", "practiceQuestions", "examQuestions", "attempts"
+            )},
+            "parts": [
+                {"part": part, "questions": values["parts"][part]}
+                for part in range(1, 8)
+            ],
+        })
+
+    return {
+        "year": year,
+        "timezone": "Asia/Bangkok",
+        "updatedAt": datetime.utcnow().isoformat() + "Z",
+        "data": data,
+    }
 
 
 @router.get("/vocabulary")

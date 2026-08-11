@@ -41,12 +41,13 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
-import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
+import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
 
 interface SavedPracticeSession {
+  attemptId?: string;
   answers: Record<string, ChoiceId>;
   checkedGroupIds: string[];
   currentGroupIndex: number;
@@ -92,8 +93,10 @@ export const PracticeRunnerPage: React.FC = () => {
   const { partId = 'all' } = useParams<{ partId: string }>();
   const [searchParams] = useSearchParams();
   const testId = searchParams.get('testId');
+  const levelParam = searchParams.get('level');
 
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [attemptId, setAttemptId] = useState(() => createClientId());
   const [currentGroupIndex, setCurrentGroupIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, ChoiceId>>({});
   const [checkedGroupIds, setCheckedGroupIds] = useState<Set<string>>(new Set());
@@ -137,7 +140,15 @@ export const PracticeRunnerPage: React.FC = () => {
 
   const scopeParts = useMemo(() => parseTestPartScope(partId), [partId]);
   const scopeKey = serializeTestPartScope(scopeParts);
-  const storageKey = `toeic-practice:${testId || 'quick'}:${scopeKey}`;
+  const parsedLevel = levelParam ? Number(levelParam) : null;
+  const selectedLevel = parsedLevel && Number.isInteger(parsedLevel) && parsedLevel >= 1 && parsedLevel <= 5
+    ? parsedLevel
+    : null;
+  const isLevelPractice = !testId && selectedLevel !== null && scopeParts.length === 1;
+  const returnPath = isLevelPractice ? '/practice-by-level' : '/mock-test';
+  const returnLabel = isLevelPractice ? 'Luyện theo Level' : 'Kho đề';
+  const storageSource = testId || (isLevelPractice ? `level-${selectedLevel}` : 'quick');
+  const storageKey = `toeic-practice:${storageSource}:${scopeKey}`;
 
   useEffect(() => {
     let active = true;
@@ -147,10 +158,11 @@ export const PracticeRunnerPage: React.FC = () => {
       setError('');
 
       try {
-        if (!testId) {
-          throw new Error('Vui lòng chọn một đề thi thật trước khi bắt đầu luyện tập.');
-        }
-        const source = await apiService.getFullTestQuestions(testId);
+        const source = testId
+          ? await apiService.getFullTestQuestions(testId)
+          : isLevelPractice
+            ? await apiService.getPracticeLevelQuestions(scopeParts[0], selectedLevel)
+            : (() => { throw new Error('Vui lòng chọn một đề thi hoặc Level trước khi bắt đầu.'); })();
         const filtered = source.filter((question) => scopeParts.includes(question.partId));
 
         if (!active) return;
@@ -165,6 +177,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
         const session = readPracticeSession(storageKey);
         if (session) {
+          setAttemptId(session.attemptId || createClientId());
           const validQuestionIds = new Set(filtered.map((question) => question.id));
           setUserAnswers(
             Object.fromEntries(
@@ -176,9 +189,13 @@ export const PracticeRunnerPage: React.FC = () => {
           setSecondsSpent(Math.max(0, session.secondsSpent || 0));
           setNotes(session.notes || {});
           setAnnotations(session.annotations || {});
+        } else {
+          setAttemptId(createClientId());
         }
-      } catch {
-        if (active) setError('Không thể tải bài luyện tập. Vui lòng thử lại sau.');
+      } catch (loadError) {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : 'Không thể tải bài luyện tập. Vui lòng thử lại sau.');
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -188,7 +205,7 @@ export const PracticeRunnerPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [scopeParts, storageKey, testId]);
+  }, [isLevelPractice, scopeParts, selectedLevel, storageKey, testId]);
 
   const groups = useMemo(() => buildPracticeGroups(questions), [questions]);
   const safeGroupIndex = Math.min(currentGroupIndex, Math.max(groups.length - 1, 0));
@@ -201,6 +218,7 @@ export const PracticeRunnerPage: React.FC = () => {
   useEffect(() => {
     if (loading) return;
     const session: SavedPracticeSession = {
+      attemptId,
       answers: userAnswers,
       checkedGroupIds: [...checkedGroupIds],
       currentGroupIndex: safeGroupIndex,
@@ -209,7 +227,7 @@ export const PracticeRunnerPage: React.FC = () => {
       annotations,
     };
     savePracticeSession(storageKey, session);
-  }, [annotations, checkedGroupIds, loading, notes, safeGroupIndex, secondsSpent, storageKey, userAnswers]);
+  }, [annotations, attemptId, checkedGroupIds, loading, notes, safeGroupIndex, secondsSpent, storageKey, userAnswers]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -250,6 +268,17 @@ export const PracticeRunnerPage: React.FC = () => {
     nextChecked.add(currentGroup.id);
     setCheckedGroupIds(nextChecked);
 
+    if (user) {
+      void backendService.saveQuestionActivity({
+        attemptId,
+        answers: currentGroup.questions.map((question) => ({
+          questionId: question.id,
+          selectedAnswer: userAnswers[question.id],
+        })),
+        answeredAt: new Date().toISOString(),
+      });
+    }
+
     if (nextChecked.size >= groups.length && !activityRecorded) {
       void recordStudyActivity().then(() => refreshNotifications());
       setActivityRecorded(true);
@@ -268,7 +297,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
     const selectedParts = [...new Set(questions.map((question) => question.partId))].sort((a, b) => a - b);
     const saved = await backendService.saveStudyAttempt({
-      id: createClientId(),
+      id: attemptId,
       userId: user.id,
       testId: testId || undefined,
       mode: 'practice',
@@ -287,8 +316,9 @@ export const PracticeRunnerPage: React.FC = () => {
       answers: userAnswers,
       questionIds: questions.map((question) => question.id),
       metadata: {
-        source: testId ? 'test_practice' : 'quick_practice',
+        source: isLevelPractice ? 'level_practice' : testId ? 'test_practice' : 'quick_practice',
         selected_parts: selectedParts,
+        ...(isLevelPractice ? { selected_part: selectedParts[0], selected_level: selectedLevel } : {}),
       },
       completedAt: new Date().toISOString(),
     });
@@ -312,6 +342,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
   const restartPractice = () => {
     clearPracticeSession(storageKey);
+    setAttemptId(createClientId());
     setUserAnswers({});
     setCheckedGroupIds(new Set());
     setCurrentGroupIndex(0);
@@ -367,7 +398,9 @@ export const PracticeRunnerPage: React.FC = () => {
         <AlertCircle className="mx-auto size-10 text-amber-500" />
         <h1 className="mt-3 text-lg font-extrabold text-slate-950 dark:text-content">Không tìm thấy bài luyện tập</h1>
         <p className="mt-2 text-xs text-slate-500">{error || 'Vui lòng chọn lại danh sách bài tập từ trang trước.'}</p>
-        <Link to="/mock-test" className="btn-primary mt-5 inline-flex">Quay lại kho đề thi</Link>
+        <Link to={returnPath} className="btn-primary mt-5 inline-flex">
+          {isLevelPractice ? 'Quay lại chọn Level' : 'Quay lại kho đề thi'}
+        </Link>
       </div>
     );
   }
@@ -423,8 +456,8 @@ export const PracticeRunnerPage: React.FC = () => {
             <button onClick={restartPractice} className="btn-secondary text-xs">
               <RefreshCcw className="size-4" /> Luyện tập lại
             </button>
-            <Link to="/mock-test" className="btn-primary text-xs">
-              Quay lại kho đề thi
+            <Link to={returnPath} className="btn-primary text-xs">
+              {isLevelPractice ? 'Chọn Level khác' : 'Quay lại kho đề thi'}
             </Link>
           </div>
         </div>
@@ -454,8 +487,8 @@ export const PracticeRunnerPage: React.FC = () => {
       {/* Fixed Sticky Header Bar (Shrink-0) */}
       <div className="shrink-0 flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-2 shadow-xs dark:border-line dark:bg-surface">
         <div className="flex items-center gap-3 min-w-0">
-          <Link to="/mock-test" className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 p-1.5 text-xs font-bold text-slate-600 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:text-content-muted dark:hover:bg-surface-hover">
-            <ArrowLeft className="size-4" /> <span className="hidden sm:inline">Kho đề</span>
+          <Link to={returnPath} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 p-1.5 text-xs font-bold text-slate-600 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:text-content-muted dark:hover:bg-surface-hover">
+            <ArrowLeft className="size-4" /> <span className="hidden sm:inline">{returnLabel}</span>
           </Link>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -779,11 +812,7 @@ export const PracticeRunnerPage: React.FC = () => {
                       <QuestionHeader
                         questionNumber={question.questionNumber}
                         partId={question.partId}
-                        title={
-                          question.partId === 2 && !currentGroupChecked
-                            ? 'Nghe và chọn phương án phù hợp nhất.'
-                            : (question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))
-                        }
+                        title={getPracticeQuestionTitle(question, currentGroupChecked)}
                         isChecked={currentGroupChecked}
                         isCorrect={selectedAnswer === question.correctAnswer}
                       />
@@ -1003,11 +1032,7 @@ export const PracticeRunnerPage: React.FC = () => {
                     <QuestionHeader
                       questionNumber={question.questionNumber}
                       partId={question.partId}
-                      title={
-                        question.partId === 2 && !currentGroupChecked
-                          ? 'Nghe và chọn phương án phù hợp nhất.'
-                          : (question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.'))
-                      }
+                      title={getPracticeQuestionTitle(question, currentGroupChecked)}
                       isChecked={currentGroupChecked}
                       isCorrect={selectedAnswer === question.correctAnswer}
                     />

@@ -1,5 +1,4 @@
 import {
-  BookMarked,
   ClipboardCheck,
   Languages,
   LayoutDashboard,
@@ -14,7 +13,6 @@ export type FeatureKey =
   | 'mock_test'
   | 'vocabulary'
   | 'grammar'
-  | 'mistake_notebook'
   | 'ranking'
   | 'profile'
   | 'settings';
@@ -107,14 +105,6 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     icon: LibraryBig,
   },
   {
-    key: 'mistake_notebook',
-    name: 'Sổ lỗi sai',
-    description: 'Tổng hợp câu trả lời sai để học sinh luyện lại.',
-    category: 'tracking',
-    core: false,
-    icon: BookMarked,
-  },
-  {
     key: 'ranking',
     name: 'Bảng xếp hạng',
     description: 'Hiển thị xếp hạng thi đua giữa học sinh.',
@@ -131,7 +121,6 @@ export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
 const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/practice/runner', 'mock_test'],
   ['/mock-test/exam', 'mock_test'],
-  ['/mistake-notebook', 'mistake_notebook'],
   ['/vocabulary', 'vocabulary'],
   ['/mock-test', 'mock_test'],
   ['/grammar', 'grammar'],

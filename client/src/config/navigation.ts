@@ -1,13 +1,9 @@
 import {
-  BarChart3,
-  BookMarked,
   ClipboardCheck,
   Languages,
   LayoutDashboard,
   LibraryBig,
-  School,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
   Trophy,
   UserCog,
@@ -31,16 +27,13 @@ export const studentNavItems: NavigationItem[] = [
   { path: '/mock-test', label: 'Đề thi', icon: ClipboardCheck, featureKey: 'mock_test' },
   { path: '/vocabulary', label: 'Từ vựng Flashcard', icon: Languages, featureKey: 'vocabulary' },
   { path: '/grammar', label: 'Ngữ pháp TOEIC', icon: LibraryBig, featureKey: 'grammar' },
-  { path: '/mistake-notebook', label: 'Sổ lỗi sai', icon: BookMarked, featureKey: 'mistake_notebook' },
   { path: '/ranking', label: 'Bảng xếp hạng', icon: Trophy, featureKey: 'ranking' },
   { path: '/profile', label: 'Hồ sơ cá nhân', icon: UserRound, featureKey: 'profile' },
   { path: '/settings', label: 'Cài đặt', icon: Settings, featureKey: 'settings' },
 ];
 
 export const adminNavItems: NavigationItem[] = [
-  { path: '/admin/overview', label: 'Thống kê hệ thống', icon: BarChart3, end: true },
-  { path: '/admin/classes', label: 'Quản lý lớp học', icon: School },
-  { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog },
+  { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog, end: true },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];

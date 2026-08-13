@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NULL,
     full_name VARCHAR(100) NOT NULL,
+    family_middle_name VARCHAR(100) NOT NULL DEFAULT '',
     role ENUM('student', 'admin') NOT NULL DEFAULT 'student',
     approval_status ENUM('pending', 'approved', 'rejected') NOT NULL DEFAULT 'pending',
     approved_at DATETIME NULL,
@@ -270,65 +271,6 @@ CREATE TABLE IF NOT EXISTS translation_cache (
     UNIQUE KEY uq_translation_hash (hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS learning_classes (
-    id VARCHAR(100) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    code VARCHAR(50) NOT NULL,
-    description TEXT NULL,
-    target_score INT NOT NULL DEFAULT 700,
-    is_public TINYINT(1) NOT NULL DEFAULT 1,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_by CHAR(36) NULL,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_learning_classes_code (code),
-    CONSTRAINT fk_learning_classes_created_by
-        FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_learning_classes_created_by (created_by, is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS class_memberships (
-    class_id VARCHAR(100) NOT NULL,
-    user_id CHAR(36) NOT NULL,
-    joined_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (class_id, user_id),
-    CONSTRAINT fk_class_memberships_class
-        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE CASCADE,
-    CONSTRAINT fk_class_memberships_user
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_class_memberships_user (user_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS leaderboard_members (
-    id VARCHAR(64) PRIMARY KEY,
-    user_id CHAR(36) NULL,
-    class_id VARCHAR(100) NOT NULL,
-    display_name VARCHAR(255) NOT NULL,
-    avatar_url TEXT NULL,
-    rank_change INT NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_leaderboard_member_user
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_leaderboard_member_class
-        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE CASCADE,
-    UNIQUE KEY uq_leaderboard_member_user (user_id),
-    INDEX idx_leaderboard_member_class (class_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS leaderboard_stats (
-    member_id VARCHAR(64) NOT NULL,
-    period VARCHAR(10) NOT NULL,
-    total_score INT NOT NULL DEFAULT 0,
-    streak_days INT NOT NULL DEFAULT 0,
-    completed_lessons INT NOT NULL DEFAULT 0,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (member_id, period),
-    CONSTRAINT fk_leaderboard_stats_member
-        FOREIGN KEY (member_id) REFERENCES leaderboard_members(id) ON DELETE CASCADE,
-    INDEX idx_leaderboard_stats_period_score (period, total_score)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS admin_feature_statuses (
@@ -347,7 +289,6 @@ INSERT INTO admin_feature_statuses (
     route, status, title, description, icon_key, action_label, action_path, sort_order
 ) VALUES
     ('/admin/overview', 'coming_soon', 'Thống kê hệ thống', 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.', 'chart', NULL, NULL, 10),
-    ('/admin/classes', 'ready', 'Quản lý lớp học', 'Quản lý lớp học và học viên.', 'school', NULL, NULL, 20),
     ('/admin/accounts', 'ready', 'Quản lý tài khoản', 'Quản lý tài khoản học viên.', 'users', NULL, NULL, 40),
     ('/admin/features', 'ready', 'Quản lý tính năng', 'Kiểm soát các trang học sinh được phép truy cập.', 'wrench', NULL, NULL, 50),
     ('/profile', 'ready', 'Hồ sơ cá nhân', 'Quản lý hồ sơ Giáo viên.', 'user', NULL, NULL, 60),
@@ -372,31 +313,14 @@ CREATE TABLE IF NOT EXISTS feature_flags (
         FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS class_feature_overrides (
-    class_id VARCHAR(100) NOT NULL,
-    feature_key VARCHAR(64) NOT NULL,
-    is_enabled TINYINT(1) NOT NULL DEFAULT 1,
-    updated_by CHAR(36) NULL,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (class_id, feature_key),
-    CONSTRAINT fk_class_feature_overrides_class
-        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE CASCADE,
-    CONSTRAINT fk_class_feature_overrides_actor
-        FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL,
-    INDEX idx_class_feature_overrides_feature (feature_key, is_enabled)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS feature_flag_audit_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     feature_key VARCHAR(64) NOT NULL,
-    scope_type ENUM('global', 'class') NOT NULL,
-    class_id VARCHAR(100) NULL,
+    scope_type ENUM('global') NOT NULL,
     previous_enabled TINYINT(1) NOT NULL,
     new_enabled TINYINT(1) NOT NULL,
     actor_id CHAR(36) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_feature_flag_logs_class
-        FOREIGN KEY (class_id) REFERENCES learning_classes(id) ON DELETE SET NULL,
     CONSTRAINT fk_feature_flag_logs_actor
         FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_feature_flag_logs_created (created_at),
@@ -408,7 +332,6 @@ INSERT INTO feature_flags (feature_key, is_enabled) VALUES
     ('mock_test', 1),
     ('vocabulary', 1),
     ('grammar', 1),
-    ('mistake_notebook', 1),
     ('history', 1),
     ('ranking', 1),
     ('profile', 1),
@@ -516,4 +439,20 @@ CREATE TABLE IF NOT EXISTS grammar_question_memberships (
     INDEX idx_grammar_memberships_topic (source_mode, topic_id, subtopic_id, order_index),
     INDEX idx_grammar_memberships_bank (source_mode, bank_set_id, test_id, order_index),
     INDEX idx_grammar_memberships_difficulty (source_mode, difficulty_level, order_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_grammar_question_activity (
+    user_id CHAR(36) NOT NULL,
+    attempt_id CHAR(36) NOT NULL,
+    membership_id VARCHAR(220) NOT NULL,
+    question_id VARCHAR(100) NOT NULL,
+    selected_answer VARCHAR(5) NOT NULL,
+    is_correct TINYINT(1) NOT NULL DEFAULT 0,
+    answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, attempt_id, membership_id),
+    CONSTRAINT fk_grammar_activity_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_grammar_activity_membership FOREIGN KEY (membership_id) REFERENCES grammar_question_memberships(id) ON DELETE CASCADE,
+    CONSTRAINT fk_grammar_activity_question FOREIGN KEY (question_id) REFERENCES grammar_questions(id) ON DELETE CASCADE,
+    INDEX idx_grammar_activity_user_date (user_id, answered_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

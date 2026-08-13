@@ -6,7 +6,7 @@ export const AdminSidebar: React.FC<SidebarProps> = (props) => (
   <Sidebar
     {...props}
     items={adminNavItems}
-    homePath="/admin/overview"
+    homePath="/admin/accounts"
     contextLabel="Không gian Giáo viên"
     showGoalCard={false}
   />

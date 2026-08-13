@@ -71,7 +71,12 @@ const cellColor = (questions: number, maxQuestions: number) => {
   return 'border-orange-600 bg-orange-600 dark:border-orange-400 dark:bg-orange-500';
 };
 
-export const PracticeActivityPanel: React.FC = () => {
+interface PracticeActivityPanelProps {
+  studentId?: string;
+  studentName?: string;
+}
+
+export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ studentId, studentName }) => {
   const [period, setPeriod] = useState<Period>('month');
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [days, setDays] = useState<StudyActivityDay[]>([]);
@@ -86,7 +91,7 @@ export const PracticeActivityPanel: React.FC = () => {
     if (background) setRefreshing(true);
     else setLoading(true);
     try {
-      const response = await backendService.getStudyActivity(selectedYear);
+      const response = await backendService.getStudyActivity(selectedYear, studentId);
       setDays(response.data);
       setUpdatedAt(response.updatedAt);
       setError('');
@@ -96,7 +101,7 @@ export const PracticeActivityPanel: React.FC = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedYear]);
+  }, [selectedYear, studentId]);
 
   useEffect(() => {
     void loadActivity(false);
@@ -134,17 +139,19 @@ export const PracticeActivityPanel: React.FC = () => {
   const summary = useMemo(() => {
     const parts = Array.from({ length: 7 }, (_, index) => ({ part: index + 1, questions: 0 }));
     let totalQuestions = 0;
+    let grammarQuestions = 0;
     let attempts = 0;
     let activeDays = 0;
     filteredDays.forEach((day) => {
       totalQuestions += day.totalQuestions;
+      grammarQuestions += day.grammarQuestions || 0;
       attempts += day.attempts;
       if (day.totalQuestions > 0) activeDays += 1;
       day.parts.forEach((item) => {
         if (parts[item.part - 1]) parts[item.part - 1].questions += item.questions;
       });
     });
-    return { parts, totalQuestions, attempts, activeDays };
+    return { parts, totalQuestions, grammarQuestions, attempts, activeDays };
   }, [filteredDays]);
 
   const calendar = useMemo(() => {
@@ -184,7 +191,7 @@ export const PracticeActivityPanel: React.FC = () => {
           <div>
             <h2 className="text-base font-extrabold text-content">Chi tiết luyện tập</h2>
             <p className="mt-0.5 text-xs leading-relaxed text-content-muted">
-              Số câu đã trả lời theo từng Part, tổng hợp trực tiếp từ lịch sử luyện tập của bạn.
+              Số câu đã trả lời theo từng Part, tổng hợp trực tiếp từ lịch sử luyện tập {studentName ? `của ${studentName}` : 'của bạn'}.
             </p>
           </div>
         </div>
@@ -268,8 +275,8 @@ export const PracticeActivityPanel: React.FC = () => {
       {loading ? (
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
           <div className="rounded-2xl border border-line bg-surface-elevated/45 p-4">
-            <div className="grid grid-cols-3 gap-2">
-              {Array.from({ length: 3 }, (_, index) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => (
                 <BoneyardSkeleton key={index} name={`dashboard-part-stat-${index}`} height={66} className="rounded-xl border border-line" />
               ))}
             </div>
@@ -298,9 +305,10 @@ export const PracticeActivityPanel: React.FC = () => {
       ) : (
         <div className="mt-4 grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
           <div className="rounded-2xl border border-line bg-surface-elevated/45 p-4">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 ['Câu đã làm', summary.totalQuestions],
+                ['Câu Ngữ pháp', summary.grammarQuestions],
                 ['Lượt làm', summary.attempts],
                 ['Ngày hoạt động', summary.activeDays],
               ].map(([label, value]) => (
@@ -335,7 +343,7 @@ export const PracticeActivityPanel: React.FC = () => {
           <div className="min-w-0 rounded-2xl border border-line bg-surface-elevated/45 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-extrabold text-content">Hoạt động của bạn trong năm {selectedYear}</h3>
+                <h3 className="text-sm font-extrabold text-content">Hoạt động {studentName ? `của ${studentName}` : 'của bạn'} trong năm {selectedYear}</h3>
                 <p className="mt-0.5 text-[11px] text-content-muted">Chọn một ô để xem chi tiết của ngày đó.</p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-content-muted">
@@ -373,6 +381,7 @@ export const PracticeActivityPanel: React.FC = () => {
                       if (!cell) return <span key={`blank-${index}`} className="size-3" />;
                       const activity = dayMap.get(cell.date);
                       const questions = activity?.totalQuestions || 0;
+                      const grammarQuestions = activity?.grammarQuestions || 0;
                       const partText = activity?.parts.filter((item) => item.questions > 0).map((item) => `P${item.part}: ${item.questions}`).join(', ');
                       const dateLabel = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parseLocalDate(cell.date));
                       return (
@@ -386,8 +395,8 @@ export const PracticeActivityPanel: React.FC = () => {
                           className={`size-3 rounded-[3px] border transition hover:z-10 hover:scale-125 focus:z-10 focus:outline-none focus:ring-2 focus:ring-brand-500 ${cellColor(questions, maxQuestions)} ${
                             cell.date === selectedDate ? 'ring-2 ring-brand-700 ring-offset-1 ring-offset-surface dark:ring-brand-300' : ''
                           }`}
-                          title={`${dateLabel}: ${questions} câu${partText ? ` · ${partText}` : ''}`}
-                          aria-label={`${dateLabel}, ${questions} câu${partText ? `, ${partText}` : ''}`}
+                          title={`${dateLabel}: ${questions} câu${grammarQuestions ? ` · Ngữ pháp: ${grammarQuestions}` : ''}${partText ? ` · ${partText}` : ''}`}
+                          aria-label={`${dateLabel}, ${questions} câu${grammarQuestions ? `, Ngữ pháp: ${grammarQuestions}` : ''}${partText ? `, ${partText}` : ''}`}
                         />
                       );
                     })}

@@ -9,6 +9,7 @@ import { SelectionTranslator } from '../common/SelectionTranslator';
 import { AdminSidebar } from './RoleSidebars';
 import { getUserRole } from '../../utils/rbac';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+import { StudentIdentityModal } from '../auth/StudentIdentityModal';
 
 export const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -64,9 +65,15 @@ export const AppLayout: React.FC = () => {
     location.pathname.includes('/mock-test/exam') ||
     location.pathname.includes('/practice/runner');
   const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
+  const needsRankingIdentity = Boolean(
+    user && role === 'student' && !user.hasValidRankingName,
+  );
 
   return (
-    <div className="app-shell h-screen text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden">
+    <div
+      className={`app-shell h-screen text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden ${needsRankingIdentity ? 'pointer-events-none select-none' : ''}`}
+      aria-hidden={needsRankingIdentity || undefined}
+    >
       {/* Desktop & Tablet Sidebar */}
       {isAdminArea ? (
         <AdminSidebar collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
@@ -143,6 +150,7 @@ export const AppLayout: React.FC = () => {
         </main>
       </div>
       {!isAdminArea && <SelectionTranslator />}
+      <StudentIdentityModal open={needsRankingIdentity} />
     </div>
   );
 };

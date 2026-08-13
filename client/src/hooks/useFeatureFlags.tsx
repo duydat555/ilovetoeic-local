@@ -15,7 +15,6 @@ import { backendService } from '../services/backend';
 
 interface FeatureFlagsContextValue {
   flags: Record<FeatureKey, boolean>;
-  classIds: string[];
   isLoading: boolean;
   error: string;
   isFeatureEnabled: (featureKey: FeatureKey) => boolean;
@@ -27,14 +26,12 @@ const FeatureFlagsContext = createContext<FeatureFlagsContextValue | undefined>(
 export const FeatureFlagsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const [flags, setFlags] = useState<Record<FeatureKey, boolean>>(DEFAULT_FEATURE_FLAGS);
-  const [classIds, setClassIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
   const reload = useCallback(async () => {
     if (!isAuthenticated) {
       setFlags(DEFAULT_FEATURE_FLAGS);
-      setClassIds([]);
       setError('');
       setIsLoading(false);
       return;
@@ -44,10 +41,8 @@ export const FeatureFlagsProvider: React.FC<{ children: React.ReactNode }> = ({ 
     try {
       const configuration = await backendService.getEffectiveFeatureFlags();
       setFlags({ ...DEFAULT_FEATURE_FLAGS, ...configuration.flags });
-      setClassIds(configuration.classIds || []);
     } catch (loadError) {
       setFlags(DEFAULT_FEATURE_FLAGS);
-      setClassIds([]);
       setError(loadError instanceof Error ? loadError.message : 'Không thể tải cấu hình tính năng.');
     } finally {
       setIsLoading(false);
@@ -61,12 +56,11 @@ export const FeatureFlagsProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const value = useMemo<FeatureFlagsContextValue>(() => ({
     flags,
-    classIds,
     isLoading: authLoading || isLoading,
     error,
     isFeatureEnabled: (featureKey) => flags[featureKey] !== false,
     reload,
-  }), [authLoading, classIds, error, flags, isLoading, reload]);
+  }), [authLoading, error, flags, isLoading, reload]);
 
   return (
     <FeatureFlagsContext.Provider value={value}>

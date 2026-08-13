@@ -14,7 +14,6 @@ FEATURE_KEYS = (
     "mock_test",
     "vocabulary",
     "grammar",
-    "mistake_notebook",
     "history",
     "ranking",
     "profile",
@@ -120,8 +119,8 @@ def feature_impact_count(feature_key: str, class_id: str = ""):
             )
         return int((row or {}).get("total") or 0)
 
-    if feature_key in {"mock_test", "history", "mistake_notebook"}:
-        condition = " AND ta.total_questions > ta.correct_answers" if feature_key == "mistake_notebook" else ""
+    if feature_key in {"mock_test", "history"}:
+        condition = ""
         if class_id:
             row = db.fetch_one(
                 f"""
@@ -180,22 +179,18 @@ def feature_impact_counts(class_ids):
 
     attempt_total = db.fetch_one(
         """
-        SELECT
-            COUNT(*) AS total,
-            SUM(CASE WHEN total_questions > correct_answers THEN 1 ELSE 0 END) AS mistakes
+        SELECT COUNT(*) AS total
         FROM test_attempts
         """,
         use_cache=False,
     ) or {}
     global_counts["mock_test"] = int(attempt_total.get("total") or 0)
     global_counts["history"] = global_counts["mock_test"]
-    global_counts["mistake_notebook"] = int(attempt_total.get("mistakes") or 0)
     attempt_rows = db.fetch_all(
         """
         SELECT
             cm.class_id,
-            COUNT(*) AS total,
-            SUM(CASE WHEN ta.total_questions > ta.correct_answers THEN 1 ELSE 0 END) AS mistakes
+            COUNT(*) AS total
         FROM test_attempts ta
         JOIN class_memberships cm ON cm.user_id = ta.user_id
         GROUP BY cm.class_id
@@ -209,7 +204,6 @@ def feature_impact_counts(class_ids):
         total = int(row.get("total") or 0)
         class_counts[class_id]["mock_test"] = total
         class_counts[class_id]["history"] = total
-        class_counts[class_id]["mistake_notebook"] = int(row.get("mistakes") or 0)
 
     return global_counts, class_counts
 
@@ -228,16 +222,13 @@ def audit_log_rows():
             log.id,
             log.feature_key,
             log.scope_type,
-            log.class_id,
             log.previous_enabled,
             log.new_enabled,
             log.created_at,
             COALESCE(actor.full_name, actor.email, 'Tài khoản đã xoá') AS actor_name,
-            actor.email AS actor_email,
-            class_item.name AS class_name
+            actor.email AS actor_email
         FROM feature_flag_audit_logs log
         LEFT JOIN users actor ON actor.id = log.actor_id
-        LEFT JOIN learning_classes class_item ON class_item.id = log.class_id
         ORDER BY log.created_at DESC, log.id DESC
         LIMIT 150
         """,
@@ -248,8 +239,6 @@ def audit_log_rows():
             "id": str(row["id"]),
             "featureKey": row["feature_key"],
             "scopeType": row["scope_type"],
-            "classId": row.get("class_id"),
-            "className": row.get("class_name"),
             "previousEnabled": bool(row.get("previous_enabled")),
             "newEnabled": bool(row.get("new_enabled")),
             "actorName": row.get("actor_name") or "Giáo viên",
@@ -263,97 +252,29 @@ def audit_log_rows():
 @router.get("/effective")
 def get_effective_features(user=Depends(get_current_user)):
     flags = global_flags()
-    class_ids = []
     sources = {feature_key: "global" for feature_key in FEATURE_KEYS}
-    if user.get("role") == "student":
-        memberships = db.fetch_all(
-            "SELECT class_id FROM class_memberships WHERE user_id = ?",
-            (user["id"],),
-            use_cache=False,
-        )
-        class_ids = [row["class_id"] for row in memberships]
-        if class_ids:
-            placeholders = ", ".join("?" for _ in class_ids)
-            overrides = db.fetch_all(
-                f"""
-                SELECT class_id, feature_key, is_enabled
-                FROM class_feature_overrides
-                WHERE class_id IN ({placeholders})
-                """,
-                tuple(class_ids),
-                use_cache=False,
-            )
-            values_by_feature = {}
-            for override in overrides:
-                values_by_feature.setdefault(override["feature_key"], []).append(
-                    bool(override.get("is_enabled"))
-                )
-            for feature_key, values in values_by_feature.items():
-                # When a student belongs to multiple classes, the restrictive
-                # override wins. This avoids exposing a feature disabled by any class.
-                flags[feature_key] = all(values)
-                sources[feature_key] = "class"
     for feature_key in CORE_FEATURES:
         flags[feature_key] = True
         sources[feature_key] = "core"
     return {
         "success": True,
-        "data": {"flags": flags, "classIds": class_ids, "sources": sources},
+        "data": {"flags": flags, "sources": sources},
     }
 
 
 @router.get("/admin")
 def get_admin_feature_configuration(user=Depends(require_admin)):
     flags = global_flags()
-    classes = db.fetch_all(
-        """
-        SELECT id, name, code, is_active
-        FROM learning_classes
-        WHERE created_by = ?
-        ORDER BY is_active DESC, name ASC
-        """,
-        (user["id"],),
-        use_cache=False,
-    )
-    class_ids = [row["id"] for row in classes]
-    override_rows = []
-    if class_ids:
-        placeholders = ", ".join("?" for _ in class_ids)
-        override_rows = db.fetch_all(
-            f"""
-            SELECT class_id, feature_key, is_enabled
-            FROM class_feature_overrides
-            WHERE class_id IN ({placeholders})
-            """,
-            tuple(class_ids),
-            use_cache=False,
-        )
-    overrides = {}
-    for row in override_rows:
-        overrides.setdefault(row["class_id"], {})[row["feature_key"]] = bool(
-            row.get("is_enabled")
-        )
-
-    global_impacts, class_impacts = feature_impact_counts(class_ids)
+    global_impacts = {
+        feature_key: feature_impact_count(feature_key)
+        for feature_key in FEATURE_KEYS
+    }
     return {
         "success": True,
         "data": {
             "globalFlags": flags,
-            "classOverrides": overrides,
-            "classes": [
-                {
-                    "id": row["id"],
-                    "name": row.get("name") or "",
-                    "code": row.get("code") or "",
-                    "isActive": bool(row.get("is_active")),
-                }
-                for row in classes
-            ],
             "history": audit_log_rows(),
-            "impactCounts": {
-                "global": global_impacts,
-                "classes": class_impacts,
-            },
+            "impactCounts": {"global": global_impacts},
         },
     }
 
@@ -406,61 +327,9 @@ def update_global_feature(
             cursor.execute(
                 """
                 INSERT INTO feature_flag_audit_logs (
-                    feature_key, scope_type, class_id, previous_enabled,
-                    new_enabled, actor_id
-                ) VALUES (%s, 'global', NULL, %s, %s, %s)
+                    feature_key, scope_type, previous_enabled, new_enabled, actor_id
+                ) VALUES (%s, 'global', %s, %s, %s)
                 """,
                 (feature_key, previous, payload.enabled, user["id"]),
-            )
-    return {"success": True, "data": {"enabled": payload.enabled, "changed": True}}
-
-
-@router.put("/classes/{class_id}/{feature_key}")
-def update_class_feature(
-    class_id: str,
-    feature_key: str,
-    payload: FeatureTogglePayload,
-    user=Depends(require_admin),
-):
-    validate_feature_key(feature_key)
-    class_or_404(class_id, user["id"])
-    if feature_key in CORE_FEATURES and not payload.enabled:
-        raise HTTPException(status_code=422, detail="Không thể tắt tính năng bắt buộc.")
-    flags = global_flags()
-    current = db.fetch_one(
-        """
-        SELECT is_enabled
-        FROM class_feature_overrides
-        WHERE class_id = ? AND feature_key = ?
-        """,
-        (class_id, feature_key),
-        use_cache=False,
-    )
-    previous = bool(current["is_enabled"]) if current else flags[feature_key]
-    reject_unconfirmed_disable(feature_key, class_id, payload)
-    if current and previous == payload.enabled:
-        return {"success": True, "data": {"enabled": payload.enabled, "changed": False}}
-
-    with db.transaction() as conn:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO class_feature_overrides (
-                    class_id, feature_key, is_enabled, updated_by
-                ) VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    is_enabled = VALUES(is_enabled),
-                    updated_by = VALUES(updated_by)
-                """,
-                (class_id, feature_key, payload.enabled, user["id"]),
-            )
-            cursor.execute(
-                """
-                INSERT INTO feature_flag_audit_logs (
-                    feature_key, scope_type, class_id, previous_enabled,
-                    new_enabled, actor_id
-                ) VALUES (%s, 'class', %s, %s, %s, %s)
-                """,
-                (feature_key, class_id, previous, payload.enabled, user["id"]),
             )
     return {"success": True, "data": {"enabled": payload.enabled, "changed": True}}

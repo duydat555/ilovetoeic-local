@@ -35,6 +35,9 @@ import {
 } from '../../services/grammar';
 import { VOCABULARY_CHANGED_EVENT, vocabularyService } from '../../services/vocabulary';
 import type { WordTranslation } from '../../types';
+import { createClientId } from '../../utils/id';
+import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
+import { GrammarQuestionDrawer } from './GrammarQuestionDrawer';
 
 const QUESTION_BATCH_SIZE = 50;
 const GRAMMAR_PROGRESS_STORAGE_PREFIX = 'toeic_grammar_progress';
@@ -59,12 +62,37 @@ interface GrammarWrongAnswer {
   answeredAt: string;
 }
 
+interface GrammarWrongSection {
+  key: string;
+  mode: GrammarMode;
+  label: string;
+  parentLabel?: string;
+  count: number;
+}
+
 interface StoredGrammarProgress {
   answers: Record<string, string>;
   wrongAnswers: Record<string, GrammarWrongAnswer>;
 }
 
 const grammarProgressStorageKey = (userId: string) => `${GRAMMAR_PROGRESS_STORAGE_PREFIX}:${userId}`;
+
+const getWrongSectionIdentity = (question: GrammarQuestion) => {
+  if (question.source_mode === 'topic') {
+    const parentLabel = question.topic_name_vi || 'Chuyên đề khác';
+    const label = question.subtopic_name_vi || parentLabel;
+    const sectionId = question.subtopic_id || question.topic_id || `${parentLabel}:${label}`;
+    return { key: `topic:${sectionId}`, mode: question.source_mode, label, parentLabel: label === parentLabel ? undefined : parentLabel };
+  }
+  if (question.source_mode === 'bank') {
+    const parentLabel = question.bank_set_name || 'Bộ đề khác';
+    const label = question.test_name || parentLabel;
+    const sectionId = question.test_id || question.bank_set_id || `${parentLabel}:${label}`;
+    return { key: `bank:${sectionId}`, mode: question.source_mode, label, parentLabel: label === parentLabel ? undefined : parentLabel };
+  }
+  const label = question.difficulty_name_vi || (question.difficulty_level ? `Cấp độ ${question.difficulty_level}` : 'Độ khó khác');
+  return { key: `difficulty:${question.difficulty_level || label}`, mode: question.source_mode, label, parentLabel: undefined };
+};
 
 const readGrammarProgress = (userId: string): StoredGrammarProgress => {
   try {
@@ -185,6 +213,7 @@ const GrammarLoadingState = () => (
 
 export const GrammarLivePage: React.FC = () => {
   const { user } = useAuth();
+  const [activityAttemptId, setActivityAttemptId] = useState(() => createClientId());
   const [catalog, setCatalog] = useState<GrammarCatalog | null>(null);
   const [selection, setSelection] = useState<Selection>({ mode: 'topic' });
   const [questions, setQuestions] = useState<GrammarQuestion[]>([]);
@@ -195,7 +224,10 @@ export const GrammarLivePage: React.FC = () => {
   const [progressOwner, setProgressOwner] = useState('');
   const [progressStorageError, setProgressStorageError] = useState('');
   const [isWrongReview, setIsWrongReview] = useState(false);
+  const [wrongReviewSection, setWrongReviewSection] = useState<{ key: string; label: string } | null>(null);
   const [showDeleteWrongHistory, setShowDeleteWrongHistory] = useState(false);
+  const [showQuestionDrawer, setShowQuestionDrawer] = useState(false);
+  const [isQuestionListLoading, setIsQuestionListLoading] = useState(false);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true);
   const [isQuestionLoading, setIsQuestionLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -206,12 +238,28 @@ export const GrammarLivePage: React.FC = () => {
   const [vocabularyMessage, setVocabularyMessage] = useState('');
   const [vocabularyError, setVocabularyError] = useState('');
   const practiceRef = useRef<HTMLElement>(null);
+  const questionCardRef = useRef<HTMLElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   const questionRequestRef = useRef(0);
+  const questionListRequestRef = useRef(0);
+  const grammarActivityContext = useMemo(() => user ? ({
+    userId: user.id,
+    attemptId: activityAttemptId,
+    sourceType: 'grammar' as const,
+  }) : null, [activityAttemptId, user]);
+  const { enqueue: enqueueQuestionActivity } = useQuestionActivityBatch(grammarActivityContext);
 
   const scrollToPractice = useCallback(() => {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     practiceRef.current?.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+  }, []);
+
+  const scrollToQuestionCard = useCallback(() => {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    questionCardRef.current?.scrollIntoView({
       behavior: reduceMotion ? 'auto' : 'smooth',
       block: 'start',
     });
@@ -279,6 +327,11 @@ export const GrammarLivePage: React.FC = () => {
       nextSelection.topicId || nextSelection.bankSetId || nextSelection.difficultyLevel,
     );
     if (!hasFilter) return;
+    if (!append) {
+      questionListRequestRef.current += 1;
+      setShowQuestionDrawer(false);
+      setIsQuestionListLoading(false);
+    }
     questionAbortRef.current?.abort();
     const controller = new AbortController();
     const requestId = questionRequestRef.current + 1;
@@ -327,6 +380,7 @@ export const GrammarLivePage: React.FC = () => {
 
   useEffect(() => () => {
     questionRequestRef.current += 1;
+    questionListRequestRef.current += 1;
     questionAbortRef.current?.abort();
   }, []);
 
@@ -368,6 +422,24 @@ export const GrammarLivePage: React.FC = () => {
     (question) => answers[question.membership_id] === question.correct_answer,
   ).length;
   const wrongAnswerCount = Object.keys(wrongAnswers).length;
+  const wrongAnswerSectionsByMode = useMemo<Record<GrammarMode, GrammarWrongSection[]>>(() => {
+    const grouped: Record<GrammarMode, Map<string, GrammarWrongSection>> = {
+      topic: new Map(), bank: new Map(), difficulty: new Map(),
+    };
+    Object.values(wrongAnswers).forEach(({ question }) => {
+      const identity = getWrongSectionIdentity(question);
+      const existing = grouped[identity.mode].get(identity.key);
+      grouped[identity.mode].set(identity.key, {
+        ...identity,
+        count: (existing?.count || 0) + 1,
+      });
+    });
+    return {
+      topic: Array.from(grouped.topic.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')),
+      bank: Array.from(grouped.bank.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')),
+      difficulty: Array.from(grouped.difficulty.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')),
+    };
+  }, [wrongAnswers]);
   const practiceHistoryCount = Object.keys(answers).length;
   const hasPracticeHistory = practiceHistoryCount > 0 || wrongAnswerCount > 0;
 
@@ -380,7 +452,7 @@ export const GrammarLivePage: React.FC = () => {
     [catalog, selection.bankSetId],
   );
   const contextLabel = useMemo(() => {
-    if (isWrongReview) return 'Làm lại câu sai';
+    if (isWrongReview && wrongReviewSection) return `Câu sai: ${wrongReviewSection.label}`;
     if (!catalog) return '';
     if (selection.mode === 'topic') {
       return activeTopic?.subtopics.find((item) => item.id === selection.subtopicId)?.title_vi
@@ -391,30 +463,74 @@ export const GrammarLivePage: React.FC = () => {
         || activeBank?.set_name || '';
     }
     return catalog.difficulties.find((item) => item.level === selection.difficultyLevel)?.name_vi || '';
-  }, [activeBank, activeTopic, catalog, isWrongReview, selection]);
+  }, [activeBank, activeTopic, catalog, isWrongReview, selection, wrongReviewSection]);
 
   const changeMode = (mode: GrammarMode) => {
     if (!catalog || (mode === selection.mode && !isWrongReview)) return;
     setIsWrongReview(false);
+    setWrongReviewSection(null);
     setSelection(getInitialSelection(catalog, mode));
   };
 
   const chooseTopic = (topicId: string) => {
     setIsWrongReview(false);
+    setWrongReviewSection(null);
     setSelection({ mode: 'topic', topicId });
   };
 
   const chooseBank = (bankSetId: string) => {
     setIsWrongReview(false);
+    setWrongReviewSection(null);
     setSelection({ mode: 'bank', bankSetId });
   };
 
   const moveToQuestion = (index: number) => {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, index)));
-    window.requestAnimationFrame(scrollToPractice);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(scrollToQuestionCard);
+    });
+  };
+
+  const openQuestionDrawer = async () => {
+    setShowQuestionDrawer(true);
+    if (isWrongReview || !pagination.has_more || isQuestionListLoading) return;
+
+    const requestId = questionListRequestRef.current + 1;
+    questionListRequestRef.current = requestId;
+    setIsQuestionListLoading(true);
+    let mergedQuestions = [...questions];
+    let offset = questions.length;
+    try {
+      while (offset < pagination.total) {
+        const page = await grammarService.getQuestions({
+          ...selection,
+          offset,
+          limit: QUESTION_BATCH_SIZE,
+        });
+        if (requestId !== questionListRequestRef.current) return;
+        const existingIds = new Set(mergedQuestions.map((question) => question.membership_id));
+        const nextQuestions = page.data.filter((question) => !existingIds.has(question.membership_id));
+        mergedQuestions = [...mergedQuestions, ...nextQuestions];
+        offset += page.data.length;
+        if (page.data.length === 0 || !page.pagination.has_more) break;
+      }
+      if (requestId !== questionListRequestRef.current) return;
+      setQuestions(mergedQuestions);
+      setPagination({
+        offset: 0,
+        limit: mergedQuestions.length,
+        total: pagination.total,
+        has_more: mergedQuestions.length < pagination.total,
+      });
+    } catch {
+      // Keep the already loaded questions available in the drawer.
+    } finally {
+      if (requestId === questionListRequestRef.current) setIsQuestionListLoading(false);
+    }
   };
 
   const resetCurrentPractice = () => {
+    setActivityAttemptId(createClientId());
     const visibleQuestionIds = new Set(questions.map((question) => question.membership_id));
     setAnswers((current) => Object.fromEntries(
       Object.entries(current).filter(([membershipId]) => !visibleQuestionIds.has(membershipId)),
@@ -422,6 +538,7 @@ export const GrammarLivePage: React.FC = () => {
   };
 
   const answerQuestion = (question: GrammarQuestion, answer: string) => {
+    enqueueQuestionActivity(question.membership_id, answer);
     setAnswers((current) => ({ ...current, [question.membership_id]: answer }));
     setWrongAnswers((current) => {
       if (answer === question.correct_answer) {
@@ -440,11 +557,13 @@ export const GrammarLivePage: React.FC = () => {
     });
   };
 
-  const startWrongReview = () => {
+  const startWrongReview = (section: GrammarWrongSection) => {
     const reviewQuestions = Object.values(wrongAnswers)
+      .filter((item) => getWrongSectionIdentity(item.question).key === section.key)
       .sort((a, b) => b.answeredAt.localeCompare(a.answeredAt))
       .map((item) => item.question);
     if (reviewQuestions.length === 0) return;
+    setActivityAttemptId(createClientId());
     const reviewMembershipIds = new Set(reviewQuestions.map((question) => question.membership_id));
     setAnswers((current) => Object.fromEntries(
       Object.entries(current).filter(([membershipId]) => !reviewMembershipIds.has(membershipId)),
@@ -457,6 +576,7 @@ export const GrammarLivePage: React.FC = () => {
     setIsQuestionLoading(false);
     setIsLoadingMore(false);
     setIsWrongReview(true);
+    setWrongReviewSection({ key: section.key, label: section.label });
     window.requestAnimationFrame(scrollToPractice);
   };
 
@@ -466,6 +586,7 @@ export const GrammarLivePage: React.FC = () => {
     setShowDeleteWrongHistory(false);
     if (isWrongReview) {
       setIsWrongReview(false);
+      setWrongReviewSection(null);
       void loadQuestions(selection, 0);
     }
   };
@@ -617,6 +738,7 @@ export const GrammarLivePage: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsWrongReview(false);
+                          setWrongReviewSection(null);
                           setSelection({ mode: 'topic', topicId: topic.id });
                         }}
                         className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${
@@ -632,6 +754,7 @@ export const GrammarLivePage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setIsWrongReview(false);
+                            setWrongReviewSection(null);
                             setSelection({ mode: 'topic', topicId: topic.id, subtopicId: subtopic.id });
                           }}
                           className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${
@@ -668,6 +791,7 @@ export const GrammarLivePage: React.FC = () => {
                         type="button"
                         onClick={() => {
                           setIsWrongReview(false);
+                          setWrongReviewSection(null);
                           setSelection({ mode: 'bank', bankSetId: bank.set_id });
                         }}
                         className={`col-span-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${
@@ -685,6 +809,7 @@ export const GrammarLivePage: React.FC = () => {
                           type="button"
                           onClick={() => {
                             setIsWrongReview(false);
+                            setWrongReviewSection(null);
                             setSelection({ mode: 'bank', bankSetId: bank.set_id, testId: test.test_id });
                           }}
                           className={`rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${selection.testId === test.test_id ? 'bg-accent/15 font-extrabold text-accent-strong' : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'}`}
@@ -709,6 +834,7 @@ export const GrammarLivePage: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setIsWrongReview(false);
+                        setWrongReviewSection(null);
                         setSelection({ mode: 'difficulty', difficultyLevel: difficulty.level });
                       }}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all ${active ? 'bg-surface-elevated ring-1 ring-accent/40' : 'hover:bg-surface-hover'}`}
@@ -734,7 +860,16 @@ export const GrammarLivePage: React.FC = () => {
                 <p className="text-[10px] font-bold text-content-muted">ĐANG LUYỆN</p>
                 <h2 className="mt-0.5 truncate text-sm font-extrabold">{contextLabel}</h2>
               </div>
-              <div className="flex items-center gap-4 text-xs font-bold">
+              <div className="flex flex-wrap items-center justify-end gap-2 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => void openQuestionDrawer()}
+                  disabled={questions.length === 0 || isQuestionLoading}
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-line bg-canvas px-2.5 text-[11px] font-extrabold text-content transition-colors hover:border-brand-400 hover:bg-surface-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {isQuestionListLoading ? <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" /> : <ListChecks className="size-3.5 text-brand-700 dark:text-brand-300" />}
+                  Danh sách câu
+                </button>
                 <span className="flex items-center gap-1.5 text-content-muted"><ListChecks className="size-3.5" /> {answeredCount}/{pagination.total}</span>
                 <span className="flex items-center gap-1.5 text-positive"><CheckCircle2 className="size-3.5" /> {correctCount} đúng</span>
                 {answeredCount > 0 && <span className="tabular-nums text-content">{Math.round((correctCount / answeredCount) * 100)}%</span>}
@@ -743,26 +878,72 @@ export const GrammarLivePage: React.FC = () => {
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-elevated">
               <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${pagination.total ? (answeredCount / pagination.total) * 100 : 0}%` }} />
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-              <button
-                type="button"
-                onClick={startWrongReview}
-                disabled={wrongAnswerCount === 0}
-                className="inline-flex min-h-9 items-center gap-2 rounded-lg bg-negative/10 px-3 text-[11px] font-extrabold text-negative transition-colors hover:bg-negative/15 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
-              >
-                <ListRestart className="size-3.5" />
-                Làm lại câu sai
-                <span className="tabular-nums">({wrongAnswerCount})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteWrongHistory(true)}
-                disabled={!hasPracticeHistory}
-                className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2.5 text-[11px] font-bold text-content-muted transition-colors hover:bg-surface-hover hover:text-negative active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Trash2 className="size-3.5" /> Xoá lịch sử làm bài
-              </button>
-              <span className="ml-auto text-[10px] font-semibold text-content-muted">Tiến độ được lưu trên trình duyệt</span>
+            <div className="mt-3 border-t border-line pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="inline-flex items-center gap-2 text-[11px] font-extrabold text-content">
+                  <ListRestart className="size-3.5 text-negative" />
+                  Làm lại câu sai theo phần
+                  <span className="tabular-nums text-negative">({wrongAnswerCount})</span>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteWrongHistory(true)}
+                  disabled={!hasPracticeHistory}
+                  className="inline-flex min-h-8 items-center gap-2 rounded-lg px-2.5 text-[11px] font-bold text-content-muted transition-colors hover:bg-surface-hover hover:text-negative active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Trash2 className="size-3.5" /> Xoá lịch sử làm bài
+                </button>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3" aria-label="Chọn phần có câu sai cần làm lại">
+                {(Object.keys(MODE_META) as GrammarMode[]).map((mode) => {
+                  const meta = MODE_META[mode];
+                  const Icon = meta.icon;
+                  const sections = wrongAnswerSectionsByMode[mode];
+                  const modeCount = sections.reduce((total, section) => total + section.count, 0);
+                  return (
+                    <section key={mode} className="overflow-hidden rounded-xl border border-line bg-canvas">
+                      <header className="flex min-h-11 items-center gap-2.5 border-b border-line px-3">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-elevated text-content-muted">
+                        <Icon className="size-3.5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[11px] font-extrabold text-content">{meta.label}</span>
+                          <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{modeCount.toLocaleString('vi-VN')} câu sai</span>
+                        </span>
+                      </header>
+                      <div className="max-h-52 space-y-1 overflow-y-auto p-1.5">
+                        {sections.length === 0 ? (
+                          <p className="px-2 py-4 text-center text-[10px] font-semibold text-content-muted">Chưa có câu sai</p>
+                        ) : sections.map((section) => {
+                          const active = isWrongReview && wrongReviewSection?.key === section.key;
+                          return (
+                            <button
+                              key={section.key}
+                              type="button"
+                              onClick={() => startWrongReview(section)}
+                              aria-pressed={active}
+                              className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left transition-colors active:scale-[0.99] ${
+                                active
+                                  ? 'bg-negative/10 text-negative ring-1 ring-negative/30'
+                                  : 'text-content hover:bg-surface-hover'
+                              }`}
+                            >
+                              <span className="min-w-0">
+                                <span className="block line-clamp-2 text-[10px] font-extrabold leading-4">{section.label}</span>
+                                {section.parentLabel && <span className="mt-0.5 block truncate text-[9px] font-semibold text-content-muted">{section.parentLabel}</span>}
+                              </span>
+                              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black tabular-nums ${active ? 'bg-negative text-white' : 'bg-surface-elevated text-content-muted'}`}>
+                                {section.count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-right text-[10px] font-semibold text-content-muted">Tiến độ được lưu trên trình duyệt</p>
             </div>
             {progressStorageError && <p className="mt-2 text-[11px] font-semibold text-negative" role="alert">{progressStorageError}</p>}
           </section>
@@ -778,7 +959,7 @@ export const GrammarLivePage: React.FC = () => {
             </section>
           ) : currentQuestion ? (
             <>
-              <article className="surface overflow-hidden rounded-2xl">
+              <article ref={questionCardRef} className="surface scroll-mt-24 overflow-hidden rounded-2xl">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-6">
                   <div className="flex items-center gap-2 text-[11px] font-bold text-content-muted">
                     <span className="rounded-md bg-brand-ink px-2 py-1 text-white">Câu {currentIndex + 1}</span>
@@ -917,6 +1098,16 @@ export const GrammarLivePage: React.FC = () => {
         </section>
       </div>
     </div>
+    <GrammarQuestionDrawer
+      isOpen={showQuestionDrawer}
+      onClose={() => setShowQuestionDrawer(false)}
+      questions={questions}
+      total={pagination.total}
+      currentIndex={currentIndex}
+      answers={answers}
+      loadingMore={isQuestionListLoading}
+      onSelectQuestion={moveToQuestion}
+    />
     <AnimatePresence>
       {showDeleteWrongHistory && (
         <DeleteWrongQuestionsModal

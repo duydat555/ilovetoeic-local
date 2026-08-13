@@ -11,16 +11,11 @@ export interface AdminFeatureStatus {
 }
 
 export const ADMIN_FEATURE_STATUS: Record<string, AdminFeatureStatus> = {
-  '/admin/overview': {
-    route: '/admin/overview', status: 'coming_soon', title: 'Thống kê hệ thống', iconKey: 'chart',
-    description: 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.',
-  },
-  '/admin/classes': { route: '/admin/classes', status: 'ready', title: 'Quản lý lớp học', iconKey: 'school', description: 'Quản lý lớp học và học viên.' },
   '/admin/accounts': { route: '/admin/accounts', status: 'ready', title: 'Quản lý tài khoản', iconKey: 'users', description: 'Quản lý tài khoản học viên.' },
   '/admin/features': {
     route: '/admin/features', status: 'ready', title: 'Quản lý tính năng', iconKey: 'wrench',
     description: 'Trang Quản lý tính năng đang được hoàn thiện và sẽ sớm được đưa vào sử dụng.',
-    actionLabel: 'Quay về Quản lý lớp học', actionPath: '/admin/classes',
+    actionLabel: 'Quay về Quản lý tài khoản', actionPath: '/admin/accounts',
   },
   '/profile': { route: '/profile', status: 'ready', title: 'Hồ sơ cá nhân', iconKey: 'user', description: 'Quản lý hồ sơ Giáo viên.' },
   '/settings': { route: '/settings', status: 'ready', title: 'Cài đặt', iconKey: 'settings', description: 'Tuỳ chỉnh trải nghiệm ứng dụng.' },

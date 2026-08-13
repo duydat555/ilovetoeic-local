@@ -4,6 +4,9 @@ export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 export interface User {
   id: string;
   name: string;
+  familyMiddleName?: string;
+  cohortCode?: string | null;
+  hasValidRankingName?: boolean;
   email: string;
   avatar: string;
   targetScore: number;
@@ -275,6 +278,7 @@ export interface StudyActivityDay {
   date: string;
   totalQuestions: number;
   practiceQuestions: number;
+  grammarQuestions: number;
   examQuestions: number;
   attempts: number;
   parts: StudyActivityPartCount[];

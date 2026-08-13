@@ -26,16 +26,12 @@ const TestResultPage = lazy(() => import('./pages/Results/TestResultPage').then(
 const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then((m) => ({ default: m.TopicListPage })));
 const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
-const MistakeNotebookLivePage = lazy(() => import('./pages/MistakeNotebook/MistakeNotebookLivePage').then((m) => ({ default: m.MistakeNotebookLivePage })));
-const RankingPage = lazy(() => import('./pages/Ranking/RankingPage').then((m) => ({ default: m.RankingPage })));
+const RankingPage = lazy(() => import('./pages/Ranking/RankingPolishedPage').then((m) => ({ default: m.RankingPage })));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
-const ClassStudentsLivePage = lazy(() => import('./pages/Admin/ClassStudentsLivePage').then((m) => ({ default: m.ClassStudentsLivePage })));
-const StudentDetailLivePage = lazy(() => import('./pages/Admin/StudentDetailLivePage').then((m) => ({ default: m.StudentDetailLivePage })));
-const AdminOverviewLivePage = lazy(() => import('./pages/Admin/AdminOverviewLivePage').then((m) => ({ default: m.AdminOverviewLivePage })));
-const ClassesManagementPage = lazy(() => import('./pages/Admin/ClassesManagementPage').then((m) => ({ default: m.ClassesManagementPage })));
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
+const StudentPracticeDetailPage = lazy(() => import('./pages/Admin/StudentPracticeDetailPage').then((m) => ({ default: m.StudentPracticeDetailPage })));
 const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagementPage').then((m) => ({ default: m.FeatureManagementPage })));
 
 import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
@@ -81,21 +77,18 @@ export const App: React.FC = () => {
                 <Route path="/vocabulary/:topicId" element={<TopicFlashcardPage />} />
               </Route>
               <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>
-              <Route element={<FeatureRouteGuard feature="mistake_notebook" />}><Route path="/mistake-notebook" element={<MistakeNotebookLivePage />} /></Route>
+              <Route path="/mistake-notebook" element={<Navigate to="/dashboard" replace />} />
               <Route element={<FeatureRouteGuard feature="ranking" />}><Route path="/ranking" element={<RankingPage />} /></Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
 
-              {/* The single teacher account manages every student and class group. */}
+              {/* The single teacher account manages students and system features. */}
               <Route element={<RoleGuard allowedRoles={['admin']} />}>
-                <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
-                <Route path="/admin/overview" element={<AdminFeatureRoute route="/admin/overview"><AdminOverviewLivePage /></AdminFeatureRoute>} />
-                <Route path="/admin/groups" element={<Navigate to="/admin/classes" replace />} />
-                <Route path="/admin/classes" element={<AdminFeatureRoute route="/admin/classes"><ClassesManagementPage /></AdminFeatureRoute>} />
-                <Route path="/admin/classes/:classId" element={<ClassStudentsLivePage />} />
-                <Route path="/admin/students/:studentId" element={<StudentDetailLivePage />} />
+                <Route path="/admin" element={<Navigate to="/admin/accounts" replace />} />
+                <Route path="/admin/overview" element={<Navigate to="/admin/accounts" replace />} />
                 <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
+                <Route path="/admin/accounts/:studentId/practice" element={<AdminFeatureRoute route="/admin/accounts"><StudentPracticeDetailPage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />
               </Route>
             </Route>

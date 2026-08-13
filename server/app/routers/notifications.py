@@ -40,7 +40,7 @@ def notification_response(row):
 
 def ensure_welcome_notification(user):
     role = "Giáo viên" if user.get("role") == "admin" else "Học viên"
-    action_url = "/admin/overview" if user.get("role") == "admin" else "/dashboard"
+    action_url = "/admin/accounts" if user.get("role") == "admin" else "/dashboard"
     create_notification(
         user["id"],
         "system",

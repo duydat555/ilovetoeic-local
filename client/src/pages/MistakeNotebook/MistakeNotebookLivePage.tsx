@@ -1,5 +1,0 @@
-import React from 'react';
-import { ArrowRight, BookMarked } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-export const MistakeNotebookLivePage: React.FC = () => <div className="space-y-6 pb-10"><header><div className="eyebrow mb-3"><BookMarked className="size-3.5" /> Sổ lỗi sai</div><h1 className="text-2xl font-extrabold tracking-tight text-content sm:text-3xl">Ôn lại lỗi sai</h1><p className="mt-2 max-w-2xl text-sm leading-relaxed text-content-muted">Chỉ những câu sai được lưu từ bài làm thật mới xuất hiện tại đây.</p></header><section className="rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center"><BookMarked className="mx-auto size-9 text-content-muted" /><h2 className="mt-4 text-lg font-extrabold text-content">Chưa có lỗi sai đã lưu</h2><p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-content-muted">Các bản ghi lỗi sai mẫu đã được loại bỏ khỏi giao diện.</p><Link to="/mock-test" className="btn-primary mt-6 text-sm">Làm đề thi thật <ArrowRight className="size-4" /></Link></section></div>;

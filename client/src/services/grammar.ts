@@ -53,6 +53,10 @@ export interface GrammarQuestion {
   membership_id: string;
   question_id: string;
   source_mode: GrammarMode;
+  topic_id?: string;
+  subtopic_id?: string;
+  bank_set_id?: string;
+  test_id?: string;
   question_text: string;
   option_a?: string;
   option_b?: string;

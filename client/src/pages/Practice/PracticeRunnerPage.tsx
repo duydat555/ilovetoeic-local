@@ -43,8 +43,8 @@ import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
+import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
 import {
-  clearSyncedLocalWrongQuestions,
   readLocalWrongQuestions,
   updateLocalWrongQuestions,
 } from '../../utils/localWrongQuestions';
@@ -162,6 +162,14 @@ export const PracticeRunnerPage: React.FC = () => {
     ? `wrong-${wrongSource}-${testId || `${scopeParts[0]}-${selectedLevel}`}`
     : testId || (isLevelPractice ? `level-${selectedLevel}` : 'quick');
   const storageKey = `toeic-practice:${storageSource}:${scopeKey}`;
+  const activityBatchContext = useMemo(() => user ? ({
+    userId: user.id,
+    attemptId,
+    sourceType: testId ? 'test' as const : 'level' as const,
+    testId: testId || undefined,
+    level: isLevelPractice ? selectedLevel || undefined : undefined,
+  }) : null, [attemptId, isLevelPractice, selectedLevel, testId, user]);
+  const { enqueue: enqueueQuestionActivity, flush: flushQuestionActivity } = useQuestionActivityBatch(activityBatchContext);
 
   useEffect(() => {
     let active = true;
@@ -306,6 +314,7 @@ export const PracticeRunnerPage: React.FC = () => {
   const selectChoice = (questionId: string, choiceId: ChoiceId) => {
     if (currentGroupChecked) return;
     setUserAnswers((previous) => ({ ...previous, [questionId]: choiceId }));
+    enqueueQuestionActivity(questionId, choiceId);
   };
 
   const checkCurrentGroup = async () => {
@@ -339,6 +348,11 @@ export const PracticeRunnerPage: React.FC = () => {
     if (!user || historySaveState !== 'idle') return;
     setHistorySaveState('saving');
 
+    // Per-question activity is independent of completing the whole practice.
+    // Flush it now as an additional safety net; pagehide/idle handlers also
+    // flush partial sessions that never reach this summary.
+    const activitySaved = await flushQuestionActivity();
+
     const selectedParts = [...new Set(questions.map((question) => question.partId))].sort((a, b) => a - b);
     const saved = await backendService.saveStudyAttempt({
       id: attemptId,
@@ -367,30 +381,9 @@ export const PracticeRunnerPage: React.FC = () => {
       completedAt: new Date().toISOString(),
     });
 
-    if (saved) {
-      for (let index = 0; index < questions.length; index += 20) {
-        const batch = questions.slice(index, index + 20);
-        const synced = await backendService.saveQuestionActivity({
-          attemptId,
-          sourceType: testId ? 'test' : 'level',
-          testId: testId || undefined,
-          level: isLevelPractice ? selectedLevel || undefined : undefined,
-          answers: batch.map((question) => ({
-            questionId: question.id,
-            selectedAnswer: userAnswers[question.id],
-          })),
-          answeredAt: new Date().toISOString(),
-        });
-        if (synced) {
-          clearSyncedLocalWrongQuestions(
-            user.id,
-            testId ? 'test' : 'level',
-            batch.map((question) => question.id),
-          );
-        }
-      }
+    if (saved || activitySaved) {
       if (!activityRecorded) await recordStudyActivity();
-      await refreshNotifications();
+      if (saved) await refreshNotifications();
       setActivityRecorded(true);
     }
     setHistorySaveState(saved ? 'saved' : 'error');

@@ -32,6 +32,28 @@ def parse_json(value, fallback):
         return fallback
 
 
+def record_practice_streak(user):
+    """Mark a day active when at least one practice answer reaches the database."""
+    today = date.today()
+    last_date = normalize_date(user.get("last_study_date"))
+    current_streak = active_streak_days(user)
+    if last_date == today:
+        streak = max(current_streak, 1)
+    elif last_date == today - timedelta(days=1):
+        streak = current_streak + 1
+    else:
+        streak = 1
+    longest = max(int(user.get("longest_streak") or 0), streak)
+    db.execute(
+        """
+        UPDATE users
+        SET streak_days = ?, longest_streak = ?, last_study_date = ?
+        WHERE id = ?
+        """,
+        (streak, longest, today, user["id"]),
+    )
+
+
 class StudyAttemptPayload(BaseModel):
     id: str = Field(max_length=36)
     userId: Optional[str] = None
@@ -57,13 +79,14 @@ class StudyAttemptPayload(BaseModel):
 
 
 class QuestionActivityItem(BaseModel):
-    questionId: str = Field(min_length=1, max_length=100)
+    questionId: str = Field(min_length=1, max_length=220)
     selectedAnswer: str = Field(min_length=1, max_length=5)
+    answeredAt: Optional[str] = None
 
 
 class QuestionActivityPayload(BaseModel):
     attemptId: str = Field(min_length=1, max_length=36)
-    sourceType: Literal["test", "level"]
+    sourceType: Literal["test", "level", "grammar"]
     testId: Optional[str] = Field(default=None, max_length=100)
     level: Optional[int] = Field(default=None, ge=1, le=5)
     answers: List[QuestionActivityItem] = Field(min_length=1, max_length=20)
@@ -312,6 +335,46 @@ def get_study_attempts(
     return {"data": data}
 
 
+@router.get("/study-summary")
+def get_study_summary(user=Depends(get_current_user)):
+    """Return all-time answered/correct totals without double-counting synced attempts."""
+    row = db.fetch_one(
+        """
+        WITH answer_events AS (
+            SELECT user_id, COUNT(*) AS question_count, SUM(is_correct) AS correct_count
+            FROM user_question_activity
+            WHERE user_id = ?
+            GROUP BY user_id
+            UNION ALL
+            SELECT user_id, COUNT(*) AS question_count, SUM(is_correct) AS correct_count
+            FROM user_grammar_question_activity
+            WHERE user_id = ?
+            GROUP BY user_id
+            UNION ALL
+            SELECT ta.user_id, SUM(ta.answered_questions), SUM(ta.correct_answers)
+            FROM test_attempts ta
+            WHERE ta.user_id = ? AND NOT EXISTS (
+                SELECT 1 FROM user_question_activity uqa
+                WHERE uqa.user_id = ta.user_id AND uqa.attempt_id = ta.id
+            )
+            GROUP BY ta.user_id
+        )
+        SELECT COALESCE(SUM(question_count), 0) AS total_questions,
+               COALESCE(SUM(correct_count), 0) AS correct_questions
+        FROM answer_events
+        """,
+        (user["id"], user["id"], user["id"]),
+        use_cache=False,
+    ) or {}
+    total_questions = int(row.get("total_questions") or 0)
+    correct_questions = int(row.get("correct_questions") or 0)
+    return {
+        "totalQuestions": total_questions,
+        "correctQuestions": correct_questions,
+        "accuracyRate": round(correct_questions * 100 / total_questions, 1) if total_questions else 0,
+    }
+
+
 @router.get("/study-attempts/{attempt_id}")
 def get_study_attempt_detail(
     attempt_id: str,
@@ -505,6 +568,52 @@ def save_question_activity(
 
     question_ids = list(dict.fromkeys(item.questionId for item in payload.answers))
     placeholders = ", ".join("?" for _ in question_ids)
+    answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
+    answered_at_map = {
+        item.questionId: parse_datetime(item.answeredAt or payload.answeredAt)
+        for item in payload.answers
+    }
+
+    if payload.sourceType == "grammar":
+        grammar_rows = db.fetch_all(
+            f"""
+            SELECT m.id AS membership_id, m.question_id, q.correct_answer
+            FROM grammar_question_memberships m
+            JOIN grammar_questions q ON q.id = m.question_id
+            WHERE m.id IN ({placeholders})
+            """,
+            tuple(question_ids),
+            use_cache=False,
+        )
+        grammar_map = {str(row["membership_id"]): row for row in grammar_rows}
+        if len(grammar_map) != len(question_ids):
+            raise HTTPException(status_code=400, detail="Danh sách câu hỏi ngữ pháp không hợp lệ.")
+        values = [
+            (
+                user["id"], payload.attemptId, membership_id,
+                str(grammar_map[membership_id]["question_id"]), answer_map[membership_id],
+                1 if answer_map[membership_id] == str(grammar_map[membership_id].get("correct_answer") or "").upper() else 0,
+                answered_at_map[membership_id],
+            )
+            for membership_id in question_ids
+        ]
+        with db.transaction() as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO user_grammar_question_activity (
+                        user_id, attempt_id, membership_id, question_id,
+                        selected_answer, is_correct, answered_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        question_id = VALUES(question_id), selected_answer = VALUES(selected_answer),
+                        is_correct = VALUES(is_correct), answered_at = VALUES(answered_at)
+                    """,
+                    values,
+                )
+        record_practice_streak(user)
+        return {"success": True, "saved": len(values)}
+
     question_rows = db.fetch_all(
         f"SELECT id, test_id, part, difficulty_level, correct_answer FROM questions WHERE id IN ({placeholders})",
         tuple(question_ids),
@@ -524,8 +633,19 @@ def save_question_activity(
     ):
         raise HTTPException(status_code=400, detail="Câu hỏi không thuộc Level đã chọn.")
 
-    answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
-    answered_at = parse_datetime(payload.answeredAt)
+    existing_rows = db.fetch_all(
+        f"""
+        SELECT question_id, is_correct
+        FROM user_question_activity
+        WHERE user_id = ? AND attempt_id = ? AND question_id IN ({placeholders})
+        """,
+        tuple([user["id"], payload.attemptId, *question_ids]),
+        use_cache=False,
+    )
+    previous_correctness = {
+        str(row["question_id"]): bool(row["is_correct"])
+        for row in existing_rows
+    }
     values = []
     for question_id in question_ids:
         question = question_map[question_id]
@@ -537,7 +657,7 @@ def save_question_activity(
             int(question["part"]),
             selected_answer,
             1 if selected_answer == str(question.get("correct_answer") or "").upper() else 0,
-            answered_at,
+            answered_at_map[question_id],
         ))
     with db.transaction() as conn:
         with conn.cursor() as cursor:
@@ -556,6 +676,7 @@ def save_question_activity(
                 question = question_map[question_id]
                 selected_answer = answer_map[question_id]
                 is_correct = selected_answer == str(question.get("correct_answer") or "").upper()
+                answered_at = answered_at_map[question_id]
                 if is_correct:
                     cursor.execute(
                         """
@@ -565,15 +686,24 @@ def save_question_activity(
                         (user["id"], question_id, payload.sourceType),
                     )
                 else:
+                    increment_wrong_count = (
+                        question_id not in previous_correctness
+                        or previous_correctness[question_id]
+                    )
+                    duplicate_update = (
+                        "wrong_count = wrong_count + 1, last_wrong_at = VALUES(last_wrong_at)"
+                        if increment_wrong_count
+                        else "last_wrong_at = VALUES(last_wrong_at)"
+                    )
                     cursor.execute(
-                        """
+                        f"""
                         INSERT INTO user_wrong_questions (
                             user_id, question_id, source_type, test_id, part, level,
                             wrong_count, first_wrong_at, last_wrong_at
                         ) VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s)
                         ON DUPLICATE KEY UPDATE
                             test_id = VALUES(test_id), part = VALUES(part), level = VALUES(level),
-                            wrong_count = wrong_count + 1, last_wrong_at = VALUES(last_wrong_at)
+                            {duplicate_update}
                         """,
                         (
                             user["id"], question_id, payload.sourceType,
@@ -582,6 +712,7 @@ def save_question_activity(
                             answered_at, answered_at,
                         ),
                     )
+    record_practice_streak(user)
     return {"success": True, "saved": len(values)}
 
 
@@ -672,9 +803,23 @@ def delete_wrong_questions(
 @router.get("/study-activity")
 def get_study_activity(
     year: int = Query(..., ge=2000, le=2100),
+    student_id: Optional[str] = Query(default=None),
     user=Depends(get_current_user),
 ):
     """Return database-backed daily question counts, split by TOEIC Part."""
+    target_user_id = user["id"]
+    if student_id and student_id != user["id"]:
+        if user.get("role") != "admin":
+            raise HTTPException(status_code=403, detail="Bạn không có quyền xem dữ liệu luyện tập này.")
+        student = db.fetch_one(
+            "SELECT id FROM users WHERE id = ? AND role = 'student'",
+            (student_id,),
+            use_cache=False,
+        )
+        if not student:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh.")
+        target_user_id = student["id"]
+
     # Attempts are stored as UTC-naive datetimes. Include a one-day buffer, then
     # convert to the product timezone before assigning an activity date.
     range_start = datetime(year, 1, 1) - timedelta(hours=7)
@@ -686,19 +831,30 @@ def get_study_activity(
         WHERE user_id = ? AND completed_at >= ? AND completed_at < ?
         ORDER BY completed_at ASC
         """,
-        (user["id"], range_start, range_end),
+        (target_user_id, range_start, range_end),
         use_cache=False,
     )
     activity_rows = db.fetch_all(
         """
-        SELECT attempt_id, question_id, part, answered_at
+        SELECT attempt_id, question_id, part, answered_at, 0 AS is_grammar
         FROM user_question_activity
         WHERE user_id = ? AND answered_at >= ? AND answered_at < ?
         ORDER BY answered_at ASC
         """,
-        (user["id"], range_start, range_end),
+        (target_user_id, range_start, range_end),
         use_cache=False,
     )
+    grammar_activity_rows = db.fetch_all(
+        """
+        SELECT attempt_id, membership_id AS question_id, 5 AS part, answered_at, 1 AS is_grammar
+        FROM user_grammar_question_activity
+        WHERE user_id = ? AND answered_at >= ? AND answered_at < ?
+        ORDER BY answered_at ASC
+        """,
+        (target_user_id, range_start, range_end),
+        use_cache=False,
+    )
+    activity_rows.extend(grammar_activity_rows)
     synced_attempt_ids = {str(row["attempt_id"]) for row in activity_rows}
     synced_question_ids_by_attempt = defaultdict(set)
     for activity in activity_rows:
@@ -740,6 +896,7 @@ def get_study_activity(
     days = defaultdict(lambda: {
         "totalQuestions": 0,
         "practiceQuestions": 0,
+        "grammarQuestions": 0,
         "examQuestions": 0,
         "attempts": 0,
         "parts": {part: 0 for part in range(1, 8)},
@@ -760,6 +917,8 @@ def get_study_activity(
         day["parts"][part] += 1
         day["totalQuestions"] += 1
         day["practiceQuestions"] += 1
+        if activity.get("is_grammar"):
+            day["grammarQuestions"] += 1
         activity_attempts_by_day[date_key].add(str(activity["attempt_id"]))
 
     for row, countable_ids in parsed_rows:
@@ -804,7 +963,8 @@ def get_study_activity(
         data.append({
             "date": activity_date,
             **{key: values[key] for key in (
-                "totalQuestions", "practiceQuestions", "examQuestions", "attempts"
+                "totalQuestions", "practiceQuestions", "grammarQuestions",
+                "examQuestions", "attempts"
             )},
             "parts": [
                 {"part": part, "questions": values["parts"][part]}

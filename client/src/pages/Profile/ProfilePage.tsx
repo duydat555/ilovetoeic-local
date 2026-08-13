@@ -131,6 +131,7 @@ const DiceBearAvatarSelector: React.FC<{
 export const ProfilePage: React.FC = () => {
   const { user, updateProfile, updatePassword } = useAuth();
   const [name, setName] = useState('');
+  const [familyMiddleName, setFamilyMiddleName] = useState('');
   const [email, setEmail] = useState('');
   const [avatar, setAvatar] = useState('');
   const [targetScore, setTargetScore] = useState(750);
@@ -148,6 +149,7 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     setName(user.name);
+    setFamilyMiddleName(user.familyMiddleName || '');
     setEmail(user.email);
     setAvatar(user.avatar);
     setTargetScore(user.targetScore);
@@ -167,6 +169,7 @@ export const ProfilePage: React.FC = () => {
         avatar,
         targetScore,
         examDate,
+        familyMiddleName,
       });
       setProfileMessage({
         type: 'success',
@@ -263,7 +266,7 @@ export const ProfilePage: React.FC = () => {
         <form onSubmit={handleProfileSave} className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Họ và tên</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">{user.role === 'admin' ? 'Họ và tên' : 'Tên và khóa'}</span>
               <div className="relative">
                 <UserRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -273,10 +276,27 @@ export const ProfilePage: React.FC = () => {
                   required
                   maxLength={80}
                   autoComplete="name"
+                  placeholder={user.role === 'admin' ? 'Họ và tên' : 'Đạt_K38'}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
                 />
               </div>
             </label>
+            {user.role !== 'admin' && (
+              <label>
+                <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Họ và tên đệm</span>
+                <div className="relative">
+                  <UserRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={familyMiddleName}
+                    onChange={(event) => setFamilyMiddleName(event.target.value)}
+                    maxLength={100}
+                    placeholder="Nguyễn Văn"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
+                  />
+                </div>
+              </label>
+            )}
             <label>
               <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Email</span>
               <div className="relative">

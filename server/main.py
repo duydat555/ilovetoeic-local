@@ -10,11 +10,10 @@ from app.routers import (
     admin_feature_status,
     audio_proxy,
     auth,
-    classes,
     features,
     grammar,
     gemini,
-    leaderboard,
+    ranking,
     notifications,
     practice,
     status,
@@ -54,11 +53,10 @@ app.include_router(submissions.router)
 app.include_router(audio_proxy.router)
 app.include_router(gemini.router)
 app.include_router(auth.router)
-app.include_router(classes.router)
 app.include_router(features.router)
 app.include_router(grammar.router)
 app.include_router(user_data.router)
-app.include_router(leaderboard.router)
+app.include_router(ranking.router)
 app.include_router(notifications.router)
 
 

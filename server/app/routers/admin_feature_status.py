@@ -15,7 +15,7 @@ def get_admin_feature_statuses(user=Depends(get_current_user)):
         """
         SELECT route, status, title, description, icon_key, action_label, action_path
         FROM admin_feature_statuses
-        WHERE route <> '/admin/homework'
+        WHERE route NOT IN ('/admin/homework', '/admin/overview')
         ORDER BY sort_order, route
         """,
         use_cache=False,

@@ -24,6 +24,7 @@ from app.security import (
     hash_password,
     is_access_expired,
     normalize_date,
+    parse_student_ranking_name,
     revoke_session,
     user_payload,
     verify_password,
@@ -51,6 +52,12 @@ class ProfileRequest(BaseModel):
     avatar: str = Field(default="", max_length=2048)
     target_score: int = Field(default=750, ge=10, le=990)
     exam_date: str = ""
+    family_middle_name: str = Field(default="", max_length=100)
+
+
+class RankingIdentityRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    family_middle_name: str = Field(default="", max_length=100)
 
 
 class AccountAccessRequest(BaseModel):
@@ -72,6 +79,16 @@ def normalize_email(value: str) -> str:
 
 def auth_response(user, token):
     return {"token": token, "user": user_payload(user)}
+
+
+def normalize_student_ranking_name(value: str) -> str:
+    identity = parse_student_ranking_name(value)
+    if not identity:
+        raise HTTPException(
+            status_code=422,
+            detail="Tên phải đúng cú pháp Tên_Ksốkhóa, ví dụ: Đạt_K38.",
+        )
+    return identity[0]
 
 
 @router.post("/register")
@@ -256,16 +273,22 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
         except ValueError as error:
             raise HTTPException(status_code=422, detail="Ngày thi dự kiến không hợp lệ.") from error
     new_avatar = payload.avatar.strip() if payload.avatar and payload.avatar.strip() else (user.get("avatar_url") or "")
+    full_name = (
+        normalize_student_ranking_name(payload.name)
+        if user.get("role") != "admin"
+        else payload.name.strip()
+    )
     try:
         db.execute(
             """
             UPDATE users
-            SET email = ?, full_name = ?, avatar_url = ?, target_score = ?, exam_date = ?
+            SET email = ?, full_name = ?, family_middle_name = ?, avatar_url = ?, target_score = ?, exam_date = ?
             WHERE id = ?
             """,
             (
                 email,
-                payload.name.strip(),
+                full_name,
+                payload.family_middle_name.strip(),
                 new_avatar,
                 payload.target_score,
                 exam_date,
@@ -276,6 +299,23 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=409, detail="Email này đã được sử dụng.") from error
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
     return {"user": user_payload(updated), "email_confirmation_required": False}
+
+
+@router.put("/ranking-identity")
+def update_ranking_identity(payload: RankingIdentityRequest, user=Depends(get_current_user)):
+    if user.get("role") == "admin":
+        raise HTTPException(status_code=403, detail="Chức năng này chỉ dành cho Học sinh.")
+    full_name = normalize_student_ranking_name(payload.name)
+    db.execute(
+        """
+        UPDATE users
+        SET full_name = ?, family_middle_name = ?
+        WHERE id = ?
+        """,
+        (full_name, payload.family_middle_name.strip(), user["id"]),
+    )
+    updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
+    return {"user": user_payload(updated)}
 
 
 @router.put("/password")
@@ -417,6 +457,14 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
         if user:
             existing_pic = (user.get("avatar_url") or "").strip()
             final_pic = google_pic if (google_pic and (not existing_pic or "googleusercontent.com" in existing_pic)) else (existing_pic or google_pic)
+            existing_name = user.get("full_name") or ""
+            # Google must not overwrite the mandatory ranking identity after a
+            # student has completed it.
+            final_name = (
+                existing_name
+                if user.get("role") != "admin" and parse_student_ranking_name(existing_name)
+                else (profile.get("name") or existing_name)
+            )
             db.execute(
                 """
                 UPDATE users
@@ -429,7 +477,7 @@ async def google_callback(code: str = "", state: str = "", error: str = ""):
                 """,
                 (
                     google_sub,
-                    profile.get("name") or user.get("full_name"),
+                    final_name,
                     final_pic,
                     user["id"],
                 ),

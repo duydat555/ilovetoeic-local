@@ -153,33 +153,6 @@ class Database:
                                 "ALTER TABLE users ADD INDEX "
                                 "idx_users_access_expires_at (access_expires_at)"
                             )
-                        class_columns = {
-                            "description": "ALTER TABLE learning_classes ADD COLUMN description TEXT NULL AFTER code",
-                            "is_active": (
-                                "ALTER TABLE learning_classes ADD COLUMN is_active "
-                                "TINYINT(1) NOT NULL DEFAULT 1 AFTER is_public"
-                            ),
-                            "created_by": (
-                                "ALTER TABLE learning_classes ADD COLUMN created_by "
-                                "CHAR(36) NULL AFTER is_active"
-                            ),
-                        }
-                        for column_name, statement in class_columns.items():
-                            cursor.execute(
-                                "SHOW COLUMNS FROM learning_classes LIKE %s",
-                                (column_name,),
-                            )
-                            if cursor.fetchone() is None:
-                                cursor.execute(statement)
-                        cursor.execute(
-                            "SHOW INDEX FROM learning_classes "
-                            "WHERE Key_name = 'idx_learning_classes_created_by'"
-                        )
-                        if cursor.fetchone() is None:
-                            cursor.execute(
-                                "ALTER TABLE learning_classes ADD INDEX "
-                                "idx_learning_classes_created_by (created_by, is_active)"
-                            )
                         cursor.execute(
                             "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE expires_at < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 100 DAY)"
                         )

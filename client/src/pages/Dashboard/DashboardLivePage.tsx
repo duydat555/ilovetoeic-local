@@ -94,6 +94,7 @@ const DashboardLoadingState: React.FC = () => (
 export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
+  const [studySummary, setStudySummary] = useState({ totalQuestions: 0, correctQuestions: 0, accuracyRate: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -103,11 +104,15 @@ export const DashboardLivePage: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await backendService.getStudyHistory(user.id);
+      const [data, summary] = await Promise.all([
+        backendService.getStudyHistory(user.id),
+        backendService.getStudySummary(),
+      ]);
       if (data === null) {
         setError('Không thể tải lịch sử học tập từ hệ thống.');
       } else {
         setAttempts(data);
+        setStudySummary(summary);
       }
     } catch {
       setError('Đã xảy ra lỗi khi kết nối dữ liệu.');
@@ -122,14 +127,9 @@ export const DashboardLivePage: React.FC = () => {
 
   // Tính toán các chỉ số học tập chính.
   const metrics = useMemo(() => {
-    const totalQuestions = attempts.reduce((total, item) => total + (item.totalQuestions || 0), 0);
-    const totalCorrect = attempts.reduce((total, item) => total + (item.correctAnswers || 0), 0);
-
-    const averageAccuracy = totalQuestions > 0
-      ? Math.round((totalCorrect / totalQuestions) * 100)
-      : attempts.length
-      ? Math.round(attempts.reduce((total, item) => total + item.accuracyRate, 0) / attempts.length)
-      : 0;
+    const totalQuestions = studySummary.totalQuestions;
+    const totalCorrect = studySummary.correctQuestions;
+    const averageAccuracy = Math.round(studySummary.accuracyRate);
 
     const bestScore = getBestToeicGoalScore(attempts);
 
@@ -154,7 +154,7 @@ export const DashboardLivePage: React.FC = () => {
       listeningAcc,
       readingAcc,
     };
-  }, [attempts]);
+  }, [attempts, studySummary]);
 
   // Chuẩn bị dữ liệu cho biểu đồ Tiến trình điểm số (Tối đa 8 bài gần đây)
   const chartData = useMemo(() => {
@@ -207,7 +207,7 @@ export const DashboardLivePage: React.FC = () => {
     {
       label: 'Độ chính xác trung bình',
       value: `${metrics.averageAccuracy}%`,
-      subtext: metrics.totalQuestions > 0 ? `Đúng ${metrics.totalCorrect}/${metrics.totalQuestions} câu` : 'Dựa trên bài làm thực tế',
+      subtext: metrics.totalQuestions > 0 ? `Đúng ${metrics.totalCorrect}/${metrics.totalQuestions} câu` : 'Chưa có câu trả lời được ghi nhận',
       icon: BookOpenCheck,
       color: 'text-brand-700 bg-brand-50 dark:bg-brand-500/10 dark:text-brand-300 border-brand-200/60 dark:border-brand-900/40',
     },

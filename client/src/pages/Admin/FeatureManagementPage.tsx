@@ -263,7 +263,7 @@ export const FeatureManagementPage: React.FC = () => {
     <div className="mx-auto w-full max-w-[1400px] space-y-6 pb-8">
       <PageHeader
         title="Quản lý tính năng"
-        description="Kiểm soát những khu vực học sinh được sử dụng trên toàn hệ thống hoặc theo từng lớp."
+        description="Kiểm soát những khu vực học sinh được sử dụng trên toàn hệ thống."
         action={(
           <button
             type="button"
@@ -291,7 +291,7 @@ export const FeatureManagementPage: React.FC = () => {
           <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm dark:shadow-none sm:p-5">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
-                <div className="flex items-center gap-3 rounded-xl bg-surface-elevated px-3.5 py-3">
+                <div className="hidden">
                   <span className="grid size-9 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
                     <Layers3 className="size-4" />
                   </span>
@@ -336,7 +336,7 @@ export const FeatureManagementPage: React.FC = () => {
 
           {tab === 'configuration' ? (
             <div className="space-y-5">
-              <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm dark:shadow-none sm:p-5">
+              <section className="hidden" aria-hidden="true">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                   <div>
                     <h2 className="text-base font-extrabold text-content">Phạm vi áp dụng</h2>

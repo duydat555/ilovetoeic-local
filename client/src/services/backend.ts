@@ -110,33 +110,33 @@ interface AuthResponse {
   user: User;
 }
 
-export interface LeaderboardClass {
-  id: string;
-  name: string;
-  code: string;
-  targetScore: number;
-  memberCount: number;
-  averageScore: number;
-  isOwnClass: boolean;
-}
-
 export interface LeaderboardMember {
   id: string;
   name: string;
+  familyMiddleName: string;
+  cohortCode: string;
   avatar: string;
-  score: number;
   streakDays: number;
-  completedLessons: number;
-  rankChange: number;
+  totalQuestions: number;
+  accuracyRate: number;
+  correctQuestions: number;
+}
+
+export interface LeaderboardCohort {
+  cohortCode: string;
+  memberCount: number;
+  streakDays: number;
+  totalQuestions: number;
+  accuracyRate: number;
+  correctQuestions: number;
 }
 
 export interface LeaderboardResponse {
-  classes: LeaderboardClass[];
-  selectedClass: LeaderboardClass;
   currentMemberId: string;
-  currentUser: LeaderboardMember;
+  currentCohort: string | null;
+  scope: 'course' | 'cohort' | 'cohorts';
   members: LeaderboardMember[];
-  classComparison: LeaderboardClass[];
+  cohorts: LeaderboardCohort[];
   updatedAt: string;
 }
 
@@ -201,7 +201,7 @@ export interface NotificationPreferencesResponse {
 export interface FeatureAdminClass { id: string; name: string; code: string; isActive: boolean; }
 export interface FeatureAuditLog {
   id: string; featureKey: FeatureKey; scopeType: 'global' | 'class';
-  classId?: string | null; className?: string | null; previousEnabled: boolean;
+  className?: string | null; previousEnabled: boolean;
   newEnabled: boolean; actorName: string; actorEmail: string; createdAt: string;
 }
 export interface FeatureAdminConfiguration {
@@ -213,8 +213,7 @@ export interface FeatureAdminConfiguration {
 }
 export interface EffectiveFeatureConfiguration {
   flags: Record<FeatureKey, boolean>;
-  classIds: string[];
-  sources: Record<FeatureKey, 'core' | 'global' | 'class'>;
+  sources: Record<FeatureKey, 'core' | 'global'>;
 }
 
 export const authApi = {
@@ -261,6 +260,7 @@ export const authApi = {
     avatar: string;
     targetScore: number;
     examDate: string;
+    familyMiddleName?: string;
   }) {
     return authFetch<{ user: User; email_confirmation_required: boolean }>('/auth/profile', {
       method: 'PUT',
@@ -270,7 +270,15 @@ export const authApi = {
         avatar: input.avatar,
         target_score: input.targetScore,
         exam_date: input.examDate,
+        family_middle_name: input.familyMiddleName || '',
       }),
+    });
+  },
+
+  async updateRankingIdentity(name: string, familyMiddleName: string) {
+    return authFetch<{ user: User }>('/auth/ranking-identity', {
+      method: 'PUT',
+      body: JSON.stringify({ name, family_middle_name: familyMiddleName }),
     });
   },
 
@@ -332,19 +340,22 @@ export const backendService = {
     const response = await authFetch<{ data: EffectiveFeatureConfiguration }>('/features/effective');
     return response.data;
   },
-  async getFeatureConfiguration() {
+  async getFeatureConfiguration(): Promise<FeatureAdminConfiguration> {
     const response = await authFetch<{ data: FeatureAdminConfiguration }>('/features/admin');
-    return response.data;
+    return {
+      ...response.data,
+      classes: [] as FeatureAdminClass[],
+      classOverrides: {},
+      impactCounts: { ...response.data.impactCounts, classes: {} },
+    };
   },
   async updateGlobalFeature(featureKey: FeatureKey, enabled: boolean, confirmed = false) {
     return authFetch<{ data: { enabled: boolean; changed: boolean } }>(`/features/global/${encodeURIComponent(featureKey)}`, {
       method: 'PUT', body: JSON.stringify({ enabled, confirmed }),
     });
   },
-  async updateClassFeature(classId: string, featureKey: FeatureKey, enabled: boolean, confirmed = false) {
-    return authFetch<{ data: { enabled: boolean; changed: boolean } }>(`/features/classes/${encodeURIComponent(classId)}/${encodeURIComponent(featureKey)}`, {
-      method: 'PUT', body: JSON.stringify({ enabled, confirmed }),
-    });
+  async updateClassFeature(_classId: string, _featureKey: FeatureKey, _enabled: boolean, _confirmed = false) {
+    throw new Error('Phạm vi lớp học đã được gỡ bỏ.');
   },
   async getAdminFeatureStatuses() {
     const response = await authFetch<{ data: Array<{
@@ -446,9 +457,8 @@ export const backendService = {
     );
   },
 
-  async getLeaderboard(classId = '', period: 'week' | 'month' | 'all' = 'all') {
-    const query = new URLSearchParams({ period });
-    if (classId) query.set('class_id', classId);
+  async getLeaderboard(scope: 'course' | 'cohort' | 'cohorts' = 'course') {
+    const query = new URLSearchParams({ scope });
     return authFetch<LeaderboardResponse>(`/leaderboard?${query.toString()}`);
   },
 
@@ -476,6 +486,14 @@ export const backendService = {
     }
   },
 
+  async getStudySummary() {
+    return authFetch<{
+      totalQuestions: number;
+      correctQuestions: number;
+      accuracyRate: number;
+    }>('/study-summary');
+  },
+
   async deleteTestStudyHistory(testId: string) {
     return authFetch<{ success: boolean; deletedCount: number }>(
       `/study-attempts?source_type=test&test_id=${encodeURIComponent(testId)}`,
@@ -501,26 +519,30 @@ export const backendService = {
     );
   },
 
-  async getStudyActivity(year: number) {
+  async getStudyActivity(year: number, studentId?: string) {
+    const studentQuery = studentId ? `&student_id=${encodeURIComponent(studentId)}` : '';
     return authFetch<StudyActivityResponse>(
-      `/study-activity?year=${encodeURIComponent(String(year))}`,
+      `/study-activity?year=${encodeURIComponent(String(year))}${studentQuery}`,
     );
   },
 
   async saveQuestionActivity(payload: {
     attemptId: string;
-    sourceType: 'test' | 'level';
+    sourceType: 'test' | 'level' | 'grammar';
     testId?: string;
     level?: number;
-    answers: Array<{ questionId: string; selectedAnswer: string }>;
+    answers: Array<{ questionId: string; selectedAnswer: string; answeredAt?: string }>;
     answeredAt: string;
-  }) {
+  }, options: { keepalive?: boolean } = {}) {
     try {
       await authFetch('/study-activity/questions', {
         method: 'PUT',
         body: JSON.stringify(payload),
+        keepalive: options.keepalive,
       });
-      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      if (payload.sourceType !== 'grammar') {
+        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      }
       return true;
     } catch (error) {
       console.warn('[!] Chưa thể đồng bộ hoạt động câu hỏi lên MySQL:', error);

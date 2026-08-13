@@ -30,6 +30,46 @@ def get_leaderboard(
     period: Period = Query(default="all"),
     user=Depends(get_current_user),
 ):
+    attempt_condition = ""
+    if period == "week":
+        attempt_condition = "AND a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 7 DAY)"
+    elif period == "month":
+        attempt_condition = "AND a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY)"
+    member_rows = db.fetch_all(
+        f"""
+        SELECT u.id, u.full_name AS display_name, u.avatar_url,
+               0 AS rank_change,
+               CASE WHEN ? = 'all' THEN GREATEST(u.current_score, COALESCE(SUM(a.total_score), 0))
+                    ELSE COALESCE(SUM(a.total_score), 0) END AS total_score,
+               CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+                    THEN 0 ELSE u.streak_days END AS streak_days,
+               COUNT(DISTINCT a.id) AS completed_lessons
+        FROM users u
+        LEFT JOIN test_attempts a ON a.user_id = u.id {attempt_condition}
+        WHERE u.role = 'student'
+        GROUP BY u.id, u.full_name, u.avatar_url, u.current_score, u.streak_days, u.last_study_date
+        ORDER BY total_score DESC, completed_lessons DESC, u.full_name ASC
+        """,
+        (period,),
+        use_cache=False,
+    )
+    current_row = next((row for row in member_rows if row["id"] == user["id"]), None)
+    if current_row is None:
+        current_row = {
+            "id": user["id"], "display_name": user.get("full_name") or "Học viên TOEIC",
+            "avatar_url": user.get("avatar_url") or "", "rank_change": 0,
+            "total_score": int(user.get("current_score") or 0),
+            "streak_days": active_streak_days(user), "completed_lessons": 0,
+        }
+    return {
+        "currentMemberId": user["id"],
+        "currentUser": serialize_member(current_row),
+        "members": [serialize_member(row) for row in member_rows],
+        "updatedAt": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+    }
+
+    # Legacy class-scoped ranking code below is intentionally unreachable while
+    # old deployments transition to the schema that removes class tables.
     # Fetch all active classes in system
     all_classes_rows = db.fetch_all(
         """

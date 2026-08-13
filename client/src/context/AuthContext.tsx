@@ -21,6 +21,7 @@ interface ProfileUpdateInput {
   avatar: string;
   targetScore: number;
   examDate: string;
+  familyMiddleName?: string;
 }
 
 interface ProfileUpdateResult {
@@ -42,6 +43,7 @@ interface AuthContextType {
   ) => Promise<AuthResult>;
   logout: () => Promise<void>;
   updateProfile: (input: ProfileUpdateInput) => Promise<ProfileUpdateResult>;
+  updateRankingIdentity: (name: string, familyMiddleName: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   recordStudyActivity: () => Promise<void>;
 }
@@ -208,6 +210,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateRankingIdentity = async (name: string, familyMiddleName: string) => {
+    const response = await authApi.updateRankingIdentity(name, familyMiddleName);
+    setUser(withSyncedStudyStreak(response.user));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -220,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         updateProfile,
+        updateRankingIdentity,
         updatePassword,
         recordStudyActivity,
       }}

@@ -311,7 +311,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 </Link>
                 {role === 'admin' && (
                   <Link
-                    to={isAdminArea ? '/dashboard' : '/admin/overview'}
+                    to={isAdminArea ? '/dashboard' : '/admin/accounts'}
                     onClick={() => setShowUserMenu(false)}
                     className="flex items-center gap-2 px-4 py-2 text-sm text-content transition-colors duration-200 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/25"
                   >

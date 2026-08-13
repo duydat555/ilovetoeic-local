@@ -26,12 +26,8 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
   width,
   isGrid = false,
 }) => {
-  if (!loading) {
-    return <>{children}</>;
-  }
-
   const baseClasses =
-    'boneyard-bone relative overflow-hidden rounded-2xl bg-slate-200/80 dark:bg-surface-elevated animate-pulse motion-reduce:animate-none';
+    'boneyard-bone relative overflow-hidden rounded-2xl bg-slate-200/80 dark:bg-surface-elevated';
 
   const styleObj: React.CSSProperties = {};
   if (height !== undefined) styleObj.height = typeof height === 'number' ? `${height}px` : height;
@@ -41,7 +37,7 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
     <div
       key={key}
       aria-hidden="true"
-      className={`surface relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line p-5 shadow-2xs animate-pulse ${className}`.trim()}
+      className={`surface relative flex flex-col justify-between overflow-hidden rounded-2xl border border-line p-5 shadow-2xs ${className}`.trim()}
       style={styleObj.height ? { height: styleObj.height } : { minHeight: '185px' }}
     >
       <div className="space-y-3.5">
@@ -111,10 +107,10 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
   try {
     return (
       <BoneyardReactSkeleton name={name} loading={loading} fallback={renderNodes}>
-        {renderNodes}
+        {children ?? null}
       </BoneyardReactSkeleton>
     );
   } catch {
-    return <>{renderNodes}</>;
+    return <>{loading ? renderNodes : children}</>;
   }
 };

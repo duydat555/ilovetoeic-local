@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import secrets
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -21,6 +22,17 @@ def get_dicebear_avatar(seed_text: str) -> str:
 
 PASSWORD_ITERATIONS = 310_000
 bearer_scheme = HTTPBearer(auto_error=False)
+STUDENT_RANKING_NAME_PATTERN = re.compile(r"^([^\s_]+)_K([1-9]\d{0,2})$", re.IGNORECASE)
+
+
+def parse_student_ranking_name(value: str):
+    """Return the canonical ranking name and cohort code, or None when invalid."""
+    match = STUDENT_RANKING_NAME_PATTERN.fullmatch(str(value or "").strip())
+    if not match:
+        return None
+    given_name, cohort_number = match.groups()
+    cohort_code = f"K{int(cohort_number)}"
+    return f"{given_name}_{cohort_code}", cohort_code
 
 
 def hash_password(password: str) -> str:
@@ -180,9 +192,13 @@ def user_payload(user):
     if isinstance(last_study_date, (date, datetime)):
         last_study_date = last_study_date.isoformat()[:10]
     role = "admin" if user.get("role") == "admin" else "student"
+    ranking_identity = parse_student_ranking_name(user.get("full_name") or "")
     return {
         "id": user["id"],
         "name": user.get("full_name") or "Học viên TOEIC",
+        "familyMiddleName": user.get("family_middle_name") or "",
+        "cohortCode": ranking_identity[1] if ranking_identity else None,
+        "hasValidRankingName": role == "admin" or bool(ranking_identity),
         "email": user.get("email") or "",
         "role": role,
         "approvalStatus": "approved" if role == "admin" else (user.get("approval_status") or "pending"),

@@ -1,0 +1,40 @@
+import type { LeaderboardCohort, LeaderboardMember } from '../../../services/backend';
+
+export type RankingScope = 'course' | 'cohort';
+export type RankingMetric = 'streakDays' | 'totalQuestions' | 'accuracyRate';
+export type RankingRow = LeaderboardMember | LeaderboardCohort;
+
+export const valueOf = (row: RankingRow, metric: RankingMetric): number => {
+  if (metric === 'streakDays') return row.streakDays || 0;
+  if (metric === 'totalQuestions') return row.totalQuestions || 0;
+  if (metric === 'accuracyRate') return row.accuracyRate || 0;
+  return 0;
+};
+
+export const metricUnit = (metric: RankingMetric): string => {
+  switch (metric) {
+    case 'streakDays': return 'ngày';
+    case 'totalQuestions': return 'câu';
+    case 'accuracyRate': return '%';
+    default: return '';
+  }
+};
+
+export const formatRankingValue = (row: RankingRow, metric: RankingMetric): string => {
+  const val = valueOf(row, metric);
+  if (metric === 'accuracyRate') return `${val.toLocaleString('vi-VN')}%`;
+  return `${val.toLocaleString('vi-VN')} ${metricUnit(metric)}`;
+};
+
+export const studentFullName = (member: LeaderboardMember): string => (
+  `${member.familyMiddleName ? `${member.familyMiddleName} ` : ''}${member.name.replace(/_K\d+$/i, '')}`.trim()
+);
+
+export const sortRankingMembers = (members: LeaderboardMember[]): LeaderboardMember[] => (
+  [...members].sort((left, right) => (
+    right.totalQuestions - left.totalQuestions
+    || right.streakDays - left.streakDays
+    || right.accuracyRate - left.accuracyRate
+    || studentFullName(left).localeCompare(studentFullName(right), 'vi')
+  ))
+);

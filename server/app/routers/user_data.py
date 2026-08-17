@@ -739,7 +739,7 @@ def get_wrong_questions(
         f"""
         SELECT w.question_id, w.test_id, w.source_type, w.part, w.level,
                w.wrong_count, w.first_wrong_at, w.last_wrong_at,
-               t.name AS test_name, t.test_year
+               t.name AS test_name, t.year AS test_year
         FROM user_wrong_questions w
         LEFT JOIN tests t ON t.id = w.test_id
         WHERE {' AND '.join(clauses)}
@@ -758,8 +758,8 @@ def get_wrong_questions(
                 "part": int(row["part"]),
                 "level": int(row["level"]) if row.get("level") is not None else None,
                 "wrongCount": int(row["wrong_count"]),
-                "firstWrongAt": row["first_wrong_at"].isoformat(),
-                "lastWrongAt": row["last_wrong_at"].isoformat(),
+                "firstWrongAt": row["first_wrong_at"].isoformat() if hasattr(row.get("first_wrong_at"), "isoformat") else str(row.get("first_wrong_at") or ""),
+                "lastWrongAt": row["last_wrong_at"].isoformat() if hasattr(row.get("last_wrong_at"), "isoformat") else str(row.get("last_wrong_at") or ""),
                 "testName": row.get("test_name"),
                 "testYear": int(row["test_year"]) if row.get("test_year") else None,
             }

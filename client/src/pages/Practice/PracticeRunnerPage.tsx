@@ -103,6 +103,8 @@ export const PracticeRunnerPage: React.FC = () => {
   const wrongSource = wrongSourceParam === 'test' || wrongSourceParam === 'level'
     ? wrongSourceParam
     : null;
+  const reviewAttemptId = searchParams.get('reviewAttempt');
+  const reviewResult = searchParams.get('reviewResult');
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [attemptId, setAttemptId] = useState(() => createClientId());
@@ -155,11 +157,11 @@ export const PracticeRunnerPage: React.FC = () => {
     ? parsedLevel
     : null;
   const isLevelPractice = !testId && selectedLevel !== null && scopeParts.length === 1;
-  const isWrongRetry = Boolean(wrongSource);
+  const isWrongRetry = Boolean(wrongSource) || Boolean(reviewAttemptId);
   const returnPath = isLevelPractice ? '/practice-by-level' : '/mock-test';
   const returnLabel = isLevelPractice ? 'Luyện theo Level' : 'Kho đề';
   const storageSource = isWrongRetry
-    ? `wrong-${wrongSource}-${testId || `${scopeParts[0]}-${selectedLevel}`}`
+    ? `wrong-${wrongSource || 'review'}-${testId || `${scopeParts[0]}-${selectedLevel}`}`
     : testId || (isLevelPractice ? `level-${selectedLevel}` : 'quick');
   const storageKey = `toeic-practice:${storageSource}:${scopeKey}`;
   const activityBatchContext = useMemo(() => user ? ({
@@ -215,6 +217,17 @@ export const PracticeRunnerPage: React.FC = () => {
           if (filtered.length === 0) {
             throw new Error('Bạn không còn câu sai nào trong mục này để luyện lại.');
           }
+        } else if (reviewAttemptId) {
+          const review = await backendService.getStudyAttemptReview(reviewAttemptId).catch(() => null);
+          if (review && review.questions) {
+            const targetStatus = reviewResult === 'correct' ? 'correct' : 'wrong';
+            const matchedQuestions = review.questions.filter((q) => q.status === targetStatus);
+            const targetIds = new Set(matchedQuestions.map((q) => q.id));
+            filtered = filtered.filter((question) => targetIds.has(question.id));
+            if (filtered.length === 0) {
+              throw new Error(`Không tìm thấy câu ${targetStatus === 'correct' ? 'đúng' : 'sai'} nào trong lượt làm bài này để luyện lại.`);
+            }
+          }
         }
 
         if (!active) return;
@@ -259,9 +272,18 @@ export const PracticeRunnerPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [isLevelPractice, isWrongRetry, scopeParts, selectedLevel, storageKey, testId, user?.id, wrongSource]);
+  }, [isLevelPractice, isWrongRetry, reviewAttemptId, reviewResult, scopeParts, selectedLevel, storageKey, testId, user?.id, wrongSource]);
 
   const groups = useMemo(() => buildPracticeGroups(questions), [questions]);
+  const checkedQuestionIds = useMemo(() => {
+    const set = new Set<string>();
+    groups.forEach((g) => {
+      if (checkedGroupIds.has(g.id)) {
+        g.questions.forEach((q) => set.add(q.id));
+      }
+    });
+    return set;
+  }, [checkedGroupIds, groups]);
   const safeGroupIndex = Math.min(currentGroupIndex, Math.max(groups.length - 1, 0));
   const currentGroup = groups[safeGroupIndex];
   const currentGroupChecked = currentGroup ? checkedGroupIds.has(currentGroup.id) : false;
@@ -556,8 +578,12 @@ export const PracticeRunnerPage: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="rounded-md bg-brand-100 px-2 py-0.5 text-[11px] font-black text-brand-700 dark:bg-brand-950 dark:text-brand-200">
-                {isWrongRetry && wrongSource === 'test'
-                  ? `Câu sai • Part ${currentGroup.partId}`
+                {isWrongRetry
+                  ? wrongSource === 'test'
+                    ? `Câu sai • Part ${currentGroup.partId}`
+                    : wrongSource === 'level'
+                    ? `Câu sai • Part ${currentGroup.partId} • Level ${selectedLevel}`
+                    : `Làm lại câu ${reviewResult === 'correct' ? 'đúng' : 'sai'} • Part ${currentGroup.partId}`
                   : `Part ${currentGroup.partId}`}
               </span>
               <h1 className="truncate text-sm font-black tracking-tight text-slate-950 sm:text-base dark:text-content">
@@ -569,7 +595,6 @@ export const PracticeRunnerPage: React.FC = () => {
             </p>
           </div>
         </div>
-
         {/* Compact Progress Widget */}
         <div className="hidden md:flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-1 border border-slate-200/60 dark:bg-surface-elevated/60 dark:border-line/60">
           <div className="text-right text-xs">
@@ -667,14 +692,7 @@ export const PracticeRunnerPage: React.FC = () => {
                 {/* Left Column: Shared Media Pane */}
                 {(currentGroup.audioUrl || currentGroup.passageText || currentGroup.imageUrl || currentGroup.transcript) && (
                   <section className="surface flex h-auto max-h-none flex-col overflow-hidden rounded-2xl lg:h-full lg:max-h-full">
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-line">
-                  <div>
-                    <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-                      {currentGroup.audioUrl ? <Headphones className="size-4 text-brand-600" /> : <BookOpen className="size-4 text-brand-600" />}
-                      Nội dung dùng chung
-                    </div>
-                    <p className="mt-0.5 text-xs text-slate-500">{rangeLabel} cùng sử dụng nội dung này</p>
-                  </div>
+                <div className="shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-line">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {currentGroup.transcript && (
                       <button
@@ -712,7 +730,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
                 <div className="flex-1 space-y-4 overflow-visible p-4 lg:overflow-y-auto">
                   {currentGroup.audioUrl && (
-                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
                     <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
@@ -1027,7 +1045,7 @@ export const PracticeRunnerPage: React.FC = () => {
                     </div>
                   )}
                   {currentGroup.audioUrl && (
-                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} title={`Audio dùng chung cho ${rangeLabel}`} />
+                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
                     <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
@@ -1238,7 +1256,7 @@ export const PracticeRunnerPage: React.FC = () => {
           }
         }}
         userAnswers={userAnswers}
-        checkedGroupIds={checkedGroupIds}
+        checkedQuestionIds={checkedQuestionIds}
       />
 
       <PracticeToolsPanel

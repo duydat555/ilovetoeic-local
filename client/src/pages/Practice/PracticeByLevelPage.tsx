@@ -379,7 +379,7 @@ export const PracticeByLevelPage: React.FC = () => {
                 <div className="flex shrink-0 items-center gap-1 text-content-muted">
                   <button
                     type="button"
-                    disabled={!hasHistory}
+                    disabled={wrongCount === 0}
                     onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
                     aria-label={`Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
                     title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
@@ -392,7 +392,7 @@ export const PracticeByLevelPage: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={wrongCount === 0}
+                    disabled={!hasHistory}
                     onClick={() => {
                       setDeleteError('');
                       setDeleteScope({

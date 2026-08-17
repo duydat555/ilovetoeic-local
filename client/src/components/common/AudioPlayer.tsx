@@ -25,7 +25,6 @@ const SEEK_SECONDS = 5;
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   audioUrl,
-  title = 'Bài nghe TOEIC',
   autoPlay = false,
   examMode = false,
   locked = false,
@@ -228,7 +227,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-700 dark:text-brand-300">
               Listening · played once only
             </div>
-            <h3 className="mt-1 truncate text-sm font-bold text-content">{title}</h3>
+            <h3 className="mt-1 truncate text-sm font-bold text-content"></h3>
             <p className="mt-1 text-xs font-medium text-content-muted" aria-live="polite">
               {hasError
                 ? 'The audio could not be loaded. Check your connection before continuing.'
@@ -258,7 +257,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <div className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-600 dark:text-brand-300">
               Listening audio
             </div>
-            <h3 className="truncate text-sm font-bold text-slate-800 dark:text-content">{title}</h3>
+            <h3 className="truncate text-sm font-bold text-slate-800 dark:text-content"></h3>
             {hasError && (
               <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
                 Không thể tải âm thanh. Vui lòng kiểm tra kết nối và thử lại.

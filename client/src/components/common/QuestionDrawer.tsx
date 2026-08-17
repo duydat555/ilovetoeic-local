@@ -13,11 +13,12 @@ interface QuestionDrawerProps {
   onSelectQuestion: (index: number) => void;
   userAnswers: Record<string, ChoiceId>;
   flaggedQuestions?: Record<string, boolean>;
+  checkedQuestionIds?: Set<string>;
   checkedGroupIds?: Set<string>;
   language?: 'vi' | 'en';
 }
 
-type FilterTab = 'all' | 'answered' | 'unanswered' | 'flagged';
+type FilterTab = 'all' | 'answered' | 'unanswered' | 'flagged' | 'correct' | 'wrong';
 
 export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   isOpen,
@@ -27,15 +28,22 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   onSelectQuestion,
   userAnswers,
   flaggedQuestions = {},
-  checkedGroupIds,
+  checkedQuestionIds,
   language = 'vi',
 }) => {
   const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
 
+  const hasCheckedQuestions = Boolean(checkedQuestionIds && checkedQuestionIds.size > 0);
   const answeredCount = Object.keys(userAnswers).length;
   const flaggedCount = Object.values(flaggedQuestions).filter(Boolean).length;
   const unansweredCount = Math.max(questions.length - answeredCount, 0);
+  const correctCount = questions.filter(
+    (q) => checkedQuestionIds?.has(q.id) && userAnswers[q.id] === q.correctAnswer,
+  ).length;
+  const wrongCount = questions.filter(
+    (q) => checkedQuestionIds?.has(q.id) && (!userAnswers[q.id] || userAnswers[q.id] !== q.correctAnswer),
+  ).length;
   const completionPercent = questions.length
     ? Math.round((answeredCount / questions.length) * 100)
     : 0;
@@ -45,11 +53,32 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
     .filter(({ question }) => {
       const isAnswered = Boolean(userAnswers[question.id]);
       const isFlagged = Boolean(flaggedQuestions[question.id]);
+      const isChecked = checkedQuestionIds?.has(question.id) ?? false;
+      const isCorrect = isChecked && isAnswered && userAnswers[question.id] === question.correctAnswer;
+      const isWrong = isChecked && (!isAnswered || userAnswers[question.id] !== question.correctAnswer);
+
+      if (filter === 'correct') return isCorrect;
+      if (filter === 'wrong') return isWrong;
       if (filter === 'answered') return isAnswered;
       if (filter === 'unanswered') return !isAnswered;
       if (filter === 'flagged') return isFlagged;
       return true;
     });
+
+  const tabs = hasCheckedQuestions
+    ? [
+        { id: 'all' as const, label: english ? 'All' : 'Tất cả', count: questions.length },
+        { id: 'correct' as const, label: english ? 'Correct' : 'Đúng', count: correctCount },
+        { id: 'wrong' as const, label: english ? 'Wrong' : 'Sai', count: wrongCount },
+        { id: 'unanswered' as const, label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
+        { id: 'flagged' as const, label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
+      ]
+    : [
+        { id: 'all' as const, label: english ? 'All' : 'Tất cả', count: questions.length },
+        { id: 'answered' as const, label: english ? 'Answered' : 'Đã làm', count: answeredCount },
+        { id: 'unanswered' as const, label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
+        { id: 'flagged' as const, label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
+      ];
 
   return (
     <AnimatePresence>
@@ -110,14 +139,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
 
               {/* Filter Tabs with Live Counters */}
               <div className="flex gap-1.5 border-b border-slate-100 bg-slate-50/50 p-3 dark:border-line dark:bg-canvas/30">
-                {(
-                  [
-                    { id: 'all', label: english ? 'All' : 'Tất cả', count: questions.length },
-                    { id: 'answered', label: english ? 'Answered' : 'Đã làm', count: answeredCount },
-                    { id: 'unanswered', label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
-                    { id: 'flagged', label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
-                  ] as const
-                ).map((tab) => {
+                {tabs.map((tab) => {
                   const active = filter === tab.id;
                   return (
                     <button
@@ -149,6 +171,9 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                       const answered = Boolean(userAnswers[question.id]);
                       const flagged = Boolean(flaggedQuestions[question.id]);
                       const isCurrent = index === currentIndex;
+                      const isChecked = checkedQuestionIds ? checkedQuestionIds.has(question.id) : false;
+                      const isCorrect = isChecked && answered && userAnswers[question.id] === question.correctAnswer;
+                      const isWrong = isChecked && (!answered || userAnswers[question.id] !== question.correctAnswer);
 
                       let tileStyle =
                         'relative flex aspect-square flex-col items-center justify-center rounded-xl text-xs font-extrabold transition-all duration-150 cursor-pointer select-none';
@@ -159,9 +184,17 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                       } else if (flagged) {
                         tileStyle +=
                           ' border border-amber-500 bg-amber-500 text-white shadow-xs';
+                      } else if (isChecked) {
+                        if (isCorrect) {
+                          tileStyle +=
+                            ' border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-black';
+                        } else {
+                          tileStyle +=
+                            ' border border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300 font-black';
+                        }
                       } else if (answered) {
                         tileStyle +=
-                          ' border border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 font-black';
+                          ' border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950/60 dark:text-brand-300 font-bold';
                       } else {
                         tileStyle +=
                           ' border border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-400 hover:bg-white dark:border-line dark:bg-surface-elevated/60 dark:text-content-muted dark:hover:bg-surface-hover';
@@ -180,8 +213,14 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                         >
                           <span>{question.questionNumber}</span>
 
-                          {answered && !isCurrent && !flagged && (
+                          {!isCurrent && !flagged && isChecked && isCorrect && (
                             <Check className="mt-0.5 size-3 stroke-[3] text-emerald-700 dark:text-emerald-400" />
+                          )}
+                          {!isCurrent && !flagged && isChecked && isWrong && (
+                            <X className="mt-0.5 size-3 stroke-[3] text-rose-700 dark:text-rose-400" />
+                          )}
+                          {!isCurrent && !flagged && !isChecked && answered && (
+                            <Check className="mt-0.5 size-3 stroke-[3] text-brand-600 dark:text-brand-400" />
                           )}
                           {flagged && (
                             <Bookmark className="absolute top-0.5 right-0.5 size-2.5 fill-current" />
@@ -195,15 +234,28 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
 
               {/* Legend & Footer */}
               <div className="border-t border-slate-100 bg-slate-50/60 p-4 dark:border-line dark:bg-canvas/40">
-                <div className="mb-3 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600 dark:text-content-muted">
+                <div className={`mb-3 grid ${hasCheckedQuestions ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-[11px] font-bold text-slate-600 dark:text-content-muted`}>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-brand" />
                     <span>{english ? 'Current' : 'Đang xem'}</span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="size-3 rounded-md bg-emerald-500" />
-                    <span>{english ? 'Answered' : 'Đã làm'}</span>
-                  </div>
+                  {hasCheckedQuestions ? (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <span className="size-3 rounded-md bg-emerald-500" />
+                        <span>{english ? 'Correct' : 'Đúng'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="size-3 rounded-md bg-rose-500" />
+                        <span>{english ? 'Wrong' : 'Sai'}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-3 rounded-md bg-brand-500" />
+                      <span>{english ? 'Answered' : 'Đã làm'}</span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-slate-200 border border-slate-300 dark:bg-surface-hover" />
                     <span>{english ? 'Unanswered' : 'Chưa làm'}</span>

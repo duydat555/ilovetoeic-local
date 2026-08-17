@@ -326,6 +326,23 @@ export const authApi = {
     });
   },
 
+  async deleteAccount(userId: string) {
+    return authFetch<{ success: boolean; deleted_user_id: string; name?: string }>(
+      `/auth/accounts/${encodeURIComponent(userId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
+  async bulkDeleteAccounts(userIds: string[]) {
+    return authFetch<{ success: boolean; deleted_count: number; deleted_user_ids: string[] }>(
+      '/auth/accounts/bulk-delete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ user_ids: userIds }),
+      },
+    );
+  },
+
   googleLoginUrl(remember: boolean) {
     const params = new URLSearchParams({
       remember: String(remember),

@@ -65,6 +65,10 @@ class AccountAccessRequest(BaseModel):
     duration_months: int | None = Field(default=None, ge=0, le=24)
 
 
+class BulkDeleteAccountsRequest(BaseModel):
+    user_ids: list[str] = Field(min_length=1)
+
+
 class PasswordRequest(BaseModel):
     current_password: str = ""
     new_password: str = Field(min_length=8, max_length=128)
@@ -254,6 +258,50 @@ def update_account_access(user_id: str, payload: AccountAccessRequest, _admin=De
         raise HTTPException(status_code=422, detail="Thao tác tài khoản không hợp lệ.")
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
     return {"user": user_payload(updated)}
+
+
+@router.delete("/accounts/{user_id}")
+def delete_account(user_id: str, _admin=Depends(require_admin)):
+    target = db.fetch_one(
+        "SELECT id, full_name, email FROM users WHERE id = ? AND role = 'student'",
+        (user_id,),
+        use_cache=False,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh cần xoá.")
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("DELETE FROM users WHERE id = %s AND role = 'student'", (user_id,))
+    return {"success": True, "deleted_user_id": user_id, "name": target["full_name"]}
+
+
+@router.post("/accounts/bulk-delete")
+def bulk_delete_accounts(payload: BulkDeleteAccountsRequest, _admin=Depends(require_admin)):
+    user_ids = [uid.strip() for uid in payload.user_ids if uid.strip()]
+    if not user_ids:
+        raise HTTPException(status_code=422, detail="Danh sách tài khoản cần xoá trống.")
+    placeholders = ", ".join("?" for _ in user_ids)
+    targets = db.fetch_all(
+        f"SELECT id, full_name FROM users WHERE id IN ({placeholders}) AND role = 'student'",
+        tuple(user_ids),
+        use_cache=False,
+    )
+    if not targets:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh nào cần xoá.")
+    valid_ids = [row["id"] for row in targets]
+    valid_placeholders = ", ".join("%s" for _ in valid_ids)
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                f"DELETE FROM users WHERE id IN ({valid_placeholders}) AND role = 'student'",
+                tuple(valid_ids),
+            )
+            deleted_count = cursor.rowcount
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "deleted_user_ids": valid_ids,
+    }
 
 
 @router.post("/logout")

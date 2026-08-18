@@ -456,3 +456,25 @@ CREATE TABLE IF NOT EXISTS user_grammar_question_activity (
     CONSTRAINT fk_grammar_activity_question FOREIGN KEY (question_id) REFERENCES grammar_questions(id) ON DELETE CASCADE,
     INDEX idx_grammar_activity_user_date (user_id, answered_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_practice_sessions (
+    user_id CHAR(36) NOT NULL,
+    session_key VARCHAR(190) NOT NULL,
+    attempt_id CHAR(36) NOT NULL,
+    source_type VARCHAR(20) NOT NULL DEFAULT 'test',
+    test_id VARCHAR(100) NULL,
+    level INT NULL,
+    part_scope VARCHAR(50) NOT NULL DEFAULT 'all',
+    current_group_index INT NOT NULL DEFAULT 0,
+    seconds_spent INT NOT NULL DEFAULT 0,
+    answers JSON NULL,
+    checked_group_ids JSON NULL,
+    notes JSON NULL,
+    annotations JSON NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, session_key),
+    CONSTRAINT fk_practice_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_practice_sessions_user_updated (user_id, updated_at),
+    INDEX idx_practice_sessions_test (user_id, test_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

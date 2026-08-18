@@ -20,15 +20,16 @@ import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { PassageContent } from '../../components/common/PassageContent';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
+import { QuestionImage } from '../../components/common/QuestionImage';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { usePrefetchImages } from '../../hooks/usePrefetchImages';
 import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, stripChoicePrefix } from '../../utils/practice';
 import { storage } from '../../utils/storage';
-import { clearSyncedLocalWrongQuestions, updateLocalWrongQuestions } from '../../utils/localWrongQuestions';
 import {
   getExamDurationSeconds,
   getTestPartScopeLabel,
@@ -160,7 +161,7 @@ export const TestExamPage: React.FC = () => {
         const answeredQuestions = questions.filter((question) => Boolean(userAnswers[question.id]));
         for (let index = 0; index < answeredQuestions.length; index += 20) {
           const batch = answeredQuestions.slice(index, index + 20);
-          const synced = await backendService.saveQuestionActivity({
+          await backendService.saveQuestionActivity({
             attemptId,
             sourceType: 'test',
             testId,
@@ -170,9 +171,6 @@ export const TestExamPage: React.FC = () => {
             })),
             answeredAt: completedAt,
           });
-          if (synced) {
-            clearSyncedLocalWrongQuestions(user.id, 'test', batch.map((question) => question.id));
-          }
         }
 
       } catch (err) {
@@ -222,6 +220,7 @@ export const TestExamPage: React.FC = () => {
     0,
   );
   const currentGroup = groups[currentGroupIndex];
+  usePrefetchImages(groups, currentGroupIndex);
   const answeredCount = Object.keys(userAnswers).length;
   const completionPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const isFullExam = selectedParts.length === 7;
@@ -240,16 +239,6 @@ export const TestExamPage: React.FC = () => {
 
   const selectChoice = (questionId: string, choiceId: ChoiceId) => {
     setUserAnswers((previous) => ({ ...previous, [questionId]: choiceId }));
-    const question = questions.find((item) => item.id === questionId);
-    if (user && testId && question) {
-      updateLocalWrongQuestions(
-        user.id,
-        'test',
-        { testId },
-        [question],
-        { [questionId]: choiceId },
-      );
-    }
   };
 
   const toggleFlag = (questionId: string) => {
@@ -453,10 +442,9 @@ export const TestExamPage: React.FC = () => {
                     />
                   )}
                   {currentGroup.imageUrl && (
-                    <img
+                    <QuestionImage
                       src={currentGroup.imageUrl}
                       alt={`Test content for Question ${firstNumber}`}
-                      className="mx-auto max-h-[22rem] max-w-full rounded-2xl border border-slate-200 object-contain dark:border-line shadow-xs"
                     />
                   )}
                   {currentGroup.passageText && (
@@ -557,10 +545,9 @@ export const TestExamPage: React.FC = () => {
                     />
                   )}
                   {currentGroup.imageUrl && (
-                    <img
+                    <QuestionImage
                       src={currentGroup.imageUrl}
                       alt={`Test content for Question ${firstNumber}`}
-                      className="mx-auto max-h-[22rem] max-w-full rounded-2xl border border-slate-200 object-contain dark:border-line shadow-xs"
                     />
                   )}
                   {currentGroup.passageText && (

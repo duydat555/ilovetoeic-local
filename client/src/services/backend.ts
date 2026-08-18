@@ -49,15 +49,27 @@ const removeStorageValue = (storage: Storage, key: string) => {
   }
 };
 
+export class ApiError extends Error {
+  status: number;
+  data?: unknown;
+
+  constructor(message: string, status: number, data?: unknown) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = body?.detail;
-    throw new Error(
+    const message =
       (typeof detail === 'object' ? detail?.message : detail)
       || body?.message
-      || 'Không thể kết nối máy chủ MySQL.',
-    );
+      || (response.status === 502 ? 'Máy chủ đang cập nhật/khởi động lại...' : 'Không thể kết nối máy chủ MySQL.');
+    throw new ApiError(message, response.status, body);
   }
   return body as T;
 };
@@ -156,6 +168,22 @@ export interface WrongQuestionItem {
   lastWrongAt: string;
   testName?: string | null;
   testYear?: number | null;
+}
+
+export interface PracticeSessionData {
+  sessionKey: string;
+  attemptId: string;
+  sourceType: 'test' | 'level';
+  testId?: string;
+  level?: number;
+  partScope: string;
+  currentGroupIndex: number;
+  secondsSpent: number;
+  answers: Record<string, 'A' | 'B' | 'C' | 'D'>;
+  checkedGroupIds: string[];
+  notes?: Record<string, string>;
+  annotations?: Record<string, any[]>;
+  updatedAt?: string;
 }
 
 export interface ManagedClassStudent {
@@ -642,6 +670,60 @@ export const backendService = {
       return true;
     } catch (error) {
       console.warn('[!] Nhóm từ đã đổi trên thiết bị nhưng chưa đồng bộ được lên MySQL:', error);
+      return false;
+    }
+  },
+
+  async getPracticeSession(sessionKey: string): Promise<PracticeSessionData | null> {
+    try {
+      const response = await authFetch<{ session: PracticeSessionData | null }>(
+        `/practice-sessions/${encodeURIComponent(sessionKey)}`,
+      );
+      return response.session;
+    } catch (error) {
+      console.warn('[!] Không thể tải phiên làm bài từ MySQL:', error);
+      return null;
+    }
+  },
+
+  async savePracticeSession(payload: PracticeSessionData): Promise<boolean> {
+    try {
+      await authFetch(
+        `/practice-sessions/${encodeURIComponent(payload.sessionKey)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        },
+      );
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể lưu phiên làm bài vào MySQL:', error);
+      return false;
+    }
+  },
+
+  async deletePracticeSession(sessionKey: string): Promise<boolean> {
+    try {
+      await authFetch(
+        `/practice-sessions/${encodeURIComponent(sessionKey)}`,
+        { method: 'DELETE' },
+      );
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể xoá phiên làm bài từ MySQL:', error);
+      return false;
+    }
+  },
+
+  async deletePracticeSessionsForTest(testId: string): Promise<boolean> {
+    try {
+      await authFetch(
+        `/practice-sessions?test_id=${encodeURIComponent(testId)}`,
+        { method: 'DELETE' },
+      );
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể xoá các phiên làm bài theo đề từ MySQL:', error);
       return false;
     }
   },

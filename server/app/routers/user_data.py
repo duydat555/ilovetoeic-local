@@ -119,6 +119,21 @@ class TopicOverridePayload(BaseModel):
     topicName: str = Field(min_length=1, max_length=255)
 
 
+class PracticeSessionPayload(BaseModel):
+    sessionKey: str = Field(min_length=1, max_length=190)
+    attemptId: str = Field(min_length=1, max_length=36)
+    sourceType: str = Field(default="test", max_length=20)
+    testId: Optional[str] = Field(default=None, max_length=100)
+    level: Optional[int] = Field(default=None, ge=1, le=5)
+    partScope: str = Field(default="all", max_length=50)
+    currentGroupIndex: int = Field(default=0, ge=0)
+    secondsSpent: int = Field(default=0, ge=0)
+    answers: Dict[str, str] = Field(default_factory=dict)
+    checkedGroupIds: List[str] = Field(default_factory=list)
+    notes: Dict[str, str] = Field(default_factory=dict)
+    annotations: Dict[str, Any] = Field(default_factory=dict)
+
+
 @router.put("/study-attempts/{attempt_id}")
 def save_study_attempt(
     attempt_id: str,
@@ -1080,3 +1095,119 @@ def save_topic_override(
         (user["id"], normalized_key, payload.topicId, payload.topicName),
     )
     return {"success": True}
+
+
+@router.get("/practice-sessions/{session_key:path}")
+def get_practice_session(
+    session_key: str,
+    user=Depends(get_current_user),
+):
+    row = db.fetch_one(
+        """
+        SELECT *
+        FROM user_practice_sessions
+        WHERE user_id = ? AND session_key = ?
+        """,
+        (user["id"], session_key),
+        use_cache=False,
+    )
+    if not row:
+        return {"session": None}
+    return {
+        "session": {
+            "sessionKey": row["session_key"],
+            "attemptId": row["attempt_id"],
+            "sourceType": row["source_type"],
+            "testId": row["test_id"],
+            "level": row["level"],
+            "partScope": row["part_scope"],
+            "currentGroupIndex": row["current_group_index"],
+            "secondsSpent": row["seconds_spent"],
+            "answers": parse_json(row["answers"], {}),
+            "checkedGroupIds": parse_json(row["checked_group_ids"], []),
+            "notes": parse_json(row["notes"], {}),
+            "annotations": parse_json(row["annotations"], {}),
+            "updatedAt": row["updated_at"].isoformat() if row.get("updated_at") else None,
+        }
+    }
+
+
+@router.put("/practice-sessions/{session_key:path}")
+def save_practice_session(
+    session_key: str,
+    payload: PracticeSessionPayload,
+    user=Depends(get_current_user),
+):
+    db.execute(
+        """
+        INSERT INTO user_practice_sessions (
+            user_id, session_key, attempt_id, source_type, test_id, level,
+            part_scope, current_group_index, seconds_spent, answers,
+            checked_group_ids, notes, annotations, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())
+        ON DUPLICATE KEY UPDATE
+            attempt_id = VALUES(attempt_id),
+            source_type = VALUES(source_type),
+            test_id = VALUES(test_id),
+            level = VALUES(level),
+            part_scope = VALUES(part_scope),
+            current_group_index = VALUES(current_group_index),
+            seconds_spent = VALUES(seconds_spent),
+            answers = VALUES(answers),
+            checked_group_ids = VALUES(checked_group_ids),
+            notes = VALUES(notes),
+            annotations = VALUES(annotations),
+            updated_at = UTC_TIMESTAMP()
+        """,
+        (
+            user["id"],
+            session_key,
+            payload.attemptId,
+            payload.sourceType,
+            payload.testId,
+            payload.level,
+            payload.partScope,
+            payload.currentGroupIndex,
+            payload.secondsSpent,
+            json.dumps(payload.answers, ensure_ascii=False),
+            json.dumps(payload.checkedGroupIds, ensure_ascii=False),
+            json.dumps(payload.notes, ensure_ascii=False),
+            json.dumps(payload.annotations, ensure_ascii=False),
+        ),
+    )
+    return {"status": "saved"}
+
+
+@router.delete("/practice-sessions/{session_key:path}")
+def delete_practice_session(
+    session_key: str,
+    user=Depends(get_current_user),
+):
+    db.execute(
+        """
+        DELETE FROM user_practice_sessions
+        WHERE user_id = ? AND session_key = ?
+        """,
+        (user["id"], session_key),
+    )
+    return {"status": "deleted"}
+
+
+@router.delete("/practice-sessions")
+def clear_practice_sessions(
+    test_id: Optional[str] = Query(default=None),
+    all_sessions: bool = Query(default=False),
+    user=Depends(get_current_user),
+):
+    if all_sessions:
+        db.execute(
+            "DELETE FROM user_practice_sessions WHERE user_id = ?",
+            (user["id"],),
+        )
+    elif test_id:
+        db.execute(
+            "DELETE FROM user_practice_sessions WHERE user_id = ? AND test_id = ?",
+            (user["id"], test_id),
+        )
+    return {"status": "deleted"}

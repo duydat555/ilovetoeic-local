@@ -1,5 +1,4 @@
 import { backendService } from '../services/backend';
-import { clearSyncedLocalWrongQuestions } from './localWrongQuestions';
 
 export type QuestionActivitySource = 'test' | 'level' | 'grammar';
 
@@ -113,13 +112,6 @@ const flushRecord = (key: string, keepalive: boolean): Promise<boolean> => {
         break;
       }
       removeSyncedAnswers(key, batch);
-      if (record.sourceType !== 'grammar') {
-        clearSyncedLocalWrongQuestions(
-          record.userId,
-          record.sourceType,
-          batch.map(([questionId]) => questionId),
-        );
-      }
     }
     return allSaved;
   })().finally(() => activeFlushes.delete(key));

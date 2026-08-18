@@ -13,6 +13,7 @@ import { Question } from '../../types';
 import { cleanExplanationText, cleanTranscriptSpacing, getUnifiedQuestionTranslationText } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
+import { QuestionImage } from '../common/QuestionImage';
 
 export interface AnswerReviewItemProps {
   question: Question;
@@ -104,14 +105,11 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
 
       {/* Ảnh minh họa nếu có */}
       {question.imageUrl && (
-        <div className="overflow-hidden rounded-xl border border-line bg-surface-elevated">
-          <img
-            src={question.imageUrl}
-            alt={`Minh họa câu ${question.questionNumber}`}
-            className="max-h-72 w-full object-contain p-2"
-            loading="lazy"
-          />
-        </div>
+        <QuestionImage
+          src={question.imageUrl}
+          alt={`Minh họa câu ${question.questionNumber}`}
+          className="max-h-72 w-full object-contain p-2"
+        />
       )}
 
       {/* Khối bằng chứng (Evidence) nếu có */}

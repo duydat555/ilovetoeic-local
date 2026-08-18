@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { User, UserRole } from '../types';
-import { authApi, sessionService } from '../services/backend';
+import { ApiError, authApi, sessionService } from '../services/backend';
 import { storage } from '../utils/storage';
 
 interface AuthResult {
@@ -94,9 +94,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser((current) => hasSameUserSnapshot(current, nextUser) ? current : nextUser);
       return true;
     } catch (error) {
-      sessionService.clear();
-      setUser(null);
-      console.warn('[!] Không thể khôi phục phiên đăng nhập MySQL:', error);
+      const status = error instanceof ApiError ? error.status : (error as { status?: number })?.status;
+      if (status === 401) {
+        sessionService.clear();
+        setUser(null);
+        console.warn('[!] Phiên đăng nhập đã hết hạn hoặc không hợp lệ.');
+      } else {
+        console.warn('[!] Tạm thời không thể kết nối server để cập nhật phiên (máy chủ restart/lỗi mạng):', error);
+      }
       return false;
     } finally {
       setIsLoading(false);

@@ -16,7 +16,6 @@ import {
 import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
-import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
 import { countLevelPracticeSessions, deleteLevelPracticeSessions } from '../../utils/practiceSessions';
 
 type CountMap = Record<number, Record<number, number>>;
@@ -96,24 +95,9 @@ export const PracticeByLevelPage: React.FC = () => {
             next[key] = (next[key] || 0) + 1;
           }
         });
-        readLocalWrongQuestions(user?.id)
-          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
-          .forEach((item) => {
-            const key = `${item.part}:${item.level}`;
-            next[key] = (next[key] || 0) + (
-              wrongResult.value.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
-            );
-          });
         setWrongCounts(next);
       } else {
-        const localCounts: Record<string, number> = {};
-        readLocalWrongQuestions(user?.id)
-          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
-          .forEach((item) => {
-            const key = `${item.part}:${item.level}`;
-            localCounts[key] = (localCounts[key] || 0) + 1;
-          });
-        setWrongCounts(localCounts);
+        setWrongCounts({});
       }
       setIsLoading(false);
     };
@@ -140,25 +124,10 @@ export const PracticeByLevelPage: React.FC = () => {
             next[key] = (next[key] || 0) + 1;
           }
         });
-        readLocalWrongQuestions(user.id)
-          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
-          .forEach((item) => {
-            const key = `${item.part}:${item.level}`;
-            next[key] = (next[key] || 0) + (
-              items.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
-            );
-          });
         setWrongCounts(next);
       }).catch(() => {
         if (!active) return;
-        const localCounts: Record<string, number> = {};
-        readLocalWrongQuestions(user.id)
-          .filter((item) => item.sourceType === 'level' && item.level !== undefined)
-          .forEach((item) => {
-            const key = `${item.part}:${item.level}`;
-            localCounts[key] = (localCounts[key] || 0) + 1;
-          });
-        setWrongCounts(localCounts);
+        setWrongCounts({});
       });
     };
     window.addEventListener('wrong-questions-updated', loadWrongCounts);
@@ -257,12 +226,6 @@ export const PracticeByLevelPage: React.FC = () => {
         part: deleteScope.part,
         level: deleteScope.level,
       });
-      const localDeleted = user
-        ? deleteLocalWrongQuestions(user.id, 'level', {
-          part: deleteScope.part,
-          level: deleteScope.level,
-        })
-        : 0;
       deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
       const key = `${deleteScope.part}:${deleteScope.level}`;
       setAttempts((current) => current.filter((attempt) => {
@@ -270,7 +233,7 @@ export const PracticeByLevelPage: React.FC = () => {
         return !parsed || parsed.part !== deleteScope.part || parsed.level !== deleteScope.level;
       }));
       setWrongCounts((current) => ({ ...current, [key]: 0 }));
-      setToastMessage(`Đã xoá ${historyResult.deletedCount} lượt làm và ${wrongResult.deletedCount + localDeleted} câu sai của ${deleteScope.label}.`);
+      setToastMessage(`Đã xoá ${historyResult.deletedCount} lượt làm và ${wrongResult.deletedCount} câu sai của ${deleteScope.label}.`);
       setDeleteScope(null);
     } catch (requestError) {
       setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');

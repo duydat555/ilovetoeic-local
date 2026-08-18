@@ -31,12 +31,14 @@ import { EvidencePanel } from '../../components/common/EvidencePanel';
 import { QuestionHeader } from '../../components/common/QuestionHeader';
 import { PassageContent } from '../../components/common/PassageContent';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
+import { QuestionImage } from '../../components/common/QuestionImage';
 import { ResizableSplitPane } from '../../components/common/ResizableSplitPane';
 import {
   PracticeTool, PracticeToolsPanel,
 } from '../../components/common/PracticeToolsPanel';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { usePrefetchImages } from '../../hooks/usePrefetchImages';
 import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { Question } from '../../types';
@@ -44,52 +46,13 @@ import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
-import {
-  readLocalWrongQuestions,
-  updateLocalWrongQuestions,
-} from '../../utils/localWrongQuestions';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
-
-interface SavedPracticeSession {
-  attemptId?: string;
-  answers: Record<string, ChoiceId>;
-  checkedGroupIds: string[];
-  currentGroupIndex: number;
-  secondsSpent: number;
-  notes?: Record<string, string>;
-  annotations?: Record<string, PracticeAnnotation[]>;
-}
 
 const formatTimer = (seconds: number) => {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   return `${minutes.toString().padStart(2, '0')}:${remaining.toString().padStart(2, '0')}`;
-};
-
-const readPracticeSession = (key: string): SavedPracticeSession | null => {
-  try {
-    const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) as SavedPracticeSession : null;
-  } catch {
-    return null;
-  }
-};
-
-const savePracticeSession = (key: string, session: SavedPracticeSession) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(session));
-  } catch {
-    // The practice flow remains usable when browser storage is unavailable.
-  }
-};
-
-const clearPracticeSession = (key: string) => {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    // There may be no persisted session to clear.
-  }
 };
 
 export const PracticeRunnerPage: React.FC = () => {
@@ -202,17 +165,7 @@ export const PracticeRunnerPage: React.FC = () => {
             part: wrongSource === 'level' ? scopeParts[0] : undefined,
             level: wrongSource === 'level' ? selectedLevel || undefined : undefined,
           }).catch(() => []);
-          const localWrongQuestions = readLocalWrongQuestions(user?.id).filter((question) => (
-            question.sourceType === wrongSource
-            && (wrongSource !== 'test' || question.testId === testId)
-            && (wrongSource !== 'level' || (
-              question.part === scopeParts[0] && question.level === selectedLevel
-            ))
-          ));
-          const selectedIds = new Set([
-            ...wrongQuestions.map((question) => question.questionId),
-            ...localWrongQuestions.map((question) => question.questionId),
-          ]);
+          const selectedIds = new Set(wrongQuestions.map((question) => question.questionId));
           filtered = filtered.filter((question) => selectedIds.has(question.id));
           if (filtered.length === 0) {
             throw new Error('Bạn không còn câu sai nào trong mục này để luyện lại.');
@@ -242,7 +195,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
         // A retry queue is database-driven and may shrink after every correct
         // answer, so it must always reopen from the latest server state.
-        const session = isWrongRetry ? null : readPracticeSession(storageKey);
+        const session = isWrongRetry || !user ? null : await backendService.getPracticeSession(storageKey);
         if (session) {
           setAttemptId(session.attemptId || createClientId());
           const validQuestionIds = new Set(filtered.map((question) => question.id));
@@ -286,24 +239,32 @@ export const PracticeRunnerPage: React.FC = () => {
   }, [checkedGroupIds, groups]);
   const safeGroupIndex = Math.min(currentGroupIndex, Math.max(groups.length - 1, 0));
   const currentGroup = groups[safeGroupIndex];
+  usePrefetchImages(groups, safeGroupIndex);
   const currentGroupChecked = currentGroup ? checkedGroupIds.has(currentGroup.id) : false;
   const allCurrentAnswered = currentGroup?.questions.every((question) => userAnswers[question.id]) ?? false;
   const annotationGroupKey = currentGroup?.questions.map((question) => question.id).join(':') || '';
   const currentAnnotations = annotations[annotationGroupKey] || [];
 
   useEffect(() => {
-    if (loading || isWrongRetry) return;
-    const session: SavedPracticeSession = {
-      attemptId,
-      answers: userAnswers,
-      checkedGroupIds: [...checkedGroupIds],
-      currentGroupIndex: safeGroupIndex,
-      secondsSpent,
-      notes,
-      annotations,
-    };
-    savePracticeSession(storageKey, session);
-  }, [annotations, attemptId, checkedGroupIds, isWrongRetry, loading, notes, safeGroupIndex, secondsSpent, storageKey, userAnswers]);
+    if (loading || isWrongRetry || !user) return;
+    const timeoutId = window.setTimeout(() => {
+      void backendService.savePracticeSession({
+        sessionKey: storageKey,
+        attemptId,
+        sourceType: testId ? 'test' : 'level',
+        testId: testId || undefined,
+        level: isLevelPractice ? selectedLevel || undefined : undefined,
+        partScope: scopeKey,
+        currentGroupIndex: safeGroupIndex,
+        secondsSpent,
+        answers: userAnswers,
+        checkedGroupIds: [...checkedGroupIds],
+        notes,
+        annotations,
+      });
+    }, 400);
+    return () => window.clearTimeout(timeoutId);
+  }, [annotations, attemptId, checkedGroupIds, isLevelPractice, isWrongRetry, loading, notes, safeGroupIndex, scopeKey, secondsSpent, selectedLevel, storageKey, testId, user, userAnswers]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -345,19 +306,7 @@ export const PracticeRunnerPage: React.FC = () => {
     const nextChecked = new Set(checkedGroupIds);
     nextChecked.add(currentGroup.id);
     setCheckedGroupIds(nextChecked);
-    try {
-      if (user) {
-        updateLocalWrongQuestions(
-          user.id,
-          testId ? 'test' : 'level',
-          { testId: testId || undefined, level: isLevelPractice ? selectedLevel || undefined : undefined },
-          currentGroup.questions,
-          userAnswers,
-        );
-      }
-    } finally {
-      setCheckingAnswers(false);
-    }
+    setCheckingAnswers(false);
   };
 
   const goToGroup = (index: number) => {
@@ -407,6 +356,7 @@ export const PracticeRunnerPage: React.FC = () => {
       if (!activityRecorded) await recordStudyActivity();
       if (saved) await refreshNotifications();
       setActivityRecorded(true);
+      void backendService.deletePracticeSession(storageKey);
     }
     setHistorySaveState(saved ? 'saved' : 'error');
   };
@@ -426,7 +376,7 @@ export const PracticeRunnerPage: React.FC = () => {
   };
 
   const restartPractice = () => {
-    clearPracticeSession(storageKey);
+    if (user) void backendService.deletePracticeSession(storageKey);
     setAttemptId(createClientId());
     setUserAnswers({});
     setCheckedGroupIds(new Set());
@@ -811,11 +761,9 @@ export const PracticeRunnerPage: React.FC = () => {
                     </section>
                   )}
                   {currentGroup.imageUrl && (
-                    <img
+                    <QuestionImage
                       src={currentGroup.imageUrl}
                       alt={`Hình minh họa cho ${rangeLabel}`}
-                      referrerPolicy="no-referrer"
-                      className="mx-auto max-h-[22rem] max-w-full rounded-2xl border border-slate-200 object-contain shadow-xs dark:border-line"
                     />
                   )}
                   {currentGroup.passageText && (
@@ -1090,11 +1038,9 @@ export const PracticeRunnerPage: React.FC = () => {
                     </section>
                   )}
                   {currentGroup.imageUrl && (
-                    <img
+                    <QuestionImage
                       src={currentGroup.imageUrl}
                       alt={`Hình minh họa cho ${rangeLabel}`}
-                      referrerPolicy="no-referrer"
-                      className="mx-auto max-h-[22rem] max-w-full rounded-2xl border border-slate-200 object-contain shadow-xs dark:border-line"
                     />
                   )}
                   {currentGroup.passageText && (

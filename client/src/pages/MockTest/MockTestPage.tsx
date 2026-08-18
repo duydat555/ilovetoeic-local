@@ -12,7 +12,6 @@ import { AnimatePresence } from 'framer-motion';
 import { ALL_TEST_PARTS, serializeTestPartScope } from '../../utils/testScope';
 import { backendService } from '../../services/backend';
 import { useAuth } from '../../context/AuthContext';
-import { deleteLocalWrongQuestions, readLocalWrongQuestions } from '../../utils/localWrongQuestions';
 import { storage } from '../../utils/storage';
 import { countTestPracticeSessions, deleteTestPracticeSessions } from '../../utils/practiceSessions';
 
@@ -65,23 +64,10 @@ export const MockTestPage: React.FC = () => {
         items.forEach((item) => {
           if (item.testId) next[item.testId] = (next[item.testId] || 0) + 1;
         });
-        readLocalWrongQuestions(user.id)
-          .filter((item) => item.sourceType === 'test' && item.testId)
-          .forEach((item) => {
-            next[item.testId!] = Math.max(next[item.testId!] || 0, 0) + (
-              items.some((serverItem) => serverItem.questionId === item.questionId) ? 0 : 1
-            );
-          });
         setWrongCounts(next);
       }).catch(() => {
         if (!active) return;
-        const localCounts: Record<string, number> = {};
-        readLocalWrongQuestions(user.id)
-          .filter((item) => item.sourceType === 'test' && item.testId)
-          .forEach((item) => {
-            localCounts[item.testId!] = (localCounts[item.testId!] || 0) + 1;
-          });
-        setWrongCounts(localCounts);
+        setWrongCounts({});
       });
     };
     loadWrongCounts();
@@ -173,15 +159,13 @@ export const MockTestPage: React.FC = () => {
     try {
       const historyResult = await backendService.deleteTestStudyHistory(deleteTest.id);
       const wrongResult = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
-      const localDeleted = user
-        ? deleteLocalWrongQuestions(user.id, 'test', { testId: deleteTest.id })
-        : 0;
+      await backendService.deletePracticeSessionsForTest(deleteTest.id);
       const localHistoryDeleted = storage.deleteTestHistory(deleteTest.id);
       storage.clearExamDraft(deleteTest.id);
       deleteTestPracticeSessions(deleteTest.id);
       setWrongCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
       setHistoryCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
-      setToastMessage(`Đã xoá ${historyResult.deletedCount + localHistoryDeleted} lượt làm và ${wrongResult.deletedCount + localDeleted} câu sai của ${deleteTest.title}.`);
+      setToastMessage(`Đã xoá ${historyResult.deletedCount + localHistoryDeleted} lượt làm và ${wrongResult.deletedCount} câu sai của ${deleteTest.title}.`);
       setDeleteTest(null);
     } catch (requestError) {
       setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');

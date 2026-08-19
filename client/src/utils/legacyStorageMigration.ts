@@ -1,11 +1,13 @@
 import { backendService, PracticeSessionData } from '../services/backend';
+import { createClientId } from './id';
 import { readLocalWrongQuestions } from './localWrongQuestions';
+import { storage } from './storage';
 
-const MIGRATION_FLAG = 'toeic_legacy_data_migrated_v2';
+const MIGRATION_FLAG = 'toeic_legacy_data_migrated_v3';
 
 /**
  * Automatically migrate and restore any historical data saved in the user's
- * browser localStorage (wrong questions, practice progress, vocabulary) to MySQL.
+ * browser localStorage (wrong questions, practice progress, exam history, vocabulary) to MySQL.
  */
 export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promise<void> => {
   if (!userId) return;
@@ -23,7 +25,7 @@ export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promi
       }
     }
 
-    // 2. Migrate legacy local practice sessions
+    // 2. Migrate legacy local practice sessions (in-progress practice progress)
     const practiceKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -45,7 +47,7 @@ export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promi
 
           const sessionPayload: PracticeSessionData = {
             sessionKey: key,
-            attemptId: parsed.attemptId || 'legacy-attempt',
+            attemptId: parsed.attemptId || createClientId(),
             sourceType: source.startsWith('level') ? 'level' : 'test',
             testId: !source.startsWith('level') && !source.startsWith('wrong-level') ? source : undefined,
             level: source.startsWith('level-') ? Number(source.replace('level-', '')) : undefined,
@@ -65,7 +67,48 @@ export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promi
       }
     }
 
-    // 3. Migrate legacy local vocabulary
+    // 3. Migrate legacy completed exam history
+    try {
+      const localExamHistory = storage.getTestHistory();
+      if (Array.isArray(localExamHistory) && localExamHistory.length > 0) {
+        for (const item of localExamHistory) {
+          if (item && item.testId) {
+            const attemptId = item.attemptId || createClientId();
+            const totalQuestions = (item.correctAnswers || 0) + (item.wrongAnswers || 0) + (item.skippedAnswers || 0) || 200;
+            const answeredQuestions = (item.correctAnswers || 0) + (item.wrongAnswers || 0);
+
+            await backendService.saveStudyAttempt({
+              id: attemptId,
+              userId,
+              testId: item.testId,
+              testName: item.testTitle || item.testName,
+              testYear: item.testYear,
+              mode: 'exam',
+              totalQuestions,
+              answeredQuestions,
+              correctAnswers: item.correctAnswers || 0,
+              accuracyRate: item.accuracyRate || (totalQuestions > 0 ? Math.round(((item.correctAnswers || 0) / totalQuestions) * 100) : 0),
+              timeSpentSeconds: item.timeSpentSeconds || 0,
+              listeningScore: item.listeningScore,
+              readingScore: item.readingScore,
+              totalScore: item.totalScore,
+              answers: item.answers || {},
+              questionIds: item.questionIds || [],
+              metadata: {
+                source: 'local_migrated_history',
+                is_partial: Boolean(item.isPartial),
+                selected_parts: item.selectedParts,
+              },
+              completedAt: item.completedAt || new Date().toISOString(),
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[!] Error migrating legacy exam history:', err);
+    }
+
+    // 4. Migrate legacy local vocabulary
     const vocabKey = `toeic_vocabulary_${userId}`;
     const rawVocab = localStorage.getItem(vocabKey);
     if (rawVocab) {
@@ -83,7 +126,7 @@ export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promi
       }
     }
 
-    // 4. Migrate legacy vocabulary topic overrides
+    // 5. Migrate legacy vocabulary topic overrides
     const overridesKey = `toeic_vocabulary_topic_overrides_${userId}`;
     const rawOverrides = localStorage.getItem(overridesKey);
     if (rawOverrides) {

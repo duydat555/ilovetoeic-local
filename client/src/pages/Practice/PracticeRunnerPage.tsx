@@ -183,6 +183,14 @@ export const PracticeRunnerPage: React.FC = () => {
           }
         }
 
+        if (wrongSource || reviewAttemptId) {
+          filtered = filtered.map((q, idx) => ({
+            ...q,
+            questionNumber: idx + 1,
+            originalQuestionNumber: q.questionNumber,
+          }));
+        }
+
         if (!active) return;
         setQuestions(filtered);
         setUserAnswers({});

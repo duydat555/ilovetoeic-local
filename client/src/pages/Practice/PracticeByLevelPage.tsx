@@ -226,6 +226,7 @@ export const PracticeByLevelPage: React.FC = () => {
         part: deleteScope.part,
         level: deleteScope.level,
       });
+      await backendService.deletePracticeSessionsForLevel(deleteScope.part, deleteScope.level);
       deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
       const key = `${deleteScope.part}:${deleteScope.level}`;
       setAttempts((current) => current.filter((attempt) => {

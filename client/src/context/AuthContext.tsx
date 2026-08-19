@@ -8,6 +8,7 @@ import React, {
 import { User, UserRole } from '../types';
 import { ApiError, authApi, sessionService } from '../services/backend';
 import { storage } from '../utils/storage';
+import { migrateLegacyLocalStorageToDatabase } from '../utils/legacyStorageMigration';
 
 interface AuthResult {
   requiresEmailConfirmation?: boolean;
@@ -144,6 +145,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshSession, user?.id, user?.role]);
+
+  useEffect(() => {
+    if (user?.id) {
+      void migrateLegacyLocalStorageToDatabase(user.id);
+    }
+  }, [user?.id]);
 
   const login = async (
     email: string,

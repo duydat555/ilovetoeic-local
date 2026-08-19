@@ -545,6 +545,82 @@ def delete_study_attempts(
             )
             deleted_count = cursor.rowcount
 
+            # Clean up matching in-progress question activities, practice sessions, and wrong questions
+            if source_type == "level":
+                cursor.execute(
+                    """
+                    DELETE activity
+                    FROM user_question_activity activity
+                    JOIN questions q ON q.id = activity.question_id
+                    WHERE activity.user_id = %s
+                      AND q.part = %s
+                      AND q.difficulty_level = %s
+                    """,
+                    (user_id, part, level),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM user_practice_sessions
+                    WHERE user_id = %s
+                      AND (
+                          (source_type = 'level' AND part_scope = %s AND level = %s)
+                          OR session_key = %s
+                          OR session_key LIKE %s
+                          OR session_key LIKE %s
+                      )
+                    """,
+                    (
+                        user_id,
+                        str(part),
+                        level,
+                        f"toeic-practice:level-{level}:{part}",
+                        f"toeic-practice:wrong-level-{part}-{level}:%",
+                        f"%level-{level}%:{part}",
+                    ),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM user_wrong_questions
+                    WHERE user_id = %s AND source_type = 'level' AND part = %s AND level = %s
+                    """,
+                    (user_id, part, level),
+                )
+            elif source_type == "test":
+                cursor.execute(
+                    """
+                    DELETE activity
+                    FROM user_question_activity activity
+                    JOIN questions q ON q.id = activity.question_id
+                    WHERE activity.user_id = %s
+                      AND q.test_id = %s
+                    """,
+                    (user_id, test_id),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM user_practice_sessions
+                    WHERE user_id = %s
+                      AND (
+                          test_id = %s
+                          OR session_key = %s
+                          OR session_key LIKE %s
+                      )
+                    """,
+                    (
+                        user_id,
+                        test_id,
+                        test_id,
+                        f"toeic-practice:%{test_id}%",
+                    ),
+                )
+                cursor.execute(
+                    """
+                    DELETE FROM user_wrong_questions
+                    WHERE user_id = %s AND source_type = 'test' AND test_id = %s
+                    """,
+                    (user_id, test_id),
+                )
+
             # Keep the user's TOEIC goal score consistent when their best full
             # attempt belongs to the test whose history was removed.
             cursor.execute(
@@ -1197,6 +1273,9 @@ def delete_practice_session(
 @router.delete("/practice-sessions")
 def clear_practice_sessions(
     test_id: Optional[str] = Query(default=None),
+    source_type: Optional[str] = Query(default=None),
+    part: Optional[int] = Query(default=None),
+    level: Optional[int] = Query(default=None),
     all_sessions: bool = Query(default=False),
     user=Depends(get_current_user),
 ):
@@ -1205,9 +1284,104 @@ def clear_practice_sessions(
             "DELETE FROM user_practice_sessions WHERE user_id = ?",
             (user["id"],),
         )
+    elif source_type == "level" and part is not None and level is not None:
+        db.execute(
+            """
+            DELETE FROM user_practice_sessions
+            WHERE user_id = ?
+              AND (
+                  (source_type = 'level' AND part_scope = ? AND level = ?)
+                  OR session_key = ?
+                  OR session_key LIKE ?
+                  OR session_key LIKE ?
+              )
+            """,
+            (
+                user["id"],
+                str(part),
+                level,
+                f"toeic-practice:level-{level}:{part}",
+                f"toeic-practice:wrong-level-{part}-{level}:%",
+                f"%level-{level}%:{part}",
+            ),
+        )
     elif test_id:
         db.execute(
-            "DELETE FROM user_practice_sessions WHERE user_id = ? AND test_id = ?",
-            (user["id"], test_id),
+            """
+            DELETE FROM user_practice_sessions
+            WHERE user_id = ?
+              AND (
+                  test_id = ?
+                  OR session_key = ?
+                  OR session_key LIKE ?
+              )
+            """,
+            (
+                user["id"],
+                test_id,
+                test_id,
+                f"toeic-practice:%{test_id}%",
+            ),
         )
     return {"status": "deleted"}
+
+
+class BulkWrongQuestionsSyncPayload(BaseModel):
+    items: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+@router.post("/wrong-questions/bulk-sync")
+def bulk_sync_wrong_questions(
+    payload: BulkWrongQuestionsSyncPayload,
+    user=Depends(get_current_user),
+):
+    if not payload.items:
+        return {"success": True, "syncedCount": 0}
+
+    question_ids = list(dict.fromkeys(
+        str(item.get("questionId") or item.get("question_id") or "")
+        for item in payload.items
+        if item.get("questionId") or item.get("question_id")
+    ))
+    if not question_ids:
+        return {"success": True, "syncedCount": 0}
+
+    placeholders = ", ".join("?" for _ in question_ids)
+    question_rows = db.fetch_all(
+        f"SELECT id, test_id, part, difficulty_level FROM questions WHERE id IN ({placeholders})",
+        tuple(question_ids),
+        use_cache=False,
+    )
+    question_map = {str(row["id"]): row for row in question_rows}
+
+    values = []
+    for item in payload.items:
+        qid = str(item.get("questionId") or item.get("question_id") or "")
+        if qid not in question_map:
+            continue
+        q = question_map[qid]
+        source_type = "level" if item.get("sourceType") == "level" else "test"
+        test_id = str(item.get("testId") or q.get("test_id") or "")
+        part = int(item.get("part") or q.get("part") or 1)
+        level = int(item.get("level") or q.get("difficulty_level") or 1) if source_type == "level" else None
+        updated_at = parse_datetime(item.get("updatedAt") or item.get("last_wrong_at") or "")
+        values.append((
+            user["id"], qid, source_type, test_id, part, level, updated_at, updated_at
+        ))
+
+    if values:
+        with db.transaction() as conn:
+            with conn.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO user_wrong_questions (
+                        user_id, question_id, source_type, test_id, part, level,
+                        wrong_count, first_wrong_at, last_wrong_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, 1, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        test_id = VALUES(test_id), part = VALUES(part), level = VALUES(level),
+                        last_wrong_at = VALUES(last_wrong_at)
+                    """,
+                    values,
+                )
+    return {"success": True, "syncedCount": len(values)}

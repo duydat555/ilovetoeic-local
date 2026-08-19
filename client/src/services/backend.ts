@@ -727,4 +727,35 @@ export const backendService = {
       return false;
     }
   },
+
+  async deletePracticeSessionsForLevel(part: number, level: number): Promise<boolean> {
+    try {
+      const params = new URLSearchParams({
+        source_type: 'level',
+        part: String(part),
+        level: String(level),
+      });
+      await authFetch(
+        `/practice-sessions?${params.toString()}`,
+        { method: 'DELETE' },
+      );
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể xoá các phiên làm bài theo level từ MySQL:', error);
+      return false;
+    }
+  },
+
+  async syncLegacyWrongQuestions(items: any[]): Promise<boolean> {
+    try {
+      await authFetch('/wrong-questions/bulk-sync', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      });
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể đồng bộ câu sai cũ từ localStorage lên MySQL:', error);
+      return false;
+    }
+  },
 };

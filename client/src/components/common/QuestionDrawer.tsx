@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bookmark, Check, ListChecks, X } from 'lucide-react';
 import { Question } from '../../types';
@@ -33,6 +34,20 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
 }) => {
   const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const hasCheckedQuestions = Boolean(checkedQuestionIds && checkedQuestionIds.size > 0);
   const answeredCount = Object.keys(userAnswers).length;
@@ -80,17 +95,19 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
         { id: 'flagged' as const, label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
       ];
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-[100] overflow-hidden">
+          {/* Full Screen Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/35 backdrop-blur-xs transition-opacity"
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs transition-opacity"
           />
 
           {/* Slide-over Drawer Panel */}
@@ -100,19 +117,19 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              className="flex w-screen max-w-md flex-col bg-white shadow-2xl dark:bg-surface border-l border-slate-200 dark:border-line"
+              className="flex w-screen max-w-md flex-col bg-surface shadow-2xl border-l border-line text-content"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-line">
+              <div className="flex items-center justify-between border-b border-line px-5 py-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-300">
+                  <div className="flex size-9 items-center justify-center rounded-xl bg-brand-50 text-accent-strong dark:bg-brand-950/60">
                     <ListChecks className="size-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-extrabold text-slate-900 dark:text-content">
+                    <h2 className="text-base font-extrabold text-content">
                       {english ? 'Question Navigator' : 'Danh sách câu hỏi'}
                     </h2>
-                    <p className="text-xs font-medium text-slate-500 dark:text-content-muted">
+                    <p className="text-xs font-medium text-content-muted">
                       {english
                         ? `${answeredCount}/${questions.length} answered (${completionPercent}%)`
                         : `Đã làm ${answeredCount}/${questions.length} câu (${completionPercent}%)`}
@@ -123,14 +140,14 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                   type="button"
                   onClick={onClose}
                   aria-label={english ? 'Close question navigator' : 'Đóng danh sách câu hỏi'}
-                  className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-surface-hover dark:hover:text-slate-200"
+                  className="rounded-xl p-2 text-content-muted hover:bg-surface-hover hover:text-content transition-colors"
                 >
                   <X className="size-5" />
                 </button>
               </div>
 
               {/* Progress Line */}
-              <div className="h-1 w-full bg-slate-100 dark:bg-surface-elevated">
+              <div className="h-1 w-full bg-surface-elevated">
                 <div
                   className="h-full bg-brand transition-all duration-300"
                   style={{ width: `${completionPercent}%` }}
@@ -138,7 +155,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               </div>
 
               {/* Filter Tabs with Live Counters */}
-              <div className="flex gap-1.5 border-b border-slate-100 bg-slate-50/50 p-3 dark:border-line dark:bg-canvas/30">
+              <div className="flex gap-1.5 border-b border-line bg-canvas/40 p-3">
                 {tabs.map((tab) => {
                   const active = filter === tab.id;
                   return (
@@ -148,8 +165,8 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                       onClick={() => setFilter(tab.id)}
                       className={`flex flex-1 flex-col items-center rounded-xl py-2 px-1 text-center transition-all ${
                         active
-                          ? 'bg-white text-brand-600 shadow-xs ring-1 ring-slate-200 dark:bg-surface-elevated dark:text-brand-300 dark:ring-line'
-                          : 'text-slate-600 hover:bg-slate-100 dark:text-content-muted dark:hover:bg-surface-hover/50'
+                          ? 'bg-surface text-accent-strong shadow-xs ring-1 ring-line font-bold'
+                          : 'text-content-muted hover:bg-surface-hover/60'
                       }`}
                     >
                       <span className="text-xs font-black">{tab.count}</span>
@@ -162,7 +179,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               {/* Question Grid Area */}
               <div className="flex-1 overflow-y-auto p-4">
                 {filteredQuestions.length === 0 ? (
-                  <div className="flex h-40 flex-col items-center justify-center text-xs text-slate-400">
+                  <div className="flex h-40 flex-col items-center justify-center text-xs text-content-muted">
                     {english ? 'No questions match this filter.' : 'Không có câu hỏi nào trong mục này.'}
                   </div>
                 ) : (
@@ -197,7 +214,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                           ' border border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-800 dark:bg-brand-950/60 dark:text-brand-300 font-bold';
                       } else {
                         tileStyle +=
-                          ' border border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-400 hover:bg-white dark:border-line dark:bg-surface-elevated/60 dark:text-content-muted dark:hover:bg-surface-hover';
+                          ' border border-line bg-surface-elevated/60 text-content-muted hover:border-brand-400 hover:bg-surface-hover hover:text-content';
                       }
 
                       return (
@@ -233,8 +250,8 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               </div>
 
               {/* Legend & Footer */}
-              <div className="border-t border-slate-100 bg-slate-50/60 p-4 dark:border-line dark:bg-canvas/40">
-                <div className={`mb-3 grid ${hasCheckedQuestions ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-[11px] font-bold text-slate-600 dark:text-content-muted`}>
+              <div className="border-t border-line bg-canvas/40 p-4">
+                <div className={`mb-3 grid ${hasCheckedQuestions ? 'grid-cols-3' : 'grid-cols-2'} gap-2 text-[11px] font-bold text-content-muted`}>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-brand" />
                     <span>{english ? 'Current' : 'Đang xem'}</span>
@@ -257,7 +274,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                     </div>
                   )}
                   <div className="flex items-center gap-1.5">
-                    <span className="size-3 rounded-md bg-slate-200 border border-slate-300 dark:bg-surface-hover" />
+                    <span className="size-3 rounded-md border border-line bg-surface-elevated" />
                     <span>{english ? 'Unanswered' : 'Chưa làm'}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -269,7 +286,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-full rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 dark:bg-surface-elevated dark:border-line dark:text-content dark:hover:bg-surface-hover"
+                  className="w-full rounded-xl bg-surface-elevated border border-line py-2.5 text-xs font-bold text-content shadow-xs hover:bg-surface-hover transition-colors"
                 >
                   {english ? 'Close Navigator' : 'Đóng danh sách'}
                 </button>
@@ -278,6 +295,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
           </div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

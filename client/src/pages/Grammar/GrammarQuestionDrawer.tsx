@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ListChecks, Loader2, X, XCircle } from 'lucide-react';
 import type { GrammarQuestion } from '../../services/grammar';
@@ -63,10 +64,12 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
   const answeredCount = counts.correct + counts.wrong;
   const completionPercent = total ? Math.round((answeredCount / total) * 100) : 0;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
+        <div className="fixed inset-0 z-[100] overflow-hidden">
           <motion.button
             type="button"
             aria-label="Đóng danh sách câu hỏi"
@@ -180,6 +183,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
           </div>
         </div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

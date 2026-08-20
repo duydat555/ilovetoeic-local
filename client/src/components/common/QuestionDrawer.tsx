@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Bookmark, Check, ListChecks, X } from 'lucide-react';
 import { Question } from '../../types';
 
@@ -34,20 +34,23 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
 }) => {
   const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
+
+  const handleExitComplete = () => {
+    document.body.style.overflow = '';
+  };
 
   const hasCheckedQuestions = Boolean(checkedQuestionIds && checkedQuestionIds.size > 0);
   const answeredCount = Object.keys(userAnswers).length;
@@ -98,7 +101,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={handleExitComplete}>
       {isOpen && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
           {/* Full Screen Backdrop */}
@@ -106,8 +109,9 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.2, ease: 'easeOut' }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs transition-opacity"
+            className="absolute inset-0 bg-slate-950/45 backdrop-blur-xs transform-gpu [will-change:opacity] [webkit-backface-visibility:hidden]"
           />
 
           {/* Slide-over Drawer Panel */}
@@ -116,8 +120,11 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              className="flex w-screen max-w-md flex-col bg-surface shadow-2xl border-l border-line text-content"
+              transition={{
+                duration: reduceMotion ? 0.1 : 0.24,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="flex w-screen max-w-md flex-col bg-surface shadow-2xl border-l border-line text-content transform-gpu [will-change:transform] [webkit-backface-visibility:hidden]"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-line px-5 py-4">

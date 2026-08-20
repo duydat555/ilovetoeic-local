@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, ImageIcon, Maximize2, RefreshCw, X, ZoomIn } from 'lucide-react';
 import { getModalMotion } from './modalMotion';
@@ -25,26 +25,31 @@ export const QuestionImage: React.FC<QuestionImageProps> = ({
   const [error, setError] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [isZoomed, setIsZoomed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
   const reduceMotion = useReducedMotion();
   const modalMotion = getModalMotion(reduceMotion);
 
-  // Reset state immediately whenever the source URL changes
+  // Cache busting query param only on explicit user retry
+  const imageSrcWithRetry = retryCount > 0
+    ? `${src}${src.includes('?') ? '&' : '?'}_retry=${retryCount}`
+    : src;
+
+  // Reset state and check cached image status immediately (critical for iOS Safari)
   useEffect(() => {
     setLoading(true);
     setError(false);
-    setRetryCount(0);
-  }, [src]);
+
+    // If image is already complete in browser cache (especially iOS Safari), set loaded immediately
+    if (imgRef.current && imgRef.current.complete && imgRef.current.naturalWidth > 0) {
+      setLoading(false);
+    }
+  }, [src, retryCount]);
 
   const handleReload = () => {
     setLoading(true);
     setError(false);
     setRetryCount((prev) => prev + 1);
   };
-
-  // Cache busting query param only on explicit user retry
-  const imageSrcWithRetry = retryCount > 0
-    ? `${src}${src.includes('?') ? '&' : '?'}_retry=${retryCount}`
-    : src;
 
   return (
     <div className={containerClassName}>
@@ -79,14 +84,14 @@ export const QuestionImage: React.FC<QuestionImageProps> = ({
         </div>
       )}
 
-      {/* Main Image */}
+      {/* Main Image - Keep mounted without display:none so iOS WebKit handles image decode cleanly */}
       {!error && (
-        <div className={`relative group inline-block ${loading ? 'hidden' : 'block'}`}>
+        <div className={`relative group inline-block ${loading ? 'opacity-0 absolute pointer-events-none -z-10' : 'opacity-100 relative'}`}>
           <img
+            ref={imgRef}
             key={imageSrcWithRetry}
             src={imageSrcWithRetry}
             alt={alt}
-            referrerPolicy="no-referrer"
             decoding="async"
             // @ts-expect-error - fetchpriority is standard in modern HTML
             fetchpriority={priority}
@@ -96,7 +101,7 @@ export const QuestionImage: React.FC<QuestionImageProps> = ({
               setLoading(false);
               setError(true);
             }}
-            className={`${className} transition-opacity duration-200 ${loading ? 'opacity-0' : 'opacity-100'} ${allowZoom ? 'cursor-zoom-in' : ''}`}
+            className={`${className} transition-opacity duration-200 ${allowZoom ? 'cursor-zoom-in' : ''}`}
             onClick={() => {
               if (allowZoom && !loading && !error) setIsZoomed(true);
             }}

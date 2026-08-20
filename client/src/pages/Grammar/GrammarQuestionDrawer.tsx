@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ListChecks, Loader2, X, XCircle } from 'lucide-react';
 import type { GrammarQuestion } from '../../services/grammar';
 
@@ -28,20 +28,23 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
   onSelectQuestion,
 }) => {
   const [filter, setFilter] = useState<QuestionFilter>('all');
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose();
     };
     document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
+
+  const handleExitComplete = () => {
+    document.body.style.overflow = '';
+  };
 
   const counts = useMemo(() => questions.reduce((result, question) => {
     const answer = answers[question.membership_id];
@@ -67,7 +70,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
   if (typeof document === 'undefined') return null;
 
   return createPortal(
-    <AnimatePresence>
+    <AnimatePresence onExitComplete={handleExitComplete}>
       {isOpen && (
         <div className="fixed inset-0 z-[100] overflow-hidden">
           <motion.button
@@ -76,17 +79,21 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0.1 : 0.2, ease: 'easeOut' }}
             onClick={onClose}
-            className="absolute inset-0 size-full bg-slate-950/35 backdrop-blur-xs"
+            className="absolute inset-0 size-full bg-slate-950/45 backdrop-blur-xs transform-gpu [will-change:opacity] [webkit-backface-visibility:hidden]"
           />
           <div className="fixed inset-y-0 right-0 flex max-w-full pl-6">
             <motion.aside
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+              transition={{
+                duration: reduceMotion ? 0.1 : 0.24,
+                ease: [0.22, 1, 0.36, 1],
+              }}
               aria-label="Danh sách câu hỏi ngữ pháp"
-              className="flex w-screen max-w-md flex-col border-l border-line bg-surface shadow-2xl"
+              className="flex w-screen max-w-md flex-col border-l border-line bg-surface shadow-2xl transform-gpu [will-change:transform] [webkit-backface-visibility:hidden]"
             >
               <header className="flex items-center justify-between border-b border-line px-5 py-4">
                 <div className="flex min-w-0 items-center gap-2.5">

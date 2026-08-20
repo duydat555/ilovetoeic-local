@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { X, Menu } from 'lucide-react';
+import { X } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 import { BrandName } from '../common/BrandName';
 import { useAuth } from '../../context/AuthContext';
-import { getMobileNavigationForRole, getNavigationForRole } from '../../config/navigation';
+import { getNavigationForRole } from '../../config/navigation';
 import { getUserRole } from '../../utils/rbac';
 import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -15,19 +15,14 @@ interface MobileNavigationProps {
   onClose: () => void;
 }
 
-export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOpen, onClose }) => {
+export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
   const role = getUserRole(user);
   const location = useLocation();
   const navigationRole = role === 'admin' && location.pathname.startsWith('/admin') ? 'admin' : 'student';
   const navigation = getNavigationForRole(navigationRole);
-  const quickNavigation = getMobileNavigationForRole(navigationRole);
   const { getStatus } = useAdminFeatureStatus();
   const { isFeatureEnabled } = useFeatureFlags();
-
-  const isTestRunnerPage =
-    location.pathname.includes('/mock-test/exam') ||
-    location.pathname.includes('/practice/runner');
 
   return (
     <>
@@ -97,40 +92,6 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onOp
           })}
         </div>
       </div>
-
-      {/* Bottom Fixed Navigation Bar for Mobile (hidden during exams & practice runners) */}
-      {!isTestRunnerPage && (
-        <nav className="fixed bottom-3 left-3 right-3 z-30 flex h-16 items-center justify-around rounded-2xl border border-line bg-surface/90 px-2 shadow-[0_16px_40px_-12px_rgba(15,23,42,.28)] backdrop-blur-2xl transition-colors duration-300 dark:shadow-none md:hidden">
-          {quickNavigation.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex max-w-[88px] flex-col items-center gap-1 text-[11px] font-medium transition-colors ${
-                    isActive ? 'text-accent-strong font-bold' : 'text-content-muted'
-                  }`
-                }
-              >
-                <Icon className="size-5" />
-                <span className="max-w-full truncate">{item.label}</span>
-              </NavLink>
-            );
-          })}
-
-          <button
-            onClick={isOpen ? onClose : onOpen}
-            aria-label={isOpen ? 'Đóng menu thêm' : 'Mở menu thêm'}
-            className={`flex flex-col items-center gap-1 text-[11px] font-medium transition-colors ${
-                    isOpen ? 'text-accent-strong font-bold' : 'text-content-muted'
-            }`}
-          >
-            <Menu className="w-5 h-5" />
-            <span>Menu</span>
-          </button>
-        </nav>
-      )}
     </>
   );
 };

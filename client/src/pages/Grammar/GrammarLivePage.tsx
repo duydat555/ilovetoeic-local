@@ -1138,7 +1138,7 @@ export const GrammarLivePage: React.FC = () => {
 
               <nav className="surface rounded-2xl p-3" aria-label="Điều hướng câu hỏi ngữ pháp">
                 <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                  <button type="button" disabled={currentIndex === 0} onClick={() => moveToQuestion(currentIndex - 1)} className="btn-secondary px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><ArrowLeft className="size-3.5" /> <span className="hidden sm:inline">Trước</span></button>
+                  <button type="button" disabled={currentIndex === 0} onClick={() => moveToQuestion(currentIndex - 1)} className="btn-secondary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><ArrowLeft className="size-3.5" /> <span>Trước</span></button>
                   <div className="min-w-0 text-center" aria-live="polite">
                     <p className="text-sm font-extrabold tabular-nums text-content">Câu {currentIndex + 1} / {pagination.total}</p>
                     {isLoadingMore && <p className="mt-0.5 text-[10px] font-semibold text-content-muted">Đang nạp các câu tiếp theo…</p>}
@@ -1148,7 +1148,7 @@ export const GrammarLivePage: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  <button type="button" disabled={currentIndex >= questions.length - 1} onClick={() => moveToQuestion(currentIndex + 1)} className="btn-primary px-3 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><span className="hidden sm:inline">Sau</span> <ArrowRight className="size-3.5" /></button>
+                  <button type="button" disabled={currentIndex >= questions.length - 1} onClick={() => moveToQuestion(currentIndex + 1)} className="btn-primary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><span>Sau</span> <ArrowRight className="size-3.5" /></button>
                 </div>
               </nav>
 

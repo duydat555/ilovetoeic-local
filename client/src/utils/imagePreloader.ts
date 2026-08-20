@@ -49,7 +49,6 @@ export const prefetchImage = (url?: string | null): Promise<void> => {
   return new Promise((resolve) => {
     const img = new Image();
     img.decoding = 'async';
-    img.referrerPolicy = 'no-referrer';
     img.onload = () => resolve();
     img.onerror = () => {
       // Allow retry later if it failed

@@ -124,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   {user.streakDays}
                 </motion.span>
               </AnimatePresence>
-              <span>ngày</span>
+              <span className="hidden sm:inline">ngày</span>
             </span>
           </div>
         )}

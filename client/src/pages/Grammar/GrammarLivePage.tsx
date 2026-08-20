@@ -94,6 +94,73 @@ const getWrongSectionIdentity = (question: GrammarQuestion) => {
   return { key: `difficulty:${question.difficulty_level || label}`, mode: question.source_mode, label, parentLabel: undefined };
 };
 
+function renderFormattedExplanation(text?: string) {
+  if (!text) return null;
+
+  const highlightTokens = (content: string) => {
+    const parts = content.split(/("[^"]+"|\([^)]+\))/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('"') && part.endsWith('"')) {
+        return (
+          <span key={idx} className="font-bold text-accent-strong dark:text-brand-300 bg-accent/10 dark:bg-accent/20 px-1 py-0.5 rounded mx-0.5">
+            {part}
+          </span>
+        );
+      }
+      if (part.startsWith('(') && part.endsWith(')')) {
+        return (
+          <span key={idx} className="font-semibold text-content-muted italic">
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  return (
+    <div className="mt-2.5 space-y-2 text-xs sm:text-sm leading-relaxed text-content">
+      {lines.map((line, idx) => {
+        const optMatch = line.match(/^(\([A-D]\))\s*(.*)$/);
+        if (optMatch) {
+          const letter = optMatch[1];
+          const rest = optMatch[2];
+          return (
+            <div key={idx} className="flex items-start gap-2.5 rounded-xl bg-surface-elevated/70 p-2.5 border border-line/60">
+              <span className="shrink-0 font-black px-2 py-0.5 rounded-md text-xs bg-brand-500/15 text-brand-700 dark:bg-brand-400/20 dark:text-brand-300 tabular-nums">
+                {letter}
+              </span>
+              <div className="min-w-0 flex-1 leading-relaxed text-content-muted">
+                {highlightTokens(rest)}
+              </div>
+            </div>
+          );
+        }
+
+        if (line.startsWith('Giải thích:')) {
+          const rest = line.replace(/^Giải thích:\s*/, '');
+          return (
+            <div key={idx} className="mb-2">
+              <span className="font-extrabold text-content block text-xs uppercase tracking-wide mb-1 text-accent-strong">
+                Giải thích chi tiết:
+              </span>
+              <p className="text-content leading-relaxed">{highlightTokens(rest)}</p>
+            </div>
+          );
+        }
+
+        return (
+          <p key={idx} className="leading-relaxed text-content-muted">
+            {highlightTokens(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 const readGrammarProgress = (userId: string): StoredGrammarProgress => {
   try {
     const parsed = JSON.parse(localStorage.getItem(grammarProgressStorageKey(userId)) || '{}');
@@ -1008,7 +1075,7 @@ export const GrammarLivePage: React.FC = () => {
                         </span>
                         <div className="min-w-0">
                           <h3 className="text-sm font-extrabold">{selectedAnswer === currentQuestion.correct_answer ? 'Chính xác' : `Đáp án đúng là ${currentQuestion.correct_answer}`}</h3>
-                          <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-content-muted">{currentQuestion.explanation_vi}</p>
+                          {renderFormattedExplanation(currentQuestion.explanation_vi)}
                         </div>
                       </div>
                     </div>

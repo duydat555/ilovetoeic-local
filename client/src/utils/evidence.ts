@@ -33,7 +33,7 @@ export const parseQuestionEvidence = (source?: string | null): QuestionEvidence 
   if (!source) return undefined;
 
   const normalized = cleanDownloadedText(source);
-  const paraphraseMarker = /(?:^|[\n\r]+|[ \t]+)-?\s*Paraphrase\s*:/i.exec(normalized);
+  const paraphraseMarker = /(?:^|[\n\r]+|[ \t]+)-?\s*Paraphrase\s*[:\.\-–—]?\s*/i.exec(normalized);
   const evidenceBlock = paraphraseMarker
     ? normalized.slice(0, paraphraseMarker.index)
     : normalized;

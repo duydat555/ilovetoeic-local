@@ -19,21 +19,53 @@ const splitCitationTranslation = (text: string) => {
   };
 };
 
-const splitParaphrase = (text: string) => {
+const cleanParaphraseLabel = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/^\s*(?:Bài\s*đọc|Bài\s*nghe|Đoạn\s*văn|Context|Passage)\s*[:\.\-–—]?\s*/gi, '')
+    .replace(/^\s*(?:Đáp\s*án|Phương\s*án|Lựa\s*chọn|Answer|Option)\s*[:\.\-–—]?\s*/gi, '')
+    .trim();
+};
+
+export const splitParaphrase = (text: string) => {
   if (!text) return null;
-  const cleaned = cleanLaTeXSymbols(text);
+  let cleaned = cleanLaTeXSymbols(text).trim();
+  cleaned = cleaned.replace(/^\s*-?\s*Paraphrase\s*[:\.\-–—]?\s*/gi, '').trim();
 
-  const separatorRegex = /\s*(?:\$\\?(?:implies|Longrightarrow|Rightarrow|rightarrow|to)\$|\\(?:implies|Longrightarrow|Rightarrow|rightarrow|to)|==>|=>|-->|->|⇒|⟹|➔|↔|⇔|=|≈|≡)\s*/i;
-  const match = separatorRegex.exec(cleaned);
-  if (!match || match.index === -1) return null;
+  let source = '';
+  let equivalent = '';
+  let separatorSymbol = '⇒';
 
-  const source = cleaned.slice(0, match.index).trim();
-  const equivalent = cleaned.slice(match.index + match[0].length).trim();
+  // 1. Phân tách theo nhãn "Đáp án:" nếu có trong chuỗi
+  const dapAnSplit = cleaned.split(/(?:[\n\r]+|\s+)Đáp\s*án\s*[:\.\-–—]\s*/i);
+  if (dapAnSplit.length === 2 && dapAnSplit[0].trim() && dapAnSplit[1].trim()) {
+    source = cleanParaphraseLabel(dapAnSplit[0]);
+    equivalent = cleanParaphraseLabel(dapAnSplit[1]);
+  } else {
+    // 2. Phân tách theo ký hiệu phân cách hoặc mũi tên (bao gồm cả → \u2192, ⟶, ➔, ➜, ➞, ➡, ►, ▶, =>, ->, =, ≈, v.v...)
+    const separatorRegex = /\s*(?:\$\\?(?:implies|Longrightarrow|Rightarrow|rightarrow|to)\$|\\(?:implies|Longrightarrow|Rightarrow|rightarrow|to)|==>|=>|-->|->|⇒|⟹|➔|➜|➞|➡|►|▶|→|⟶|↔|⇔|=|≈|≡)\s*/i;
+    const match = separatorRegex.exec(cleaned);
+    if (match && match.index !== -1) {
+      source = cleanParaphraseLabel(cleaned.slice(0, match.index));
+      equivalent = cleanParaphraseLabel(cleaned.slice(match.index + match[0].length));
+      const rawSep = match[0].trim();
+      const isArrow = /implies|rightarrow|to|=>|->|⇒|⟹|➔|➜|➞|➡|►|▶|→|⟶/i.test(rawSep);
+      separatorSymbol = isArrow ? '⇒' : (rawSep === '≈' ? '≈' : '=');
+    } else {
+      // 3. Fallback: Phân tách theo dòng nếu có 2 dòng riêng biệt
+      const lines = cleaned.split(/[\n\r]+/).map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 2) {
+        source = cleanParaphraseLabel(lines[0]);
+        equivalent = cleanParaphraseLabel(lines[1]);
+      }
+    }
+  }
+
+  // Làm sạch hoàn toàn các nhãn tiền tố dư thừa như "Bài đọc:", "Đáp án:"
+  source = cleanParaphraseLabel(source);
+  equivalent = cleanParaphraseLabel(equivalent);
+
   if (!source || !equivalent) return null;
-
-  const rawSep = match[0].trim();
-  const isArrow = /implies|rightarrow|to|=>|->|⇒|⟹|➔/i.test(rawSep);
-  const separatorSymbol = isArrow ? '⇒' : (rawSep === '≈' ? '≈' : '=');
 
   return {
     source,

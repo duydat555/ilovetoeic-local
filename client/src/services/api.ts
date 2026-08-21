@@ -534,15 +534,19 @@ export function parseOptionsTranslation(raw: string | undefined | null): {
     }
   }
 
-  // Khớp chính xác case-sensitive nhãn phương án như (A) hoặc (B), tránh khớp nhầm chữ 'c' trong từ tiếng Việt như 'cuộc'
-  const inlineMatch = trimmed.match(/(?:\([A-D]\)|^[A-D][\.\:\s])/);
+  // Khớp vị trí bắt đầu của danh sách phương án (A), (B) hoặc A., B. hoặc A:
+  // Hỗ trợ trường hợp có đoạn văn/câu hỏi dịch phía trước (ví dụ: "Tại sao bà Chabinga...\n\nA. ...")
+  const optionStartRegex = /(?:\([A-D]\)|(?:^|\n)\s*[A-D][\.\:\s])/;
+  const inlineMatch = trimmed.match(optionStartRegex);
   let segments: string[] = [];
 
-  if (inlineMatch && inlineMatch.index !== undefined && inlineMatch.index > 0) {
-    cleanPromptTranslation = trimmed.slice(0, inlineMatch.index).trim().replace(/[\:\-\|\s]+$/, '');
+  if (inlineMatch && inlineMatch.index !== undefined && inlineMatch.index >= 0) {
+    if (inlineMatch.index > 0) {
+      cleanPromptTranslation = trimmed.slice(0, inlineMatch.index).trim().replace(/[\:\-\|\s]+$/, '');
+    }
     const optionsText = trimmed.slice(inlineMatch.index).trim();
     segments = optionsText
-      .split(/(?=\([A-D]\)|^[A-D][\.\:\s])/)
+      .split(/(?=\([A-D]\)|(?:^|\n)\s*[A-D][\.\:\s])/)
       .map((s) => s.trim())
       .filter(Boolean);
   } else {

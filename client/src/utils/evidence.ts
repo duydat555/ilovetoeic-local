@@ -1,4 +1,5 @@
 import { QuestionEvidence } from '../types';
+import { cleanLaTeXSymbols } from './practice';
 
 const decodeBasicEntities = (value: string) =>
   value
@@ -10,14 +11,15 @@ const decodeBasicEntities = (value: string) =>
     .replace(/&nbsp;/gi, ' ');
 
 const cleanDownloadedText = (value: string) =>
-  decodeBasicEntities(
-    value
-      .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/p\s*>/gi, '\n')
-      .replace(/<[^>]+>/g, '')
-      .replace(/\*\*/g, '')
-      .replace(/\$\\approx\$/g, '≈')
-      .replace(/\r\n?/g, '\n'),
+  cleanLaTeXSymbols(
+    decodeBasicEntities(
+      value
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p\s*>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/\r\n?/g, '\n'),
+    ),
   )
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')

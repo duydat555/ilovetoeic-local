@@ -13,6 +13,7 @@ import { Question } from '../../types';
 import { cleanExplanationText, cleanTranscriptSpacing, getUnifiedQuestionTranslationText } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
+import { FormattedReadingExplanation } from '../common/FormattedReadingExplanation';
 import { QuestionImage } from '../common/QuestionImage';
 
 export interface AnswerReviewItemProps {
@@ -45,11 +46,10 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`rounded-full px-3 py-1 font-extrabold ${
-              isCorrect
-                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-            }`}
+            className={`rounded-full px-3 py-1 font-extrabold ${isCorrect
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+              }`}
           >
             Bạn chọn: {userAnswer || 'Bỏ qua'}
           </span>
@@ -117,25 +117,32 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
         <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
       )}
 
-      {/* Khối Giải thích chi tiết */}
-      {explanationText && (
-        <div className="whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
-          <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Giải thích chi tiết</div>
-          <div>{explanationText}</div>
-        </div>
-      )}
+      {/* Khối Giải thích chi tiết & Nghĩa đáp án */}
+      {isReadingPart ? (
+        <FormattedReadingExplanation question={question} />
+      ) : (
+        <>
+          {/* Khối Giải thích chi tiết cho Part 1, 2, 3, 4 */}
+          {explanationText && (
+            <div className="whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
+              <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Giải thích chi tiết</div>
+              <div>{explanationText}</div>
+            </div>
+          )}
 
-      {/* Khối Dịch nghĩa đồng bộ 100% theo Ảnh 2 */}
-      {getUnifiedQuestionTranslationText(question) && (
-        <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
-          <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
-            <Languages className="size-3.5" />
-            <span>Dịch nghĩa:</span>
-          </div>
-          <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">
-            {getUnifiedQuestionTranslationText(question)}
-          </div>
-        </div>
+          {/* Khối Dịch nghĩa cho Part 1, 2, 3, 4 */}
+          {getUnifiedQuestionTranslationText(question) && (
+            <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+              <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+                <Languages className="size-3.5" />
+                <span>Dịch nghĩa:</span>
+              </div>
+              <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">
+                {getUnifiedQuestionTranslationText(question)}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Khối Từ vựng cần học (dạng Chip với nút + lưu Flashcard) */}
@@ -160,11 +167,10 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
                     type="button"
                     onClick={() => void onSaveVocabulary(item.word, item.meaning)}
                     title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
-                      savedVocabWords[item.word]
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'text-content-muted hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
-                    }`}
+                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${savedVocabWords[item.word]
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'text-content-muted hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                      }`}
                   >
                     {savedVocabWords[item.word] ? (
                       <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />

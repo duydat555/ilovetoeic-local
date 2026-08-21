@@ -93,6 +93,7 @@ export const QuestionImage: React.FC<QuestionImageProps> = ({
             src={imageSrcWithRetry}
             alt={alt}
             decoding="async"
+            referrerPolicy="no-referrer"
             // @ts-expect-error - fetchpriority is standard in modern HTML
             fetchpriority={priority}
             loading="eager"

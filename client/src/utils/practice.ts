@@ -131,8 +131,8 @@ export const cleanQuestionTranslation = (text: string | undefined | null): strin
   if (!text) return '';
   const trimmed = text.trim();
 
-  // Khớp chính xác case-sensitive nhãn phương án như (A) hoặc (B), tránh khớp chữ 'c' trong từ tiếng Việt như 'cuộc'
-  const optionMatch = trimmed.match(/(?:\([A-D]\)|^[A-D][\.\:\s])/);
+  // Khớp chính xác nhãn phương án như (A) hoặc (B), A. B. kể cả khi nằm ở dòng tiếp theo
+  const optionMatch = trimmed.match(/(?:\([A-D]\)|(?:^|\n)\s*[A-D][\.\:\s])/);
   if (optionMatch && optionMatch.index !== undefined && optionMatch.index > 0) {
     return trimmed.slice(0, optionMatch.index).trim().replace(/[\:\-\|\s]+$/, '');
   }
@@ -172,12 +172,35 @@ export const getPracticeQuestionTitle = (question: Question, isChecked: boolean)
   return question.partId <= 2 ? LISTENING_INSTRUCTION : 'Chọn đáp án đúng.';
 };
 
+export const cleanLaTeXSymbols = (text: string | undefined | null): string => {
+  if (!text) return '';
+  return text
+    .replace(/\$\s*\\(?:implies|Longrightarrow|Rightarrow)\s*\$/gi, '⇒')
+    .replace(/\\(?:implies|Longrightarrow|Rightarrow)/gi, '⇒')
+    .replace(/\$\s*\\(?:rightarrow|to)\s*\$/gi, '→')
+    .replace(/\\(?:rightarrow|to)/gi, '→')
+    .replace(/\$\s*\\(?:iff|LongLeftrightarrow|Leftrightarrow)\s*\$/gi, '⇔')
+    .replace(/\\(?:iff|LongLeftrightarrow|Leftrightarrow)/gi, '⇔')
+    .replace(/\$\s*\\approx\s*\$/gi, '≈')
+    .replace(/\\approx/gi, '≈')
+    .replace(/\$\s*\\equiv\s*\$/gi, '≡')
+    .replace(/\\equiv/gi, '≡')
+    .replace(/\$\s*\\(?:le|leq)\s*\$/gi, '≤')
+    .replace(/\\(?:le|leq)/gi, '≤')
+    .replace(/\$\s*\\(?:ge|geq)\s*\$/gi, '≥')
+    .replace(/\\(?:ge|geq)/gi, '≥')
+    .replace(/\$\s*\\neq\s*\$/gi, '≠')
+    .replace(/\\neq/gi, '≠')
+    .replace(/\$\s*\\dots\s*\$/gi, '...')
+    .replace(/\\dots/gi, '...');
+};
+
 /**
  * Làm sạch văn bản giải thích, loại bỏ phần lặp lại câu hỏi dịch nghĩa và phương án đáp án ở đầu
  */
 export const cleanExplanationText = (text: string | undefined | null): string => {
   if (!text) return '';
-  let cleaned = text.trim();
+  let cleaned = cleanLaTeXSymbols(text).trim();
   if (!cleaned) return '';
 
   const lines = cleaned.split('\n').map((l) => l.trim()).filter(Boolean);

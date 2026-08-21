@@ -40,9 +40,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static file serving for audio MP3 and images
+# Static file serving for audio MP3 and images with 1-year browser caching & CORS headers
 config.MEDIA_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/media", StaticFiles(directory=str(config.MEDIA_DIR)), name="media")
+
+class CachedStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        return response
+
+app.mount("/media", CachedStaticFiles(directory=str(config.MEDIA_DIR)), name="media")
 
 # Include API Routers
 app.include_router(status.router)

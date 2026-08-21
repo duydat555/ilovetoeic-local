@@ -1,3 +1,8 @@
 {
-    "python-envs.defaultEnvManager": "ms-python.python:system"
+    "python.defaultInterpreterPath": "server/venv/bin/python",
+    "python.analysis.venvPath": "server",
+    "python.analysis.venv": "venv",
+    "python.analysis.extraPaths": [
+        "server"
+    ]
 }

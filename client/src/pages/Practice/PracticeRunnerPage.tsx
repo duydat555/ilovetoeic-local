@@ -28,7 +28,9 @@ import {
 import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { EvidencePanel } from '../../components/common/EvidencePanel';
+import { FormattedReadingExplanation } from '../../components/common/FormattedReadingExplanation';
 import { QuestionHeader } from '../../components/common/QuestionHeader';
+import { InterleavedTranscript } from '../../components/common/InterleavedTranscript';
 import { PassageContent } from '../../components/common/PassageContent';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
@@ -460,13 +462,12 @@ export const PracticeRunnerPage: React.FC = () => {
           <p className="mt-1 text-xs text-slate-500">Bạn đã hoàn thành tất cả các câu hỏi trong phần luyện tập này.</p>
 
           <div
-            className={`mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${
-              historySaveState === 'saved'
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                : historySaveState === 'error'
+            className={`mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${historySaveState === 'saved'
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+              : historySaveState === 'error'
                 ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
                 : 'bg-slate-100 text-slate-600 dark:bg-surface-elevated dark:text-content-muted'
-            }`}
+              }`}
           >
             {historySaveState === 'saving' && <RefreshCcw className="size-3.5 animate-spin" />}
             {historySaveState === 'saved' && <CheckCircle2 className="size-3.5" />}
@@ -474,10 +475,10 @@ export const PracticeRunnerPage: React.FC = () => {
             {historySaveState === 'saving'
               ? 'Đang lưu lịch sử lên MySQL...'
               : historySaveState === 'saved'
-              ? 'Đã lưu vào lịch sử làm bài'
-              : historySaveState === 'error'
-              ? 'Chưa thể đồng bộ lịch sử lên MySQL'
-              : 'Đang chuẩn bị lưu lịch sử...'}
+                ? 'Đã lưu vào lịch sử làm bài'
+                : historySaveState === 'error'
+                  ? 'Chưa thể đồng bộ lịch sử lên MySQL'
+                  : 'Đang chuẩn bị lưu lịch sử...'}
           </div>
 
           <div className="mt-6 grid grid-cols-3 gap-4 border-y border-slate-100 py-6 dark:border-line">
@@ -540,8 +541,8 @@ export const PracticeRunnerPage: React.FC = () => {
                   ? wrongSource === 'test'
                     ? `Câu sai • Part ${currentGroup.partId}`
                     : wrongSource === 'level'
-                    ? `Câu sai • Part ${currentGroup.partId} • Level ${selectedLevel}`
-                    : `Làm lại câu ${reviewResult === 'correct' ? 'đúng' : 'sai'} • Part ${currentGroup.partId}`
+                      ? `Câu sai • Part ${currentGroup.partId} • Level ${selectedLevel}`
+                      : `Làm lại câu ${reviewResult === 'correct' ? 'đúng' : 'sai'} • Part ${currentGroup.partId}`
                   : `Part ${currentGroup.partId}`}
               </span>
               <h1 className="truncate text-sm font-black tracking-tight text-slate-950 sm:text-base dark:text-content">
@@ -576,17 +577,16 @@ export const PracticeRunnerPage: React.FC = () => {
           <button
             type="button"
             onClick={() => openTool('notes')}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
-              activeTool === 'notes'
-                ? 'border-brand bg-brand text-brand-ink'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:bg-surface-elevated dark:text-content dark:hover:bg-surface-hover'
-            }`}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${activeTool === 'notes'
+              ? 'border-brand bg-brand text-brand-ink'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:bg-surface-elevated dark:text-content dark:hover:bg-surface-hover'
+              }`}
             aria-pressed={activeTool === 'notes'}
           >
             <StickyNote className={`size-4 ${activeTool === 'notes' ? 'text-brand-ink' : 'text-brand-600 dark:text-brand-300'}`} />
             <span className="hidden lg:inline">Ghi chú</span>
             {currentGroup.questions.some((question) => notes[question.id]?.trim()) && (
-                <span className={`size-1.5 rounded-full ${activeTool === 'notes' ? 'bg-brand-ink' : 'bg-brand'}`} />
+              <span className={`size-1.5 rounded-full ${activeTool === 'notes' ? 'bg-brand-ink' : 'bg-brand'}`} />
             )}
           </button>
 
@@ -594,22 +594,20 @@ export const PracticeRunnerPage: React.FC = () => {
             type="button"
             onClick={() => openTool('annotator')}
             disabled={!currentGroup.passageText}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${
-              activeTool === 'annotator' || annotatorEnabled
-                ? 'border-brand bg-brand text-brand-ink'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:bg-surface-elevated dark:text-content dark:hover:bg-surface-hover'
-            } disabled:cursor-not-allowed disabled:opacity-40`}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${activeTool === 'annotator' || annotatorEnabled
+              ? 'border-brand bg-brand text-brand-ink'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-brand-400 hover:bg-brand-50/50 dark:border-line dark:bg-surface-elevated dark:text-content dark:hover:bg-surface-hover'
+              } disabled:cursor-not-allowed disabled:opacity-40`}
             aria-pressed={annotatorEnabled}
             title={currentGroup.passageText ? 'Đánh dấu nội dung bài đọc' : 'Nhóm này không có bài đọc'}
           >
             <Highlighter className={`size-4 ${activeTool === 'annotator' || annotatorEnabled ? 'text-brand-ink' : 'text-brand-600 dark:text-brand-300'}`} />
             <span className="hidden lg:inline">Annotator</span>
             {currentAnnotations.length > 0 && (
-              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-extrabold ${
-                activeTool === 'annotator' || annotatorEnabled
-                  ? 'bg-white/30 text-brand-ink'
-                  : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-200'
-              }`}>
+              <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-extrabold ${activeTool === 'annotator' || annotatorEnabled
+                ? 'bg-white/30 text-brand-ink'
+                : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-200'
+                }`}>
                 {currentAnnotations.length}
               </span>
             )}
@@ -650,192 +648,161 @@ export const PracticeRunnerPage: React.FC = () => {
                 {/* Left Column: Shared Media Pane */}
                 {(currentGroup.audioUrl || currentGroup.passageText || currentGroup.imageUrl || currentGroup.transcript) && (
                   <section className="surface flex h-auto max-h-none flex-col overflow-hidden rounded-2xl lg:h-full lg:max-h-full">
-                <div className="shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-line">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {currentGroup.transcript && (
-                      <button
-                        type="button"
-                        onClick={() => setShowTranscript((value) => !value)}
-                        disabled={!currentGroupChecked}
-                        aria-pressed={showTranscript}
-                        aria-controls="shared-transcript"
-                        title={currentGroupChecked ? 'Bật hoặc tắt transcript' : 'Transcript mở sau khi kiểm tra đáp án'}
-                        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${
-                          showTranscript
-                            ? 'bg-brand text-brand-ink'
-                            : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
-                        }`}
-                      >
-                        <Headphones className="size-4" /> {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
-                      </button>
-                    )}
-                    {currentGroup.passageText && (
-                      <button
-                        type="button"
-                        onClick={() => setShowTranslation((value) => !value)}
-                        aria-pressed={showTranslation}
-                        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] ${
-                          showTranslation
-                            ? 'bg-brand text-brand-ink'
-                            : 'bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200'
-                        }`}
-                      >
-                        <Languages className="size-4" /> {showTranslation ? 'Ẩn bản dịch' : 'Xem bản dịch'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex-1 space-y-4 overflow-visible p-4 lg:overflow-y-auto">
-                  {currentGroup.audioUrl && (
-                    <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} />
-                  )}
-                  {showTranscript && currentGroupChecked && currentGroup.transcript && (
-                    <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-                          <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
-                        </div>
-                        {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
-                          <div className="mt-2.5">
-                            <PassageContent html={cleanTranscriptSpacing(currentGroup.transcript)} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
-                          </div>
-                        ) : (
-                          <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                            {cleanTranscriptSpacing(currentGroup.transcript)}
-                          </p>
+                    <div className="shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3 dark:border-line">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        {currentGroup.transcript && (
+                          <button
+                            type="button"
+                            onClick={() => setShowTranscript((value) => !value)}
+                            disabled={!currentGroupChecked}
+                            aria-pressed={showTranscript}
+                            aria-controls="shared-transcript"
+                            title={currentGroupChecked ? 'Bật hoặc tắt transcript' : 'Transcript mở sau khi kiểm tra đáp án'}
+                            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${showTranscript
+                              ? 'bg-brand text-brand-ink'
+                              : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
+                              }`}
+                          >
+                            <Headphones className="size-4" /> {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
+                          </button>
+                        )}
+                        {currentGroup.passageText && (
+                          <button
+                            type="button"
+                            onClick={() => setShowTranslation((value) => !value)}
+                            aria-pressed={showTranslation}
+                            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] ${showTranslation
+                              ? 'bg-brand text-brand-ink'
+                              : 'bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200'
+                              }`}
+                          >
+                            <Languages className="size-4" /> {showTranslation ? 'Ẩn bản dịch' : 'Xem bản dịch'}
+                          </button>
                         )}
                       </div>
+                    </div>
 
-                      {/* Dịch nghĩa tiếng Việt của Transcript */}
-                      {Boolean(
-                        currentGroup.passageTranslation ||
-                        currentGroup.passageTranslationHtml ||
-                        currentGroup.questions[0]?.passageTranslation ||
-                        currentGroup.questions[0]?.questionTranslation
-                      ) && (
-                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
-                          <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
-                            <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
-                          </div>
-                          <PassageContent
-                            html={cleanTranscriptSpacing(
+                    <div className="flex-1 space-y-4 overflow-visible p-4 lg:overflow-y-auto">
+                      {currentGroup.audioUrl && (
+                        <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} />
+                      )}
+                      {showTranscript && currentGroupChecked && currentGroup.transcript && (
+                        <div className="space-y-4">
+                          <InterleavedTranscript
+                            transcript={currentGroup.transcript}
+                            translation={
                               currentGroup.passageTranslationHtml ||
                               currentGroup.passageTranslation ||
                               currentGroup.questions[0]?.passageTranslation ||
                               currentGroup.questions[0]?.questionTranslation ||
                               ''
-                            )}
-                            className="text-sm leading-7 text-slate-700 dark:text-content-muted"
+                            }
+                            partId={currentGroup.partId}
+                          />
+
+                          {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
+                            <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
+                              <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-300">
+                                <span className="flex items-center gap-1.5">
+                                  <Sparkles className="size-3.5 text-amber-500" />
+                                  <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {currentGroup.keyVocabulary.map((item) => (
+                                  <div
+                                    key={item.word}
+                                    className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
+                                  >
+                                    <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                    {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                    {user && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                        title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                        className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${savedVocabWords[item.word]
+                                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                          : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                                          }`}
+                                      >
+                                        {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {currentGroup.imageUrl && (
+                        <QuestionImage
+                          src={currentGroup.imageUrl}
+                          alt={`Hình minh họa cho ${rangeLabel}`}
+                        />
+                      )}
+                      {currentGroup.passageText && (
+                        <div className="toeic-passage-panel">
+                          <AnnotatablePassage
+                            html={currentGroup.passageText}
+                            annotations={currentAnnotations}
+                            enabled={annotatorEnabled}
+                            onAdd={addAnnotation}
                           />
                         </div>
                       )}
-                      {/* Từ vựng cần học dùng chung cho bài nghe */}
-                      {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
-                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
-                          <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-300">
-                            <span className="flex items-center gap-1.5">
-                              <Sparkles className="size-3.5 text-amber-500" />
-                              <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
-                            </span>
+                      {showTranslation && currentGroup.passageText && (
+                        <div className="toeic-passage-panel">
+                          <div className="mb-3 flex items-center gap-2 border-b border-line pb-2 text-xs font-extrabold text-accent-strong">
+                            <Languages className="size-4" /> Bản dịch tiếng Việt
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {currentGroup.keyVocabulary.map((item) => (
-                              <div
-                                key={item.word}
-                                className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
-                              >
-                                <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
-                                {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
-                                {user && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
-                                    title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
-                                      savedVocabWords[item.word]
-                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                        : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
-                                    }`}
-                                  >
-                                    {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-                                  </button>
-                                )}
+                          <PassageContent
+                            html={
+                              currentGroup.passageTranslationFormatStatus === 'done'
+                                && currentGroup.passageTranslationHtml
+                                ? currentGroup.passageTranslationHtml
+                                : currentGroup.passageTranslation
+                                || 'Bản dịch cho đoạn văn này đang được cập nhật.'
+                            }
+                          />
+                          {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
+                            <div className="mt-3.5 border-t border-line pt-3">
+                              <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-accent-strong">
+                                <span className="flex items-center gap-1.5">
+                                  <Sparkles className="size-3.5 text-amber-500" />
+                                  <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </section>
-                  )}
-                  {currentGroup.imageUrl && (
-                    <QuestionImage
-                      src={currentGroup.imageUrl}
-                      alt={`Hình minh họa cho ${rangeLabel}`}
-                    />
-                  )}
-                  {currentGroup.passageText && (
-                    <div className="toeic-passage-panel">
-                      <AnnotatablePassage
-                        html={currentGroup.passageText}
-                        annotations={currentAnnotations}
-                        enabled={annotatorEnabled}
-                        onAdd={addAnnotation}
-                      />
-                    </div>
-                  )}
-                  {showTranslation && currentGroup.passageText && (
-                    <div className="toeic-passage-panel">
-                      <div className="mb-3 flex items-center gap-2 border-b border-line pb-2 text-xs font-extrabold text-accent-strong">
-                        <Languages className="size-4" /> Bản dịch tiếng Việt
-                      </div>
-                      <PassageContent
-                        html={
-                          currentGroup.passageTranslationFormatStatus === 'done'
-                            && currentGroup.passageTranslationHtml
-                            ? currentGroup.passageTranslationHtml
-                            : currentGroup.passageTranslation
-                              || 'Bản dịch cho đoạn văn này đang được cập nhật.'
-                        }
-                      />
-                      {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
-                        <div className="mt-3.5 border-t border-line pt-3">
-                          <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-accent-strong">
-                            <span className="flex items-center gap-1.5">
-                              <Sparkles className="size-3.5 text-amber-500" />
-                              <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
-                            </span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {currentGroup.keyVocabulary.map((item) => (
-                              <div
-                                key={item.word}
-                                className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
-                              >
-                                <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
-                                {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
-                                {user && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
-                                    title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
-                                      savedVocabWords[item.word]
-                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                        : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
-                                    }`}
+                              <div className="flex flex-wrap gap-2">
+                                {currentGroup.keyVocabulary.map((item) => (
+                                  <div
+                                    key={item.word}
+                                    className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
                                   >
-                                    {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
-                                  </button>
-                                )}
+                                    <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                    {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                    {user && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                        title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                        className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${savedVocabWords[item.word]
+                                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                          : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                                          }`}
+                                      >
+                                        {savedVocabWords[item.word] ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
                   </section>
                 )}
               </>
@@ -844,134 +811,137 @@ export const PracticeRunnerPage: React.FC = () => {
               <section className="flex h-auto max-h-none min-w-0 flex-col overflow-hidden lg:h-full lg:max-h-full">
                 {/* Right Column: Questions List Pane (Scrolls independently, 100% visible) */}
                 <div className="flex-1 space-y-3.5 overflow-visible pr-1.5 lg:overflow-y-auto">
-                {currentGroup.questions.map((question) => {
-                  const selectedAnswer = userAnswers[question.id];
-                  return (
-                    <article key={question.id} className="surface overflow-hidden rounded-2xl">
-                      <QuestionHeader
-                        questionNumber={question.questionNumber}
-                        partId={question.partId}
-                        title={getPracticeQuestionTitle(question, currentGroupChecked)}
-                        isChecked={currentGroupChecked}
-                        isCorrect={selectedAnswer === question.correctAnswer}
-                      />
+                  {currentGroup.questions.map((question) => {
+                    const selectedAnswer = userAnswers[question.id];
+                    return (
+                      <article key={question.id} className="surface overflow-hidden rounded-2xl">
+                        <QuestionHeader
+                          questionNumber={question.questionNumber}
+                          partId={question.partId}
+                          title={getPracticeQuestionTitle(question, currentGroupChecked)}
+                          isChecked={currentGroupChecked}
+                          isCorrect={selectedAnswer === question.correctAnswer}
+                        />
 
-                      <div className="space-y-2 p-3.5">
-                        {question.choices.map((choice) => (
-                          <ChoiceCard
-                            key={choice.id}
-                            choiceId={choice.id}
-                            text={stripChoicePrefix(choice.text, choice.id)}
-                            selected={selectedAnswer === choice.id}
-                            onSelect={() => selectChoice(question.id, choice.id)}
-                            disabled={currentGroupChecked}
-                            checkMode={currentGroupChecked}
-                            isCorrect={choice.id === question.correctAnswer}
-                            isUserChoice={selectedAnswer === choice.id}
-                            hiddenListeningText={!currentGroupChecked && (question.partId === 1 || question.partId === 2)}
-                          />
-                        ))}
+                        <div className="space-y-2 p-3.5">
+                          {question.choices.map((choice) => (
+                            <ChoiceCard
+                              key={choice.id}
+                              choiceId={choice.id}
+                              text={stripChoicePrefix(choice.text, choice.id)}
+                              selected={selectedAnswer === choice.id}
+                              onSelect={() => selectChoice(question.id, choice.id)}
+                              disabled={currentGroupChecked}
+                              checkMode={currentGroupChecked}
+                              isCorrect={choice.id === question.correctAnswer}
+                              isUserChoice={selectedAnswer === choice.id}
+                              hiddenListeningText={!currentGroupChecked && (question.partId === 1 || question.partId === 2)}
+                            />
+                          ))}
 
-                        {currentGroupChecked && question.evidence && (
-                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
-                        )}
+                          {currentGroupChecked && question.evidence && (
+                            <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
+                          )}
 
-                        {currentGroupChecked && !question.evidence && (
-                          <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/30">
-                            <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
-                              <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
-                            </div>
-                            {cleanExplanationText(question.explanation) && (
-                              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
-                                {cleanExplanationText(question.explanation)}
-                              </p>
-                            )}
-
-                            {getUnifiedQuestionTranslationText(question) && (
-                              <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
-                                <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
-                                  <Languages className="size-3.5" />
-                                  <span>Dịch nghĩa:</span>
+                          {currentGroupChecked && !question.evidence && (
+                            question.partId >= 5 ? (
+                              <FormattedReadingExplanation question={question} />
+                            ) : (
+                              <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/30">
+                                <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
+                                  <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                                 </div>
-                                <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">{getUnifiedQuestionTranslationText(question)}</div>
-                              </div>
-                            )}
-                             {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
-                              <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
-                                <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
-                                  <span className="flex items-center gap-1.5">
-                                    <Sparkles className="size-3.5 text-amber-500" />
-                                    <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
-                                  </span>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                  {question.keyVocabulary.map((item) => (
-                                    <div
-                                      key={item.word}
-                                      className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
-                                    >
-                                      <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
-                                      {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
-                                      {user && (
-                                        <button
-                                          type="button"
-                                          onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
-                                          title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                                          className={`ml-1 flex items-center justify-center rounded-md p-1 transition ${
-                                            savedVocabWords[item.word]
-                                              ? 'bg-emerald-500/10 text-emerald-600'
-                                              : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
-                                          }`}
-                                        >
-                                          {savedVocabWords[item.word] ? <Check className="size-3 text-emerald-600" /> : <Plus className="size-3" />}
-                                        </button>
-                                      )}
+                                {cleanExplanationText(question.explanation) && (
+                                  <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
+                                    {cleanExplanationText(question.explanation)}
+                                  </p>
+                                )}
+
+                                {getUnifiedQuestionTranslationText(question) && (
+                                  <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
+                                    <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+                                      <Languages className="size-3.5" />
+                                      <span>Dịch nghĩa:</span>
                                     </div>
-                                  ))}
-                                </div>
+                                    <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">{getUnifiedQuestionTranslationText(question)}</div>
+                                  </div>
+                                )}
+                                {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
+                                  <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
+                                    <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
+                                      <span className="flex items-center gap-1.5">
+                                        <Sparkles className="size-3.5 text-amber-500" />
+                                        <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
+                                      </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {question.keyVocabulary.map((item) => (
+                                        <div
+                                          key={item.word}
+                                          className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
+                                        >
+                                          <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                          {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                          {user && (
+                                            <button
+                                              type="button"
+                                              onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                              title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                              className={`ml-1 flex items-center justify-center rounded-md p-1 transition ${savedVocabWords[item.word]
+                                                ? 'bg-emerald-500/10 text-emerald-600'
+                                                : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+                                                }`}
+                                            >
+                                              {savedVocabWords[item.word] ? <Check className="size-3 text-emerald-600" /> : <Plus className="size-3" />}
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
+                            )
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
 
-              </div>
-
-              {/* Group Action Controls at bottom of right pane */}
-              <div className="shrink-0 mt-3 surface flex items-center justify-between rounded-2xl p-2.5">
-                <button
-                  type="button"
-                  onClick={() => goToGroup(safeGroupIndex - 1)}
-                  disabled={safeGroupIndex === 0}
-                  className="btn-secondary text-xs py-1.5 disabled:opacity-40"
-                >
-                  <ChevronLeft className="size-4" /> Nhóm trước
-                </button>
-                <div className="text-center text-xs font-medium text-slate-500">
-                  {!allCurrentAnswered && !currentGroupChecked
-                    ? `Còn ${currentGroup.questions.filter((question) => !userAnswers[question.id]).length} câu chưa chọn`
-                    : currentGroupChecked
-                    ? 'Đã kiểm tra nhóm này'
-                    : 'Sẵn sàng kiểm tra'}
                 </div>
-                <button
-                  type="button"
-                  onClick={continuePractice}
-                  disabled={checkingAnswers || (!currentGroupChecked && !allCurrentAnswered)}
-                  className="btn-primary text-xs py-1.5 disabled:opacity-40"
-                >
-                  {checkingAnswers
-                    ? <>Đang lưu đáp án... <RefreshCcw className="size-4 animate-spin" /></>
-                    : !currentGroupChecked
-                    ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
-                    : safeGroupIndex < groups.length - 1
-                    ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>
-                    : <>Xem kết quả <Target className="size-4" /></>}
-                </button>
-              </div>
+
+                {/* Group Action Controls at bottom of right pane */}
+                <div className="shrink-0 mt-3 surface flex items-center justify-between rounded-2xl p-2.5">
+                  <button
+                    type="button"
+                    onClick={() => goToGroup(safeGroupIndex - 1)}
+                    disabled={safeGroupIndex === 0}
+                    className="btn-secondary text-xs py-1.5 disabled:opacity-40"
+                  >
+                    <ChevronLeft className="size-4" /> Nhóm trước
+                  </button>
+                  <div className="text-center text-xs font-medium text-slate-500">
+                    {!allCurrentAnswered && !currentGroupChecked
+                      ? `Còn ${currentGroup.questions.filter((question) => !userAnswers[question.id]).length} câu chưa chọn`
+                      : currentGroupChecked
+                        ? 'Đã kiểm tra nhóm này'
+                        : 'Sẵn sàng kiểm tra'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={continuePractice}
+                    disabled={checkingAnswers || (!currentGroupChecked && !allCurrentAnswered)}
+                    className="btn-primary text-xs py-1.5 disabled:opacity-40"
+                  >
+                    {checkingAnswers
+                      ? <>Đang lưu đáp án... <RefreshCcw className="size-4 animate-spin" /></>
+                      : !currentGroupChecked
+                        ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
+                        : safeGroupIndex < groups.length - 1
+                          ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>
+                          : <>Xem kết quả <Target className="size-4" /></>}
+                  </button>
+                </div>
               </section>
             )}
           />
@@ -990,11 +960,10 @@ export const PracticeRunnerPage: React.FC = () => {
                         aria-pressed={showTranscript}
                         aria-controls="shared-transcript"
                         title={currentGroupChecked ? 'Bật hoặc tắt transcript' : 'Transcript mở sau khi kiểm tra đáp án'}
-                        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${
-                          showTranscript
-                            ? 'bg-brand text-brand-ink'
-                            : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
-                        }`}
+                        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${showTranscript
+                          ? 'bg-brand text-brand-ink'
+                          : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
+                          }`}
                       >
                         <Headphones className="size-4" /> {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
                       </button>
@@ -1027,22 +996,22 @@ export const PracticeRunnerPage: React.FC = () => {
                         currentGroup.questions[0]?.passageTranslation ||
                         currentGroup.questions[0]?.questionTranslation
                       ) && (
-                        <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
-                          <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
-                            <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
+                          <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
+                            <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
+                              <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
+                            </div>
+                            <PassageContent
+                              html={cleanTranscriptSpacing(
+                                currentGroup.passageTranslationHtml ||
+                                currentGroup.passageTranslation ||
+                                currentGroup.questions[0]?.passageTranslation ||
+                                currentGroup.questions[0]?.questionTranslation ||
+                                ''
+                              )}
+                              className="text-sm leading-7 text-slate-700 dark:text-content-muted"
+                            />
                           </div>
-                          <PassageContent
-                            html={cleanTranscriptSpacing(
-                              currentGroup.passageTranslationHtml ||
-                              currentGroup.passageTranslation ||
-                              currentGroup.questions[0]?.passageTranslation ||
-                              currentGroup.questions[0]?.questionTranslation ||
-                              ''
-                            )}
-                            className="text-sm leading-7 text-slate-700 dark:text-content-muted"
-                          />
-                        </div>
-                      )}
+                        )}
                     </section>
                   )}
                   {currentGroup.imageUrl && (
@@ -1092,16 +1061,19 @@ export const PracticeRunnerPage: React.FC = () => {
                         />
                       ))}
 
-                        {currentGroupChecked && question.evidence && (
-                          <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
-                        )}
+                      {currentGroupChecked && question.evidence && (
+                        <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
+                      )}
 
-                        {currentGroupChecked && !question.evidence && (
+                      {currentGroupChecked && !question.evidence && (
+                        question.partId >= 5 ? (
+                          <FormattedReadingExplanation question={question} />
+                        ) : (
                           <div className="mt-4 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 dark:border-brand-900 dark:bg-brand-950/30">
                             <div className="flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-200">
                               <BookOpen className="size-4" /> Giải thích câu {question.questionNumber}
                             </div>
-                            
+
                             {cleanExplanationText(question.explanation) && (
                               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
                                 {cleanExplanationText(question.explanation)}
@@ -1118,42 +1090,42 @@ export const PracticeRunnerPage: React.FC = () => {
                               </div>
                             )}
 
-                           {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
-                            <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
-                              <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
-                                <span className="flex items-center gap-1.5">
-                                  <Sparkles className="size-3.5 text-amber-500" />
-                                  <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {question.keyVocabulary.map((item) => (
-                                  <div
-                                    key={item.word}
-                                    className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
-                                  >
-                                    <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
-                                    {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
-                                    {user && (
-                                      <button
-                                        type="button"
-                                        onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
-                                        title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                                        className={`ml-1 flex items-center justify-center rounded-md p-1 transition ${
-                                          savedVocabWords[item.word]
+                            {currentGroup.questions.length === 1 && question.keyVocabulary && question.keyVocabulary.length > 0 && (
+                              <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
+                                <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
+                                  <span className="flex items-center gap-1.5">
+                                    <Sparkles className="size-3.5 text-amber-500" />
+                                    <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
+                                  </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {question.keyVocabulary.map((item) => (
+                                    <div
+                                      key={item.word}
+                                      className="flex items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white px-2.5 py-1.5 text-xs text-slate-700 shadow-2xs dark:border-line dark:bg-surface dark:text-content-muted"
+                                    >
+                                      <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
+                                      {item.meaning && <span className="text-slate-600 dark:text-content-muted">: {item.meaning}</span>}
+                                      {user && (
+                                        <button
+                                          type="button"
+                                          onClick={() => void handleSaveVocabulary(item.word, item.meaning)}
+                                          title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
+                                          className={`ml-1 flex items-center justify-center rounded-md p-1 transition ${savedVocabWords[item.word]
                                             ? 'bg-emerald-500/10 text-emerald-600'
                                             : 'text-slate-400 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
-                                        }`}
-                                      >
-                                        {savedVocabWords[item.word] ? <Check className="size-3 text-emerald-600" /> : <Plus className="size-3" />}
-                                      </button>
-                                    )}
-                                  </div>
-                                ))}
+                                            }`}
+                                        >
+                                          {savedVocabWords[item.word] ? <Check className="size-3 text-emerald-600" /> : <Plus className="size-3" />}
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )
                       )}
                     </div>
                   </article>
@@ -1174,8 +1146,8 @@ export const PracticeRunnerPage: React.FC = () => {
                 {!allCurrentAnswered && !currentGroupChecked
                   ? `Còn ${currentGroup.questions.filter((question) => !userAnswers[question.id]).length} câu chưa chọn`
                   : currentGroupChecked
-                  ? 'Đã kiểm tra nhóm này'
-                  : 'Sẵn sàng kiểm tra'}
+                    ? 'Đã kiểm tra nhóm này'
+                    : 'Sẵn sàng kiểm tra'}
               </div>
               <button
                 type="button"
@@ -1186,10 +1158,10 @@ export const PracticeRunnerPage: React.FC = () => {
                 {checkingAnswers
                   ? <>Đang lưu đáp án... <RefreshCcw className="size-4 animate-spin" /></>
                   : !currentGroupChecked
-                  ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
-                  : safeGroupIndex < groups.length - 1
-                  ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>
-                  : <>Xem kết quả <Target className="size-4" /></>}
+                    ? <>Kiểm tra đáp án <CheckCircle2 className="size-4" /></>
+                    : safeGroupIndex < groups.length - 1
+                      ? <>Nhóm tiếp theo <ChevronRight className="size-4" /></>
+                      : <>Xem kết quả <Target className="size-4" /></>}
               </button>
             </div>
           </div>

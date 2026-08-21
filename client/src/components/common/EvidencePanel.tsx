@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { BookMarked, ChevronDown, Quote, Languages } from 'lucide-react';
 import { QuestionEvidence } from '../../types';
-import { cleanExplanationText, cleanTranscriptSpacing } from '../../utils/practice';
+import { cleanExplanationText, cleanLaTeXSymbols, cleanTranscriptSpacing } from '../../utils/practice';
 
 interface EvidencePanelProps {
   evidence: QuestionEvidence;
@@ -20,11 +20,25 @@ const splitCitationTranslation = (text: string) => {
 };
 
 const splitParaphrase = (text: string) => {
-  const parts = text.split(/\s*(?:=|≈)\s*/);
-  if (parts.length < 2) return null;
+  if (!text) return null;
+  const cleaned = cleanLaTeXSymbols(text);
+
+  const separatorRegex = /\s*(?:\$\\?(?:implies|Longrightarrow|Rightarrow|rightarrow|to)\$|\\(?:implies|Longrightarrow|Rightarrow|rightarrow|to)|==>|=>|-->|->|⇒|⟹|➔|↔|⇔|=|≈|≡)\s*/i;
+  const match = separatorRegex.exec(cleaned);
+  if (!match || match.index === -1) return null;
+
+  const source = cleaned.slice(0, match.index).trim();
+  const equivalent = cleaned.slice(match.index + match[0].length).trim();
+  if (!source || !equivalent) return null;
+
+  const rawSep = match[0].trim();
+  const isArrow = /implies|rightarrow|to|=>|->|⇒|⟹|➔/i.test(rawSep);
+  const separatorSymbol = isArrow ? '⇒' : (rawSep === '≈' ? '≈' : '=');
+
   return {
-    source: parts.shift()?.trim() || '',
-    equivalent: parts.join(' = ').trim(),
+    source,
+    equivalent,
+    separatorSymbol,
   };
 };
 
@@ -60,9 +74,8 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
           </span>
         </span>
         <ChevronDown
-          className={`size-4 shrink-0 text-slate-500 transition-transform duration-200 dark:text-content-muted ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`size-4 shrink-0 text-slate-500 transition-transform duration-200 dark:text-content-muted ${isOpen ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -70,7 +83,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
         <div id={panelId} className="border-t border-slate-100 px-4 py-4 dark:border-line">
           <div className="divide-y divide-slate-100 dark:divide-line">
             {evidence.citations.map((citation, index) => {
-              const content = splitCitationTranslation(citation.text);
+              const content = splitCitationTranslation(cleanLaTeXSymbols(citation.text));
               return (
                 <div
                   key={`${citation.label}-${index}`}
@@ -107,7 +120,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                     {paraphrasePair.source}
                   </p>
                   <span className="text-center text-sm font-black text-brand-700 dark:text-brand-200" aria-label="tương đương">
-                    =
+                    {paraphrasePair.separatorSymbol}
                   </span>
                   <p className="rounded-lg bg-white px-3 py-2 text-sm font-semibold leading-relaxed text-slate-700 dark:bg-surface-elevated dark:text-content">
                     {paraphrasePair.equivalent}
@@ -115,7 +128,7 @@ export const EvidencePanel: React.FC<EvidencePanelProps> = ({
                 </div>
               ) : (
                 <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-content-muted">
-                  {evidence.paraphrase}
+                  {cleanLaTeXSymbols(evidence.paraphrase)}
                 </p>
               )}
             </div>

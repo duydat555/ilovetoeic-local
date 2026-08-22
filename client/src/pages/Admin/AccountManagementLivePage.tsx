@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { AlertCircle, BarChart3, CalendarClock, Check, CheckCircle2, Clock3, Pause, Play, RefreshCw, Search, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react';
+import { AlertCircle, BarChart3, CalendarClock, Check, CheckCircle2, Clock3, KeyRound, Pause, Play, RefreshCw, Search, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react';
 import { PageHeader, managementInputClass } from '../../components/management/ManagementUI';
 import { DeleteAccountModal } from '../../components/management/DeleteAccountModal';
+import { ResetPasswordModal } from '../../components/management/ResetPasswordModal';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { ApprovalStatus, User } from '../../types';
@@ -31,6 +32,9 @@ export const AccountManagementLivePage: React.FC = () => {
   const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<User | null>(null);
+  const [resettingPassword, setResettingPassword] = useState(false);
+  const [resetPasswordError, setResetPasswordError] = useState('');
 
   const showToast = useCallback((message: string, tone: 'success' | 'error') => {
     setToast({ message, tone });
@@ -136,6 +140,21 @@ export const AccountManagementLivePage: React.FC = () => {
       setDeleteError(err instanceof Error ? err.message : 'Không thể xoá tài khoản.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleResetPassword = async (newPassword: string) => {
+    if (!resetPasswordTarget || resettingPassword) return;
+    setResettingPassword(true);
+    setResetPasswordError('');
+    try {
+      const res = await authApi.resetStudentPassword(resetPasswordTarget.id, newPassword);
+      showToast(`Đã đặt lại mật khẩu thành công cho học sinh ${res.name || resetPasswordTarget.name}.`, 'success');
+      setResetPasswordTarget(null);
+    } catch (err) {
+      setResetPasswordError(err instanceof Error ? err.message : 'Không thể đặt lại mật khẩu.');
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -516,19 +535,35 @@ export const AccountManagementLivePage: React.FC = () => {
                       </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setDeleteError('');
-                        setDeleteTarget(account);
-                      }}
-                      disabled={bulkBusy || busyId === account.id}
-                      className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line text-content-muted transition hover:border-negative/40 hover:bg-negative/10 hover:text-negative active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
-                      aria-label={`Xoá tài khoản của ${account.name}`}
-                      title={`Xoá tài khoản của ${account.name}`}
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetPasswordError('');
+                          setResetPasswordTarget(account);
+                        }}
+                        disabled={bulkBusy || busyId === account.id}
+                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line text-content-muted transition hover:border-brand/40 hover:bg-brand/10 hover:text-brand active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label={`Đặt lại mật khẩu cho ${account.name}`}
+                        title={`Đặt lại mật khẩu cho ${account.name}`}
+                      >
+                        <KeyRound className="size-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeleteTarget(account);
+                        }}
+                        disabled={bulkBusy || busyId === account.id}
+                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-line text-content-muted transition hover:border-negative/40 hover:bg-negative/10 hover:text-negative active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
+                        aria-label={`Xoá tài khoản của ${account.name}`}
+                        title={`Xoá tài khoản của ${account.name}`}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </article>
                 );
               })}
@@ -537,6 +572,22 @@ export const AccountManagementLivePage: React.FC = () => {
         </section>
 
         <AnimatePresence>
+          {resetPasswordTarget && (
+            <ResetPasswordModal
+              key={`reset-pwd-${resetPasswordTarget.id}`}
+              accountName={resetPasswordTarget.name}
+              accountEmail={resetPasswordTarget.email}
+              submitting={resettingPassword}
+              error={resetPasswordError}
+              onConfirm={(newPwd) => void handleResetPassword(newPwd)}
+              onClose={() => {
+                if (!resettingPassword) {
+                  setResetPasswordTarget(null);
+                  setResetPasswordError('');
+                }
+              }}
+            />
+          )}
           {deleteTarget && (
             <DeleteAccountModal
               key={`delete-user-${deleteTarget.id}`}

@@ -69,6 +69,10 @@ class BulkDeleteAccountsRequest(BaseModel):
     user_ids: list[str] = Field(min_length=1)
 
 
+class AdminResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=8, max_length=128)
+
+
 class PasswordRequest(BaseModel):
     current_password: str = ""
     new_password: str = Field(min_length=8, max_length=128)
@@ -258,6 +262,35 @@ def update_account_access(user_id: str, payload: AccountAccessRequest, _admin=De
         raise HTTPException(status_code=422, detail="Thao tác tài khoản không hợp lệ.")
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
     return {"user": user_payload(updated)}
+
+
+@router.put("/accounts/{user_id}/reset-password")
+def admin_reset_password(user_id: str, payload: AdminResetPasswordRequest, _admin=Depends(require_admin)):
+    target = db.fetch_one(
+        "SELECT id, full_name, email FROM users WHERE id = ? AND role = 'student'",
+        (user_id,),
+        use_cache=False,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tài khoản Học sinh.")
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=422, detail="Mật khẩu mới phải có ít nhất 8 ký tự.")
+
+    hashed = hash_password(payload.new_password)
+    db.execute(
+        """
+        UPDATE users
+        SET password_hash = ?,
+            auth_provider = CASE
+                WHEN google_sub IS NULL THEN 'email'
+                ELSE 'email,google'
+            END
+        WHERE id = ? AND role = 'student'
+        """,
+        (hashed, user_id),
+    )
+    db.execute("DELETE FROM user_sessions WHERE user_id = ?", (user_id,))
+    return {"success": True, "user_id": user_id, "name": target["full_name"]}
 
 
 @router.delete("/accounts/{user_id}")

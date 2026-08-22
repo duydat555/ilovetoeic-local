@@ -354,6 +354,16 @@ export const authApi = {
     });
   },
 
+  async resetStudentPassword(userId: string, newPassword: string) {
+    return authFetch<{ success: boolean; user_id: string; name: string }>(
+      `/auth/accounts/${encodeURIComponent(userId)}/reset-password`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ new_password: newPassword }),
+      },
+    );
+  },
+
   async deleteAccount(userId: string) {
     return authFetch<{ success: boolean; deleted_user_id: string; name?: string }>(
       `/auth/accounts/${encodeURIComponent(userId)}`,

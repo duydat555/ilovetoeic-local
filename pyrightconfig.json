@@ -1,7 +1,9 @@
 {
-  "venvPath": "server",
-  "venv": "venv",
-  "extraPaths": [
-    "server"
-  ]
+    "venvPath": "server",
+    "venv": ".venv",
+    "exclude": [
+        "**/.venv",
+        "**/node_modules",
+        "**/__pycache__"
+    ]
 }

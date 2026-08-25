@@ -1,8 +1,15 @@
 {
-    "python.defaultInterpreterPath": "server/venv/bin/python",
-    "python.analysis.venvPath": "server",
-    "python.analysis.venv": "venv",
-    "python.analysis.extraPaths": [
-        "server"
-    ]
+    "python.analysis.exclude": [
+        "**/.venv/**",
+        "**/node_modules/**",
+        "**/__pycache__/**"
+    ],
+    "files.watcherExclude": {
+        "**/.venv/**": true,
+        "**/node_modules/**": true
+    },
+    "search.exclude": {
+        "**/.venv": true,
+        "**/node_modules": true
+    }
 }

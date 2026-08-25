@@ -1,14 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowRight,
   BookOpenCheck,
   CalendarDays,
   CheckCircle2,
-  Flame,
   RefreshCw,
   Target,
   TrendingUp,
 } from 'lucide-react';
+import { WelcomeBackCard } from '../../components/dashboard/WelcomeBackCard';
 import { Link } from 'react-router-dom';
 import {
   Area,
@@ -28,27 +27,13 @@ import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal
 
 const DashboardLoadingState: React.FC = () => (
   <div className="space-y-6 pb-12" role="status" aria-label="Đang tải trang tổng quan">
-    <section className="overflow-hidden rounded-[28px] border border-brand-300/80 bg-brand p-6 sm:p-8">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="w-full max-w-2xl">
-          <div className="flex gap-2">
-            <BoneyardSkeleton name="dashboard-hero-streak" height={28} width={124} className="!rounded-xl !bg-white/35" />
-            <BoneyardSkeleton name="dashboard-hero-goal" height={28} width={148} className="!rounded-xl !bg-white/35" />
-          </div>
-          <BoneyardSkeleton name="dashboard-hero-title" height={40} width="min(100%, 34rem)" className="mt-4 !rounded-xl !bg-white/35" />
-          <BoneyardSkeleton name="dashboard-hero-copy" variant="text" width="min(100%, 38rem)" className="mt-3 !bg-white/30" />
-          <div className="mt-5 rounded-2xl bg-white/30 p-4">
-            <div className="flex justify-between gap-4">
-              <BoneyardSkeleton name="dashboard-goal-label" variant="text" width="min(70%, 18rem)" className="!bg-white/40" />
-              <BoneyardSkeleton name="dashboard-goal-percent" variant="text" width={42} className="!bg-white/40" />
-            </div>
-            <BoneyardSkeleton name="dashboard-goal-bar" height={10} className="mt-3 !rounded-full !bg-white/40" />
-            <BoneyardSkeleton name="dashboard-goal-note" variant="text" width="min(85%, 25rem)" className="mt-3 !bg-white/35" />
-          </div>
-        </div>
-        <BoneyardSkeleton name="dashboard-hero-action" variant="button" height={48} width={176} className="!rounded-2xl !bg-brand-ink/35" />
-      </div>
-    </section>
+    <WelcomeBackCard
+      isLoading
+      userName=""
+      xp={0}
+      streakDays={0}
+      longestStreak={0}
+    />
 
     <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Đang tải chỉ số học tập">
       {Array.from({ length: 3 }, (_, index) => (
@@ -215,71 +200,13 @@ export const DashboardLivePage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Banner Chào mừng & Tiến độ Mục tiêu */}
-      <section className="relative overflow-hidden rounded-[28px] border border-brand-300/80 bg-gradient-to-br from-brand via-amber-400 to-amber-500 p-6 text-brand-ink shadow-sm sm:p-8">
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-2xl space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/40 px-3 py-1.5 text-xs font-black backdrop-blur-xs">
-                <Flame className="size-4 text-orange-600" />
-                <span>Chuỗi học {user.streakDays} ngày</span>
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-xl bg-white/40 px-3 py-1.5 text-xs font-black backdrop-blur-xs">
-                <Target className="size-4 text-brand-900" />
-                <span>Mục tiêu: {targetScore} TOEIC</span>
-              </span>
-            </div>
-
-            <h1 className="flex flex-wrap items-center gap-2.5 text-2xl font-black tracking-tight text-brand-ink sm:text-3xl lg:text-4xl">
-              <span>Chào mừng trở lại, {user.name}!</span>
-              <span
-                className="inline-flex items-center justify-center rounded-2xl border border-amber-300/80 bg-amber-100/90 px-2.5 py-1 text-2xl shadow-2xs dark:border-amber-400/40 dark:bg-amber-900/40"
-                role="img"
-                aria-label="Waving hand"
-              >
-                👋
-              </span>
-            </h1>
-
-            <p className="text-sm font-medium leading-relaxed text-brand-ink/85">
-              Tổng quan dưới đây tự động cập nhật kết quả bài thi và thời gian hoạt động thực tế trên tài khoản của bạn.
-            </p>
-
-            {/* Thanh tiến độ mục tiêu */}
-            <div className="mt-4 rounded-2xl bg-white/40 p-4 backdrop-blur-xs">
-              <div className="flex items-center justify-between text-xs font-extrabold text-brand-ink">
-                <span>
-                  Tiến độ đạt mục tiêu ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
-                </span>
-                <span>{progress}%</span>
-              </div>
-              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/50">
-                <div
-                  className="h-full rounded-full bg-brand-ink transition-all duration-700"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="mt-2 text-[11px] font-bold text-brand-ink/80">
-                {!hasToeicScore
-                  ? 'Hoàn thành một đề thi đầy đủ 200 câu để bắt đầu tính tiến độ.'
-                  : currentScore >= targetScore
-                  ? '🎉 Xuất sắc! Bạn đã đạt mục tiêu điểm số đề ra.'
-                  : `💪 Bạn còn thiếu ${pointsRemaining} điểm để chạm mốc ${targetScore} TOEIC.`}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center">
-            <Link
-              to="/mock-test"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-brand-ink px-6 text-sm font-black text-white shadow-md transition hover:bg-slate-900"
-            >
-              <span>Vào thi thử ngay</span>
-              <ArrowRight className="size-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Welcome Back Card with Three.js Mascot */}
+      <WelcomeBackCard
+        userName={user.name}
+        xp={user.questionsAnswered || 0}
+        streakDays={user.streakDays}
+        longestStreak={user.longestStreak ?? user.streakDays}
+      />
 
       {/* Alert Lỗi nếu có */}
       {error && (

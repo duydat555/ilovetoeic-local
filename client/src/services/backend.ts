@@ -574,11 +574,26 @@ export const backendService = {
     );
   },
 
+  _studyActivityPendingMap: new Map<string, Promise<StudyActivityResponse>>(),
+
   async getStudyActivity(year: number, studentId?: string) {
+    const key = `${year}_${studentId || 'me'}`;
+    const pending = this._studyActivityPendingMap.get(key);
+    if (pending) return pending;
+
     const studentQuery = studentId ? `&student_id=${encodeURIComponent(studentId)}` : '';
-    return authFetch<StudyActivityResponse>(
+    const promise = authFetch<StudyActivityResponse>(
       `/study-activity?year=${encodeURIComponent(String(year))}${studentQuery}`,
-    );
+    ).finally(() => {
+      setTimeout(() => {
+        if (this._studyActivityPendingMap.get(key) === promise) {
+          this._studyActivityPendingMap.delete(key);
+        }
+      }, 1500);
+    });
+
+    this._studyActivityPendingMap.set(key, promise);
+    return promise;
   },
 
   async saveQuestionActivity(payload: {

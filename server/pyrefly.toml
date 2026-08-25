@@ -1,0 +1,4 @@
+project_includes = ["server/**/*.py"]
+project_excludes = ["**/.venv/**", "**/node_modules/**", "**/__pycache__/**"]
+python_interpreter = "server/.venv/bin/python"
+search_path = ["server"]

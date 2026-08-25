@@ -84,10 +84,11 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [updatedAt, setUpdatedAt] = useState('');
-  const lastAutomaticRefreshAt = useRef(0);
+  const lastAutomaticRefreshAt = useRef(Date.now());
   const selectedYear = parseLocalDate(selectedDate).getFullYear();
 
   const loadActivity = useCallback(async (background = false) => {
+    lastAutomaticRefreshAt.current = Date.now();
     if (background) setRefreshing(true);
     else setLoading(true);
     try {

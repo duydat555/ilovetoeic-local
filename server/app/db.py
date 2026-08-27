@@ -200,6 +200,12 @@ class Database:
                         )
                         cursor.execute(
                             """
+                            INSERT INTO feature_flags (feature_key, is_enabled) VALUES ('national_day_theme', 0)
+                            ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key);
+                            """
+                        )
+                        cursor.execute(
+                            """
                             CREATE TABLE IF NOT EXISTS community_messages (
                                 id CHAR(36) PRIMARY KEY,
                                 user_id CHAR(36) NOT NULL,

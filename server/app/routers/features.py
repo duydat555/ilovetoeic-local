@@ -18,6 +18,8 @@ FEATURE_KEYS = (
     "ranking",
     "profile",
     "settings",
+    "feedback",
+    "national_day_theme",
 )
 CORE_FEATURES = {"dashboard", "profile", "settings"}
 
@@ -43,14 +45,16 @@ def validate_feature_key(feature_key: str):
 
 
 def ensure_feature_rows():
-    db.executemany(
-        """
-        INSERT INTO feature_flags (feature_key, is_enabled)
-        VALUES (?, 1)
-        ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key)
-        """,
-        [(feature_key,) for feature_key in FEATURE_KEYS],
-    )
+    for feature_key in FEATURE_KEYS:
+        default_val = 0 if feature_key == "national_day_theme" else 1
+        db.execute(
+            """
+            INSERT INTO feature_flags (feature_key, is_enabled)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key)
+            """,
+            (feature_key, default_val),
+        )
 
 
 def global_flags():
@@ -60,8 +64,16 @@ def global_flags():
         use_cache=False,
     )
     values = {row["feature_key"]: bool(row.get("is_enabled")) for row in rows}
+    
+    # Auto-activation between August 30 and September 3 if flag row was not set manually
+    now = datetime.now()
+    is_national_day_period = (now.month == 8 and now.day >= 30) or (now.month == 9 and now.day <= 3)
+    if "national_day_theme" not in values:
+        values["national_day_theme"] = is_national_day_period
+
     for feature_key in FEATURE_KEYS:
-        values.setdefault(feature_key, True)
+        if feature_key != "national_day_theme":
+            values.setdefault(feature_key, True)
     for feature_key in CORE_FEATURES:
         values[feature_key] = True
     return values

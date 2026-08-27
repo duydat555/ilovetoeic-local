@@ -1,0 +1,55 @@
+/* ==========================================================================
+   NATIONAL DAY 2/9 SEASONAL THEME — NationalDayBanner.css (V5)
+   Mirrors WelcomeBackCard layout; adds festive red theme + Dong Son watermark
+   ========================================================================== */
+
+.nd-banner {
+  box-shadow:
+    0 12px 28px -6px rgba(185, 28, 28, 0.18),
+    0 4px 12px -2px rgba(245, 158, 11, 0.12);
+}
+
+.nd-subtext {
+  color: #551b0f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* CTA shine sweep */
+.nd-cta:hover .nd-cta-shine {
+  animation: nd-shine-sweep 0.7s ease-in-out;
+}
+
+@keyframes nd-shine-sweep {
+  0% {
+    transform: skewX(-12deg) translateX(-100%);
+  }
+
+  100% {
+    transform: skewX(-12deg) translateX(300%);
+  }
+}
+
+/* Inherited from index.css — redeclare here for safety */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 16s linear infinite;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+
+  .nd-banner *,
+  .animate-spin-slow {
+    animation: none !important;
+    transition: none !important;
+  }
+}

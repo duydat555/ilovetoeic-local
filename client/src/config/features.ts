@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Flag,
   Languages,
   LayoutDashboard,
   LibraryBig,
@@ -17,7 +18,8 @@ export type FeatureKey =
   | 'ranking'
   | 'feedback'
   | 'profile'
-  | 'settings';
+  | 'settings'
+  | 'national_day_theme';
 
 export type FeatureCategory = 'core' | 'learning' | 'tracking' | 'community';
 
@@ -121,6 +123,14 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     category: 'community',
     core: false,
     icon: MessageSquarePlus,
+  },
+  {
+    key: 'national_day_theme',
+    name: 'Giao diện Quốc khánh 2/9',
+    description: 'Bật banner cờ đỏ sao vàng mừng Ngày Quốc khánh 2/9 cho học sinh.',
+    category: 'community',
+    core: false,
+    icon: Flag,
   },
 ];
 

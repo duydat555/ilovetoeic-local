@@ -11,5 +11,7 @@
     "search.exclude": {
         "**/.venv": true,
         "**/node_modules": true
-    }
+    },
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore"
 }

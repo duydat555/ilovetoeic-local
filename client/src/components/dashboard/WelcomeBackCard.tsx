@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { NationalDayBanner } from './NationalDayBanner';
 import './WelcomeBackCard.css';
 
 export interface WelcomeBackCardProps {
@@ -26,14 +28,23 @@ const JUMP_MESSAGES = [
   "Nhiều XP quá ta ơi!",
 ];
 
-export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = ({
-  userName,
-  xp,
-  streakDays,
-  longestStreak,
-  ctaLink = '/practice-by-level',
-  isLoading = false,
-}) => {
+export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
+  const { isFeatureEnabled } = useFeatureFlags();
+  const isNationalDayTheme = isFeatureEnabled('national_day_theme');
+
+  if (isNationalDayTheme) {
+    return <NationalDayBanner {...props} />;
+  }
+
+  const {
+    userName,
+    xp,
+    streakDays,
+    longestStreak,
+    ctaLink = '/practice-by-level',
+    isLoading = false,
+  } = props;
+
   const [bubbleText, setBubbleText] = useState(DEFAULT_MESSAGE);
 
   // Auto reset bubble text after 5 seconds

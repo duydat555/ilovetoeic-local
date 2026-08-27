@@ -24,16 +24,26 @@ export interface ChatMessage {
 }
 
 export const getCommunityChatWebSocketUrl = (): string => {
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  const wsScheme = isHttps ? 'wss:' : 'ws:';
+  const currentHost = typeof window !== 'undefined' ? window.location.host : '127.0.0.1:8000';
+
+  if (!API_BASE_URL || API_BASE_URL.startsWith('/')) {
+    const basePath = (API_BASE_URL || '/api/v1').replace(/\/$/, '');
+    return `${wsScheme}//${currentHost}${basePath}/community-chat/ws`;
+  }
+
   try {
-    const wsScheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = new URL(API_BASE_URL);
+    // If frontend is HTTPS but API_BASE_URL host is localhost/127.0.0.1, fallback to location.host
+    if (isHttps && (url.hostname === '127.0.0.1' || url.hostname === 'localhost')) {
+      return `${wsScheme}//${currentHost}/api/v1/community-chat/ws`;
+    }
     url.protocol = wsScheme;
     url.pathname = `${url.pathname.replace(/\/$/, '')}/community-chat/ws`;
     return url.toString();
   } catch {
-    const wsHost = window.location.hostname || '127.0.0.1';
-    const wsScheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${wsScheme}//${wsHost}:8000/api/v1/community-chat/ws`;
+    return `${wsScheme}//${currentHost}/api/v1/community-chat/ws`;
   }
 };
 

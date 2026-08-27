@@ -146,6 +146,22 @@ export const CommunityChatWidget: React.FC = () => {
     };
   }, []);
 
+  // Polling fallback when WebSocket is unavailable on VPS
+  useEffect(() => {
+    if (isWsConnected) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const latest = await communityChatService.getMessages(50);
+        setMessages(latest);
+      } catch {
+        // ignore background fetch error
+      }
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [isWsConnected]);
+
   useEffect(() => {
     if (!isLoading && messages.length > 0) {
       scrollToBottom(false);

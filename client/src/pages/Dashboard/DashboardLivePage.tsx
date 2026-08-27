@@ -23,6 +23,7 @@ import { backendService } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
+import { CommunityChatWidget } from '../../components/dashboard/CommunityChatWidget';
 import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
 
 const DashboardLoadingState: React.FC = () => (
@@ -251,145 +252,149 @@ export const DashboardLivePage: React.FC = () => {
 
       <PracticeActivityPanel />
 
-      {/* Chi tiết Độ chính xác & Biểu đồ Tiến trình điểm số */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_.8fr]">
-        {/* Biểu đồ Tiến trình điểm số */}
-        <article className="rounded-2xl border border-line bg-surface p-5 shadow-xs dark:shadow-none">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-            <div>
-              <h2 className="text-base font-extrabold text-content">Tiến trình điểm số</h2>
-              <p className="mt-0.5 text-xs text-content-muted">Theo dõi 8 đề thi đầy đủ 200 câu gần nhất</p>
-            </div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-              <CheckCircle2 className="size-3.5" /> {progress}% mục tiêu
-              ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
-            </span>
-          </div>
-
-          {loading ? (
-            <div className="mt-4">
-              <BoneyardSkeleton name="dashboard-chart-skeleton" variant="card" height={260} />
-            </div>
-          ) : chartData.length > 0 ? (
-            <div className="mt-4 h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis
-                    dataKey="label"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                  />
-                  <YAxis
-                    domain={[0, 990]}
-                    ticks={[0, 250, 500, 750, 990]}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: '#64748b' }}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="rounded-xl border border-line bg-surface p-3 shadow-lg text-xs space-y-1.5">
-                            <p className="font-extrabold text-content">{data.name}</p>
-                            <p className="text-amber-600 dark:text-amber-400 font-black text-sm">
-                              Điểm: {data.score} / 990
-                            </p>
-                            <div className="flex items-center gap-2 text-content-muted font-medium">
-                              <span>Chính xác: {data.accuracy}%</span>
-                              <span>•</span>
-                              <span>{data.correct}</span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="score"
-                    stroke="#f59e0b"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#scoreColor)"
-                    dot={{ r: 5, fill: '#f59e0b', strokeWidth: 2, stroke: '#ffffff' }}
-                    activeDot={{ r: 7 }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="mt-4 grid h-64 place-items-center rounded-2xl border border-dashed border-line p-6 text-center">
-              <div>
-                <p className="text-sm font-bold text-content">Chưa có kết quả thi để vẽ biểu đồ</p>
-                <p className="mt-1 text-xs text-content-muted">Hoàn thành bài thi thử đầu tiên để bắt đầu theo dõi tiến trình điểm số.</p>
-                <Link
-                  to="/mock-test"
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-600"
-                >
-                  Làm bài thi thử ngay
-                </Link>
-              </div>
-            </div>
-          )}
-        </article>
+      {/* Community Chat & Recent Activities Grid */}
+      <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_.9fr]">
+        <CommunityChatWidget />
 
         {/* Lịch sử hoạt động học tập gần đây */}
-        <article className="rounded-2xl border border-line bg-surface p-5 shadow-xs dark:shadow-none">
-          <div className="flex items-center justify-between border-b border-line pb-4">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="size-5 text-brand-600 dark:text-brand-400" />
-              <h2 className="text-base font-extrabold text-content">Hoạt động gần đây</h2>
-            </div>
-          </div>
-
-          <div className="mt-4 space-y-2.5">
-            {loading ? (
-              <BoneyardSkeleton name="dashboard-activities-skeleton" count={5} variant="row" />
-            ) : attempts.length > 0 ? (
-              attempts.slice(0, 6).map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between rounded-xl border border-line/60 bg-surface-elevated/50 p-3"
-                >
-                  <div className="min-w-0 flex-1 pr-2">
-                    <p className="truncate text-xs font-bold text-content">
-                      {item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài thi TOEIC')}
-                    </p>
-                    <p className="mt-1 text-[11px] font-medium text-content-muted">
-                      {item.completedAt
-                        ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.completedAt))
-                        : 'Vừa hoàn thành'}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                      {item.accuracyRate}%
-                    </span>
-                    <p className="mt-1 text-[10px] font-semibold text-content-muted">
-                      {item.correctAnswers}/{item.totalQuestions} câu
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-xl border border-dashed border-line p-6 text-center text-xs text-content-muted">
-                Chưa có hoạt động học tập nào được ghi nhận.
+        <article className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="size-5 text-brand-600 dark:text-brand-400" />
+                <h2 className="text-base font-extrabold text-content">Hoạt động gần đây</h2>
               </div>
-            )}
+            </div>
+
+            <div className="mt-4 space-y-2.5">
+              {loading ? (
+                <BoneyardSkeleton name="dashboard-activities-skeleton" count={5} variant="row" />
+              ) : attempts.length > 0 ? (
+                attempts.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between rounded-2xl border border-line/60 bg-surface-elevated/50 p-3"
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <p className="truncate text-xs font-bold text-content">
+                        {item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài thi TOEIC')}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium text-content-muted">
+                        {item.completedAt
+                          ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.completedAt))
+                          : 'Vừa hoàn thành'}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                        {item.accuracyRate}%
+                      </span>
+                      <p className="mt-1 text-[10px] font-semibold text-content-muted">
+                        {item.correctAnswers}/{item.totalQuestions} câu
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-line p-6 text-center text-xs text-content-muted">
+                  Chưa có hoạt động học tập nào được ghi nhận.
+                </div>
+              )}
+            </div>
           </div>
         </article>
       </section>
+
+      {/* Biểu đồ Tiến trình điểm số */}
+      <article className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div>
+            <h2 className="text-base font-extrabold text-content">Tiến trình điểm số</h2>
+            <p className="mt-0.5 text-xs text-content-muted">Theo dõi 8 đề thi đầy đủ 200 câu gần nhất</p>
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+            <CheckCircle2 className="size-3.5" /> {progress}% mục tiêu
+            ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="mt-4">
+            <BoneyardSkeleton name="dashboard-chart-skeleton" variant="card" height={260} />
+          </div>
+        ) : chartData.length > 0 ? (
+          <div className="mt-4 h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 12, right: 12, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="scoreColor" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                />
+                <YAxis
+                  domain={[0, 990]}
+                  ticks={[0, 250, 500, 750, 990]}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="rounded-xl border border-line bg-surface p-3 shadow-lg text-xs space-y-1.5">
+                          <p className="font-extrabold text-content">{data.name}</p>
+                          <p className="text-amber-600 dark:text-amber-400 font-black text-sm">
+                            Điểm: {data.score} / 990
+                          </p>
+                          <div className="flex items-center gap-2 text-content-muted font-medium">
+                            <span>Chính xác: {data.accuracy}%</span>
+                            <span>•</span>
+                            <span>{data.correct}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#scoreColor)"
+                  dot={{ r: 5, fill: '#f59e0b', strokeWidth: 2, stroke: '#ffffff' }}
+                  activeDot={{ r: 7 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="mt-4 grid h-64 place-items-center rounded-2xl border border-dashed border-line p-6 text-center">
+            <div>
+              <p className="text-sm font-bold text-content">Chưa có kết quả thi để vẽ biểu đồ</p>
+              <p className="mt-1 text-xs text-content-muted">Hoàn thành bài thi thử đầu tiên để bắt đầu theo dõi tiến trình điểm số.</p>
+              <Link
+                to="/mock-test"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-600"
+              >
+                Làm bài thi thử ngay
+              </Link>
+            </div>
+          </div>
+        )}
+      </article>
     </div>
   );
 };

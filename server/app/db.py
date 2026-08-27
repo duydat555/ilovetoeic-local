@@ -154,7 +154,77 @@ class Database:
                                 "idx_users_access_expires_at (access_expires_at)"
                             )
                         cursor.execute(
+                            "ALTER TABLE users MODIFY COLUMN avatar_url MEDIUMTEXT NULL"
+                        )
+                        cursor.execute(
                             "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE expires_at < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 100 DAY)"
+                        )
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS user_feedback (
+                                id CHAR(36) PRIMARY KEY,
+                                user_id CHAR(36) NOT NULL,
+                                type ENUM('feature_request', 'suggestion') NOT NULL DEFAULT 'feature_request',
+                                title VARCHAR(255) NOT NULL,
+                                description TEXT NOT NULL,
+                                images JSON NULL,
+                                status ENUM('pending', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'pending',
+                                admin_response TEXT NULL,
+                                responded_at DATETIME NULL,
+                                responded_by CHAR(36) NULL,
+                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                                CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                                INDEX idx_feedback_user_created (user_id, created_at),
+                                INDEX idx_feedback_status_created (status, created_at)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                            """
+                        )
+                        cursor.execute(
+                            """
+                            INSERT INTO admin_feature_statuses (
+                                route, status, title, description, icon_key, action_label, action_path, sort_order
+                            ) VALUES (
+                                '/admin/feedback', 'ready', 'Quản lý Góp ý', 'Xem và phản hồi ý kiến, đóng góp từ học viên.', 'message-square', NULL, NULL, 45
+                            ) ON DUPLICATE KEY UPDATE title = VALUES(title), description = VALUES(description);
+                            """
+                        )
+                        cursor.execute(
+                            """
+                            INSERT INTO feature_flags (feature_key, is_enabled) VALUES ('feedback', 1)
+                            ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key);
+                            """
+                        )
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS community_messages (
+                                id CHAR(36) PRIMARY KEY,
+                                user_id CHAR(36) NOT NULL,
+                                parent_id CHAR(36) NULL,
+                                content TEXT NOT NULL,
+                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                CONSTRAINT fk_community_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                                INDEX idx_community_created (created_at DESC)
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                            """
+                        )
+                        try:
+                            cursor.execute("ALTER TABLE community_messages ADD COLUMN parent_id CHAR(36) NULL;")
+                        except Exception:
+                            pass
+                        cursor.execute(
+                            """
+                            CREATE TABLE IF NOT EXISTS community_message_reactions (
+                                id CHAR(36) PRIMARY KEY,
+                                message_id CHAR(36) NOT NULL,
+                                user_id CHAR(36) NOT NULL,
+                                emoji VARCHAR(10) NOT NULL,
+                                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                UNIQUE KEY uk_msg_user_emoji (message_id, user_id, emoji),
+                                CONSTRAINT fk_reaction_msg FOREIGN KEY (message_id) REFERENCES community_messages(id) ON DELETE CASCADE,
+                                CONSTRAINT fk_reaction_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+                            """
                         )
             self.is_connected = True
             self.last_error = None

@@ -3,6 +3,8 @@ import {
   Languages,
   LayoutDashboard,
   LibraryBig,
+  MessageSquare,
+  MessageSquarePlus,
   Settings,
   SlidersHorizontal,
   Trophy,
@@ -28,12 +30,14 @@ export const studentNavItems: NavigationItem[] = [
   { path: '/vocabulary', label: 'Từ vựng Flashcard', icon: Languages, featureKey: 'vocabulary' },
   { path: '/grammar', label: 'Ngữ pháp TOEIC', icon: LibraryBig, featureKey: 'grammar' },
   { path: '/ranking', label: 'Bảng xếp hạng', icon: Trophy, featureKey: 'ranking' },
+  { path: '/feedback', label: 'Góp ý & Phản hồi', icon: MessageSquarePlus, featureKey: 'feedback' },
   { path: '/profile', label: 'Hồ sơ cá nhân', icon: UserRound, featureKey: 'profile' },
   { path: '/settings', label: 'Cài đặt', icon: Settings, featureKey: 'settings' },
 ];
 
 export const adminNavItems: NavigationItem[] = [
   { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog, end: true },
+  { path: '/admin/feedback', label: 'Quản lý Góp ý', icon: MessageSquare },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
@@ -44,7 +48,7 @@ export const getNavigationForRole = (role: UserRole) => {
 };
 
 export const getMobileNavigationForRole = (role: UserRole) => {
-  if (role === 'admin') return adminNavItems.slice(0, 3);
+  if (role === 'admin') return adminNavItems.slice(0, 4);
   return studentNavItems.filter((item) => (
     item.path === '/dashboard' || item.path === '/mock-test' || item.path === '/vocabulary'
   ));

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -14,10 +14,12 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
+  Upload,
   UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { DICEBEAR_STYLES, getDiceBearAvatar, getRandomSeed } from '../../utils/avatar';
+import { compressImageToFullHD } from '../../utils/imageCompressor';
 
 type Message = {
   type: 'success' | 'error';
@@ -67,10 +69,10 @@ const DiceBearAvatarSelector: React.FC<{
   ];
 
   return (
-    <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-line dark:bg-surface/50">
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-line dark:bg-surface/50">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span className="text-xs font-bold text-slate-700 dark:text-content">
-          Chọn Avatar mẫu từ DiceBear
+          Hoặc chọn Avatar mẫu từ DiceBear
         </span>
         <button
           type="button"
@@ -139,6 +141,9 @@ export const ProfilePage: React.FC = () => {
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<Message>(null);
 
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -157,6 +162,27 @@ export const ProfilePage: React.FC = () => {
   }, [user]);
 
   if (!user) return null;
+
+  const handleAvatarFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setProfileMessage(null);
+
+    try {
+      // Compress image file to max FullHD (1920x1080) under the hood
+      const result = await compressImageToFullHD(file, 1920, 0.85);
+      setAvatar(result.dataUrl);
+    } catch (err) {
+      console.error('[!] Avatar upload error:', err);
+      const errMsg = err instanceof Error ? err.message : 'Không thể tải ảnh lên.';
+      setProfileMessage({ type: 'error', text: errMsg });
+    } finally {
+      setUploading(false);
+      if (event.target) event.target.value = '';
+    }
+  };
 
   const handleProfileSave = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -217,13 +243,38 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-4xl space-y-7 animate-in fade-in duration-300">
+      {/* Hidden File Input for Avatar */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleAvatarFileSelect}
+        className="hidden"
+      />
+
+      {/* Header Profile Section */}
       <section className="flex flex-col items-center gap-6 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:p-8 sm:text-left dark:border-line dark:bg-surface-elevated">
-        <img
-          src={avatar || user.avatar || getDiceBearAvatar(user.name)}
-          alt={user.name}
-          className="size-24 rounded-full object-cover shadow-md ring-4 ring-brand/15"
-        />
-        <div className="space-y-1">
+        <div
+          className="relative group cursor-pointer"
+          onClick={() => fileInputRef.current?.click()}
+          title="Bấm để thay đổi ảnh đại diện"
+        >
+          <img
+            src={avatar || user.avatar || getDiceBearAvatar(user.name)}
+            alt={user.name}
+            className="size-24 rounded-full object-cover shadow-md ring-4 ring-brand/15 transition group-hover:opacity-85"
+          />
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/40 opacity-0 group-hover:opacity-100 transition">
+            <Camera className="size-6 text-white" />
+          </div>
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/70 text-white">
+              <Loader2 className="size-7 animate-spin text-brand" />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1 flex-1">
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-content">{user.name}</h1>
           <p className="flex items-center justify-center gap-1 text-xs text-slate-500 sm:justify-start">
             <Mail className="size-4" /> {user.email}
@@ -237,8 +288,19 @@ export const ProfilePage: React.FC = () => {
             </span>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="inline-flex items-center gap-2 rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-brand-ink shadow-md transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
+        >
+          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {uploading ? 'Đang tải ảnh...' : 'Chọn ảnh mới'}
+        </button>
       </section>
 
+      {/* Main Profile Info Section */}
       <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
         <div className="flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-line">
           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
@@ -264,9 +326,12 @@ export const ProfilePage: React.FC = () => {
         )}
 
         <form onSubmit={handleProfileSave} className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">{user.role === 'admin' ? 'Họ và tên' : 'Tên và khóa'}</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                {user.role === 'admin' ? 'Họ và tên' : 'Tên và khóa'}
+              </span>
               <div className="relative">
                 <UserRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -313,21 +378,6 @@ export const ProfilePage: React.FC = () => {
             </label>
           </div>
 
-          <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">URL ảnh đại diện</span>
-            <div className="relative">
-              <Camera className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="url"
-                value={avatar}
-                onChange={(event) => setAvatar(event.target.value)}
-                placeholder="https://..."
-                autoComplete="photo"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
-              />
-            </div>
-          </label>
-
           <DiceBearAvatarSelector
             currentAvatar={avatar}
             userName={name || user.name}
@@ -366,7 +416,7 @@ export const ProfilePage: React.FC = () => {
 
           <button
             type="submit"
-            disabled={profileSaving}
+            disabled={profileSaving || uploading}
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-xs font-bold text-brand-ink shadow-md shadow-brand-600/20 transition hover:bg-brand-hover active:scale-[.99] disabled:cursor-wait disabled:opacity-70"
           >
             {profileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
@@ -375,6 +425,7 @@ export const ProfilePage: React.FC = () => {
         </form>
       </section>
 
+      {/* Password Section */}
       <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
         <div className="flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-line">
           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">

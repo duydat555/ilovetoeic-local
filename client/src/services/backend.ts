@@ -78,7 +78,7 @@ const getToken = () => memoryToken
   || readStorageValue(localStorage, TOKEN_KEY)
   || readStorageValue(sessionStorage, TOKEN_KEY);
 
-const authFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
+export const authFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const token = getToken();
   const headers = new Headers(options.headers);
   if (options.body && !headers.has('Content-Type')) {

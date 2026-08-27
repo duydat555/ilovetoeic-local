@@ -27,11 +27,13 @@ const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then
 const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
 const RankingPage = lazy(() => import('./pages/Ranking/RankingPolishedPage').then((m) => ({ default: m.RankingPage })));
+const FeedbackPage = lazy(() => import('./pages/Feedback/FeedbackPage').then((m) => ({ default: m.FeedbackPage })));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
 const StudentPracticeDetailPage = lazy(() => import('./pages/Admin/StudentPracticeDetailPage').then((m) => ({ default: m.StudentPracticeDetailPage })));
+const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage').then((m) => ({ default: m.AdminFeedbackPage })));
 const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagementPage').then((m) => ({ default: m.FeatureManagementPage })));
 
 import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
@@ -79,6 +81,7 @@ export const App: React.FC = () => {
               <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>
               <Route path="/mistake-notebook" element={<Navigate to="/dashboard" replace />} />
               <Route element={<FeatureRouteGuard feature="ranking" />}><Route path="/ranking" element={<RankingPage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="feedback" />}><Route path="/feedback" element={<FeedbackPage />} /></Route>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />
@@ -89,6 +92,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/overview" element={<Navigate to="/admin/accounts" replace />} />
                 <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/accounts/:studentId/practice" element={<AdminFeatureRoute route="/admin/accounts"><StudentPracticeDetailPage /></AdminFeatureRoute>} />
+                <Route path="/admin/feedback" element={<AdminFeatureRoute route="/admin/feedback"><AdminFeedbackPage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />
               </Route>
             </Route>

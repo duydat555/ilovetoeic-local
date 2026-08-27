@@ -3,6 +3,7 @@ import {
   Languages,
   LayoutDashboard,
   LibraryBig,
+  MessageSquarePlus,
   Settings,
   Trophy,
   UserRound,
@@ -14,6 +15,7 @@ export type FeatureKey =
   | 'vocabulary'
   | 'grammar'
   | 'ranking'
+  | 'feedback'
   | 'profile'
   | 'settings';
 
@@ -112,6 +114,14 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     core: false,
     icon: Trophy,
   },
+  {
+    key: 'feedback',
+    name: 'Góp ý & Phản hồi',
+    description: 'Gửi ý kiến đóng góp và yêu cầu tính năng mới.',
+    category: 'community',
+    core: false,
+    icon: MessageSquarePlus,
+  },
 ];
 
 export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
@@ -125,6 +135,7 @@ const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/mock-test', 'mock_test'],
   ['/grammar', 'grammar'],
   ['/ranking', 'ranking'],
+  ['/feedback', 'feedback'],
   ['/results', 'mock_test'],
   ['/dashboard', 'dashboard'],
   ['/profile', 'profile'],

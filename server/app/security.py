@@ -143,6 +143,20 @@ def get_current_user(user=Depends(get_session_user)):
     return user
 
 
+def get_optional_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme)):
+    if not credentials or not credentials.credentials:
+        return None
+    try:
+        user = get_session_user(credentials)
+        if user.get("role") != "admin" and user.get("approval_status") != "approved":
+            return None
+        if user.get("role") != "admin" and bool(user.get("is_frozen")):
+            return None
+        return user
+    except Exception:
+        return None
+
+
 def is_access_expired(user) -> bool:
     # A frozen account is preserving its remaining access time. Its original
     # deadline is shifted forward by the frozen duration when it is reopened.

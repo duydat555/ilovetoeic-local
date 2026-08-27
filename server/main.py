@@ -10,6 +10,8 @@ from app.routers import (
     admin_feature_status,
     audio_proxy,
     auth,
+    community_chat,
+    feedback,
     features,
     grammar,
     gemini,
@@ -61,11 +63,13 @@ app.include_router(submissions.router)
 app.include_router(audio_proxy.router)
 app.include_router(gemini.router)
 app.include_router(auth.router)
+app.include_router(feedback.router)
 app.include_router(features.router)
 app.include_router(grammar.router)
 app.include_router(user_data.router)
 app.include_router(ranking.router)
 app.include_router(notifications.router)
+app.include_router(community_chat.router)
 
 
 

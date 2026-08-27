@@ -271,6 +271,24 @@ CREATE TABLE IF NOT EXISTS translation_cache (
     UNIQUE KEY uq_translation_hash (hash)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS user_feedback (
+    id CHAR(36) PRIMARY KEY,
+    user_id CHAR(36) NOT NULL,
+    type ENUM('feature_request', 'suggestion') NOT NULL DEFAULT 'feature_request',
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    images JSON NULL,
+    status ENUM('pending', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'pending',
+    admin_response TEXT NULL,
+    responded_at DATETIME NULL,
+    responded_by CHAR(36) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_feedback_user_created (user_id, created_at),
+    INDEX idx_feedback_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS admin_feature_statuses (
@@ -290,6 +308,7 @@ INSERT INTO admin_feature_statuses (
 ) VALUES
     ('/admin/overview', 'coming_soon', 'Thống kê hệ thống', 'Trang Thống kê hệ thống sẽ sớm ra mắt với các báo cáo chi tiết về hiệu suất học tập toàn hệ thống.', 'chart', NULL, NULL, 10),
     ('/admin/accounts', 'ready', 'Quản lý tài khoản', 'Quản lý tài khoản học viên.', 'users', NULL, NULL, 40),
+    ('/admin/feedback', 'ready', 'Quản lý Góp ý', 'Xem và phản hồi ý kiến, đóng góp từ học viên.', 'message-square', NULL, NULL, 45),
     ('/admin/features', 'ready', 'Quản lý tính năng', 'Kiểm soát các trang học sinh được phép truy cập.', 'wrench', NULL, NULL, 50),
     ('/profile', 'ready', 'Hồ sơ cá nhân', 'Quản lý hồ sơ Giáo viên.', 'user', NULL, NULL, 60),
     ('/settings', 'ready', 'Cài đặt', 'Tuỳ chỉnh trải nghiệm ứng dụng.', 'settings', NULL, NULL, 70)
@@ -334,6 +353,7 @@ INSERT INTO feature_flags (feature_key, is_enabled) VALUES
     ('grammar', 1),
     ('history', 1),
     ('ranking', 1),
+    ('feedback', 1),
     ('profile', 1),
     ('settings', 1)
 ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key);

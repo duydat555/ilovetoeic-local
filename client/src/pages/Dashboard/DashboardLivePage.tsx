@@ -19,12 +19,24 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
-import { backendService } from '../../services/backend';
+import { backendService, RecentActiveStudent } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
 import { CommunityChatWidget } from '../../components/dashboard/CommunityChatWidget';
 import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
+
+const formatRelativeTimeVi = (dateString?: string) => {
+  if (!dateString) return 'Vừa xong';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffSec < 60) return 'Vừa truy cập';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
+  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+};
 
 const DashboardLoadingState: React.FC = () => (
   <div className="space-y-6 pb-12" role="status" aria-label="Đang tải trang tổng quan">
@@ -81,24 +93,27 @@ export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
   const [studySummary, setStudySummary] = useState({ totalQuestions: 0, correctQuestions: 0, accuracyRate: 0 });
+  const [activeStudents, setActiveStudents] = useState<RecentActiveStudent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Tải lịch sử làm bài từ backend
+  // Tải lịch sử làm bài và danh sách học viên vừa truy cập
   const loadHistory = async () => {
     if (!user) return;
     setLoading(true);
     setError('');
     try {
-      const [data, summary] = await Promise.all([
+      const [data, summary, activeList] = await Promise.all([
         backendService.getStudyHistory(user.id),
         backendService.getStudySummary(),
+        backendService.getRecentActiveStudents(),
       ]);
       if (data === null) {
         setError('Không thể tải lịch sử học tập từ hệ thống.');
       } else {
         setAttempts(data);
         setStudySummary(summary);
+        setActiveStudents(activeList);
       }
     } catch {
       setError('Đã xảy ra lỗi khi kết nối dữ liệu.');
@@ -109,6 +124,12 @@ export const DashboardLivePage: React.FC = () => {
 
   useEffect(() => {
     void loadHistory();
+    // Tự động làm mới danh sách học viên vừa truy cập mỗi 15s
+    const interval = setInterval(async () => {
+      const list = await backendService.getRecentActiveStudents();
+      if (list.length > 0) setActiveStudents(list);
+    }, 15000);
+    return () => clearInterval(interval);
   }, [user?.id]);
 
   // Tính toán các chỉ số học tập chính.
@@ -256,48 +277,69 @@ export const DashboardLivePage: React.FC = () => {
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_.9fr]">
         <CommunityChatWidget />
 
-        {/* Lịch sử hoạt động học tập gần đây */}
+        {/* Học viên vừa truy cập trang web */}
         <article className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
-                <CalendarDays className="size-5 text-brand-600 dark:text-brand-400" />
-                <h2 className="text-base font-extrabold text-content">Hoạt động gần đây</h2>
+                <span className="relative flex size-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
+                </span>
+                <h2 className="text-base font-extrabold text-content">Học viên vừa truy cập</h2>
               </div>
+              <span className="text-[11px] font-bold text-content-muted">Truy cập mới nhất</span>
             </div>
 
             <div className="mt-4 space-y-2.5">
               {loading ? (
                 <BoneyardSkeleton name="dashboard-activities-skeleton" count={5} variant="row" />
-              ) : attempts.length > 0 ? (
-                attempts.slice(0, 5).map((item) => (
+              ) : activeStudents.length > 0 ? (
+                activeStudents.slice(0, 5).map((student) => (
                   <div
-                    key={item.id}
-                    className="flex items-center justify-between rounded-2xl border border-line/60 bg-surface-elevated/50 p-3"
+                    key={student.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-line/60 bg-surface-elevated/50 p-3 transition hover:border-brand-500/30"
                   >
-                    <div className="min-w-0 flex-1 pr-2">
-                      <p className="truncate text-xs font-bold text-content">
-                        {item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài thi TOEIC')}
-                      </p>
-                      <p className="mt-1 text-[11px] font-medium text-content-muted">
-                        {item.completedAt
-                          ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.completedAt))
-                          : 'Vừa hoàn thành'}
-                      </p>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative shrink-0">
+                        <img
+                          src={student.avatar}
+                          alt={student.name}
+                          className="size-9 rounded-full border border-line object-cover bg-surface-elevated"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(student.name)}`;
+                          }}
+                        />
+                        {student.isOnline && (
+                          <span className="absolute bottom-0 right-0 size-2.5 rounded-full bg-emerald-500 ring-2 ring-surface" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-extrabold text-content">{student.name}</p>
+                        <p className="mt-0.5 truncate text-[11px] font-medium text-content-muted">
+                          {student.isOnline ? (
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">Đang online</span>
+                          ) : (
+                            formatRelativeTimeVi(student.lastActiveAt)
+                          )}
+                        </p>
+                      </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                        {item.accuracyRate}%
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-brand-500/10 px-2 py-0.5 text-xs font-black text-brand-600 dark:text-brand-400">
+                        {student.currentScore > 0 ? `${student.currentScore} điểm` : 'Học viên'}
                       </span>
-                      <p className="mt-1 text-[10px] font-semibold text-content-muted">
-                        {item.correctAnswers}/{item.totalQuestions} câu
-                      </p>
+                      {student.streakDays > 0 && (
+                        <p className="mt-1 text-[10px] font-bold text-amber-500">
+                          🔥 {student.streakDays} ngày
+                        </p>
+                      )}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-line p-6 text-center text-xs text-content-muted">
-                  Chưa có hoạt động học tập nào được ghi nhận.
+                  Chưa có học viên nào vừa truy cập.
                 </div>
               )}
             </div>

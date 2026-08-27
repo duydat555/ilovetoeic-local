@@ -123,6 +123,10 @@ def get_session_user(
             "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE token_hash = ?",
             (token_hash(credentials.credentials),),
         )
+        db.execute(
+            "UPDATE users SET last_active_at = UTC_TIMESTAMP() WHERE id = ?",
+            (user["id"],),
+        )
     except Exception:
         pass
 

@@ -156,6 +156,9 @@ class Database:
                         cursor.execute(
                             "ALTER TABLE users MODIFY COLUMN avatar_url MEDIUMTEXT NULL"
                         )
+                        cursor.execute("SHOW COLUMNS FROM users LIKE 'last_active_at'")
+                        if cursor.fetchone() is None:
+                            cursor.execute("ALTER TABLE users ADD COLUMN last_active_at DATETIME NULL AFTER last_study_date")
                         cursor.execute(
                             "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE expires_at < DATE_ADD(UTC_TIMESTAMP(), INTERVAL 100 DAY)"
                         )

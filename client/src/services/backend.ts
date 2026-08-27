@@ -20,6 +20,17 @@ export const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || `http://${getDynamicHost()}:8000/api/v1`
 ).replace(/\/$/, '');
 
+export interface RecentActiveStudent {
+  id: string;
+  name: string;
+  avatar: string;
+  role: string;
+  currentScore: number;
+  streakDays: number;
+  lastActiveAt: string;
+  isOnline: boolean;
+}
+
 const TOKEN_KEY = 'toeic_master_auth_token';
 const REMEMBER_KEY = 'toeic_master_remember_login';
 let memoryToken = '';
@@ -413,15 +424,17 @@ export const backendService = {
     throw new Error('Phạm vi lớp học đã được gỡ bỏ.');
   },
   async getAdminFeatureStatuses() {
-    const response = await authFetch<{ data: Array<{
-      route: string;
-      status: AdminFeatureStatus['status'];
-      title: string;
-      description: string;
-      icon_key: AdminFeatureStatus['iconKey'];
-      action_label?: string | null;
-      action_path?: string | null;
-    }> }>('/admin/feature-status');
+    const response = await authFetch<{
+      data: Array<{
+        route: string;
+        status: AdminFeatureStatus['status'];
+        title: string;
+        description: string;
+        icon_key: AdminFeatureStatus['iconKey'];
+        action_label?: string | null;
+        action_path?: string | null;
+      }>
+    }>('/admin/feature-status');
     return response.data.map((item): AdminFeatureStatus => ({
       route: item.route,
       status: item.status,
@@ -547,6 +560,16 @@ export const backendService = {
       correctQuestions: number;
       accuracyRate: number;
     }>('/study-summary');
+  },
+
+  async getRecentActiveStudents(): Promise<RecentActiveStudent[]> {
+    try {
+      const response = await authFetch<{ data: RecentActiveStudent[] }>('/recent-active-students');
+      return response.data;
+    } catch (error) {
+      console.warn('[!] Không thể tải danh sách học viên vừa truy cập:', error);
+      return [];
+    }
   },
 
   async deleteTestStudyHistory(testId: string) {

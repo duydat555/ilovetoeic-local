@@ -8,7 +8,12 @@ from pydantic import BaseModel, Field
 
 from app.db import db
 from app.notifications import create_notification
-from app.security import active_streak_days, get_current_user, normalize_date
+from app.security import (
+    active_streak_days,
+    get_current_user,
+    get_dicebear_avatar,
+    normalize_date,
+)
 
 
 router = APIRouter(prefix="/api/v1", tags=["User data"])
@@ -388,6 +393,46 @@ def get_study_summary(user=Depends(get_current_user)):
         "correctQuestions": correct_questions,
         "accuracyRate": round(correct_questions * 100 / total_questions, 1) if total_questions else 0,
     }
+
+
+@router.get("/recent-active-students")
+def get_recent_active_students():
+    """Return list of students who recently accessed/visited the platform."""
+    rows = db.fetch_all(
+        """
+        SELECT u.id, u.full_name, u.avatar_url, u.role, u.current_score, u.streak_days,
+               u.last_active_at, u.updated_at, u.created_at
+        FROM users u
+        WHERE u.role = 'student' OR u.role IS NULL
+        ORDER BY COALESCE(u.last_active_at, u.updated_at, u.created_at) DESC
+        LIMIT 10
+        """,
+        use_cache=False,
+    )
+    now = datetime.utcnow()
+    students = []
+    for row in rows or []:
+        name = row.get("full_name") or "Học viên TOEIC"
+        avatar = row.get("avatar_url") or get_dicebear_avatar(name)
+        last_active = row.get("last_active_at") or row.get("updated_at") or row.get("created_at")
+
+        is_online = False
+        if last_active and isinstance(last_active, datetime):
+            diff_sec = (now - last_active).total_seconds()
+            if diff_sec <= 300:  # Active within 5 minutes
+                is_online = True
+
+        students.append({
+            "id": str(row["id"]),
+            "name": name,
+            "avatar": avatar,
+            "role": row.get("role") or "student",
+            "currentScore": int(row.get("current_score") or 0),
+            "streakDays": int(row.get("streak_days") or 0),
+            "lastActiveAt": last_active.isoformat() if isinstance(last_active, datetime) else "",
+            "isOnline": is_online,
+        })
+    return {"data": students}
 
 
 @router.get("/study-attempts/{attempt_id}")

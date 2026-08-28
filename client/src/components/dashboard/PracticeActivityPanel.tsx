@@ -345,7 +345,9 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <h3 className="text-sm font-extrabold text-content">Hoạt động {studentName ? `của ${studentName}` : 'của bạn'} trong năm {selectedYear}</h3>
-                <p className="mt-0.5 text-[11px] text-content-muted">Chọn một ô để xem chi tiết của ngày đó.</p>
+                <p className="mt-0.5 text-[11px] text-content-muted">
+                  Chọn một ô để xem chi tiết của ngày đó. <span className="inline sm:hidden font-bold text-amber-600 dark:text-amber-400"> (Vuốt ngang để xem các tháng 👈👉)</span>
+                </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-content-muted">
                 <Database className="size-3.5 text-emerald-500" />

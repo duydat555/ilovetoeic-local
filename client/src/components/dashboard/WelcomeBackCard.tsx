@@ -143,7 +143,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
         </div>
 
         {/* Stats Row */}
-        <div className="flex flex-wrap gap-3 pt-2">
+        <div className="grid grid-cols-3 gap-1.5 pt-2 sm:flex sm:flex-wrap sm:gap-3">
           <StatCard
             id="stat-xp"
             icon={<Award className="size-4" />}

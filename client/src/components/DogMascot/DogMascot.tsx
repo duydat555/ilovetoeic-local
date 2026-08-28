@@ -122,7 +122,7 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
     useEffect(() => {
       if (!interactive) return;
 
-      let rafId: number;
+      let rafId: number | null = null;
       let targetX = 0;
       let targetY = 0;
       let currentX = 0;
@@ -132,10 +132,18 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
       let mouseX = 0;
       let mouseY = 0;
       let hasMouseMoved = false;
+      let cachedCenterX = 0;
+      let cachedCenterY = 0;
 
       let lastMouseX = 0;
       let lastMouseY = 0;
       let lastMouseTime = performance.now();
+
+      const startAnimation = () => {
+        if (rafId === null) {
+          rafId = requestAnimationFrame(animate);
+        }
+      };
 
       const handleMouseMove = (e: MouseEvent) => {
         mouseX = e.clientX;
@@ -143,6 +151,11 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
         hasMouseMoved = true;
 
         if (!containerRef.current) return;
+
+        // Cache position once per mousemove instead of inside 60FPS RAF
+        const rect = containerRef.current.getBoundingClientRect();
+        cachedCenterX = rect.left + rect.width / 2;
+        cachedCenterY = rect.top + rect.height / 2;
 
         if (actionRef.current === 'sleep') {
           updateAction('wake');
@@ -158,7 +171,6 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
           const dyMouse = e.clientY - lastMouseY;
           const velocity = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse) / dt;
 
-          // Ultra fast mouse shake triggers SHOCK expression!
           if (velocity > 12 && actionRef.current === 'idle') {
             updateAction('shock');
             resetToIdleAfter('shock');
@@ -170,16 +182,14 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
         lastMouseTime = now;
+
+        startAnimation();
       };
 
       const animate = () => {
-        if (hasMouseMoved && containerRef.current) {
-          const rect = containerRef.current.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-
-          const deltaX = mouseX - centerX;
-          const deltaY = mouseY - centerY;
+        if (hasMouseMoved && cachedCenterX > 0) {
+          const deltaX = mouseX - cachedCenterX;
+          const deltaY = mouseY - cachedCenterY;
           const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
           if (distance > 5 && actionRef.current !== 'sleep') {
@@ -195,6 +205,17 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
 
         currentX += (targetX - currentX) * LERP;
         currentY += (targetY - currentY) * LERP;
+
+        const settled =
+          Math.abs(targetX - currentX) < 0.001 &&
+          Math.abs(targetY - currentY) < 0.001 &&
+          targetX === 0 &&
+          targetY === 0;
+
+        if (settled) {
+          currentX = 0;
+          currentY = 0;
+        }
 
         if (rigRef.current) {
           // 2.5D Parallax System
@@ -231,15 +252,22 @@ export const DogMascot = forwardRef<DogMascotHandle, DogMascotProps>(
           rigRef.current.style.setProperty('--ear-r-rot', `${earRRot}deg`);
         }
 
-        rafId = requestAnimationFrame(animate);
+        if (!settled) {
+          rafId = requestAnimationFrame(animate);
+        } else {
+          rafId = null;
+        }
       };
 
       window.addEventListener('mousemove', handleMouseMove);
-      rafId = requestAnimationFrame(animate);
+      startAnimation();
 
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
-        cancelAnimationFrame(rafId);
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
       };
     }, [interactive, resetSleepTimer, updateAction]);
 

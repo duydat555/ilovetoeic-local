@@ -31,20 +31,20 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <div
       id={id}
-      className={`flex items-center gap-3 p-2.5 rounded-[16px] transition-transform hover:-translate-y-0.5 ${cardBg} ${className}`}
+      className={`flex items-center gap-1.5 sm:gap-3 p-1.5 sm:p-2.5 rounded-[16px] transition-transform hover:-translate-y-0.5 ${cardBg} ${className}`}
     >
       {/* Icon */}
       <div
-        className={`grid size-9 place-items-center rounded-full ${badgeBg} ${iconColor} shrink-0 shadow-md`}
+        className={`grid size-7 sm:size-9 place-items-center rounded-full ${badgeBg} ${iconColor} shrink-0 shadow-md`}
       >
         {icon}
       </div>
 
       {/* Values & Label */}
-      <div className="flex flex-col min-w-0 pr-2">
-        <div className={`flex items-baseline gap-1 font-extrabold text-base leading-tight ${textColor}`}>
+      <div className="flex flex-col min-w-0 pr-1 sm:pr-2">
+        <div className={`flex items-baseline gap-0.5 sm:gap-1 font-extrabold text-xs sm:text-base leading-tight ${textColor}`}>
           <CountUp end={value} />
-          {unit && <span className="text-[10px] font-semibold opacity-80">{unit}</span>}
+          {unit && <span className="text-[9px] sm:text-[10px] font-semibold opacity-80">{unit}</span>}
         </div>
         <span className={`text-[10px] font-bold truncate mt-0.5 ${labelColor}`}>
           {label}

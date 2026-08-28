@@ -71,78 +71,80 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
   return (
     <div className="relative w-full mt-7 sm:mt-10">
       <section
-        className="nd-banner relative w-full flex flex-col md:flex-row items-center justify-between p-6 sm:p-8 rounded-[28px] bg-[#f3e4bf] border border-[#e2d0a3] text-slate-900 overflow-visible"
+        className="nd-banner relative w-full flex flex-col md:flex-row items-center justify-between p-4 sm:p-8 rounded-[28px] bg-[#f3e4bf] border border-[#e2d0a3] text-slate-900 overflow-visible"
         aria-label="Chào mừng Quốc khánh 2/9"
       >
         {/* ── HERO BACKGROUND SVG (POP-OUT / OVERLAPPING FLAG) ── */}
-        <div className="absolute inset-0 pointer-events-none z-10 overflow-visible">
+        <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden md:overflow-visible rounded-[28px] md:rounded-none">
           <img
             src={quockhanhSvg}
             alt="Hình nền Quốc khánh 2/9 (SVG)"
-            className="absolute left-0 bottom-0 h-[120%] sm:h-[130%] md:h-[135%] max-w-none object-contain object-left-bottom origin-bottom-left -translate-x-4 sm:-translate-x-6 translate-y-4 sm:translate-y-6 pointer-events-none"
+            className="absolute left-0 bottom-0 h-[220px] min-[480px]:h-[260px] md:h-[135%] max-w-none object-contain object-left-bottom origin-bottom-left -translate-x-2 md:-translate-x-6 translate-y-2 md:translate-y-6 pointer-events-none opacity-40 md:opacity-100 transition-opacity"
           />
         </div>
 
-        {/* ── MAIN CONTENT (Badge + Greeting + Stats pushed right to avoid overlap) ── */}
-        <div className="relative z-20 flex-1 flex flex-col space-y-4 w-full md:w-auto pl-[180px] sm:pl-[260px] md:pl-[300px]">
-          <div>
-            <motion.div
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#DA251D] text-[#FFCD00] text-xs font-black tracking-wider uppercase shadow-md shadow-red-900/20 mb-3 border border-red-600"
-              initial={{ opacity: 0, y: -12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <Sparkles className="size-3.5 text-[#FFCD00] animate-spin-slow" />
-              <span>Mừng Quốc khánh 2/9 🇻🇳</span>
-            </motion.div>
+        {/* ── MAIN CONTENT (Badge + Greeting + Stats) ── */}
+        <div className="relative z-20 flex-1 flex flex-col space-y-4 w-full md:w-auto md:pl-[300px]">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-4 sm:p-5 border border-white/90 shadow-md md:bg-transparent md:border-none md:shadow-none md:p-0 md:backdrop-blur-none space-y-3">
+            <div>
+              <motion.div
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#DA251D] text-[#FFCD00] text-xs font-black tracking-wider uppercase shadow-md shadow-red-900/20 mb-2 border border-red-600"
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <Sparkles className="size-3.5 text-[#FFCD00] animate-spin-slow" />
+                <span>Mừng Quốc khánh 2/9 🇻🇳</span>
+              </motion.div>
 
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-950 tracking-tight leading-snug drop-shadow-sm">
-              Chào {userName}{' '}
-              <span className="inline-block animate-[wave-hand_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
-            </h1>
+              <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold text-amber-950 tracking-tight leading-snug drop-shadow-sm">
+                Chào {userName}{' '}
+                <span className="inline-block animate-[wave-hand_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
+              </h1>
 
-            <p className="nd-subtext text-sm sm:text-base font-bold mt-1.5 max-w-md leading-relaxed">
-              Hào khí 2/9 — duy trì chuỗi luyện TOEIC rực rỡ cùng Tinh Tú và chinh phục mục tiêu hôm nay!
-            </p>
-          </div>
+              <p className="nd-subtext text-xs sm:text-base font-bold mt-1.5 max-w-md leading-relaxed">
+                Hào khí 2/9 — duy trì chuỗi luyện TOEIC rực rỡ cùng Tinh Tú và chinh phục mục tiêu hôm nay!
+              </p>
+            </div>
 
-          {/* Stats Row */}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <StatCard
-              id="stat-xp-nd"
-              icon={<Award className="size-4" />}
-              label="Điểm XP"
-              value={xp}
-              badgeBg="bg-gradient-to-br from-amber-400 to-amber-500"
-              iconColor="text-amber-950"
-              cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-              textColor="text-slate-900"
-              labelColor="text-slate-600 font-bold"
-            />
-            <StatCard
-              id="stat-streak-nd"
-              icon={<Flame className="size-4" />}
-              label="Chuỗi ngày"
-              value={streakDays}
-              unit="ngày"
-              badgeBg="bg-gradient-to-br from-orange-400 to-red-500"
-              iconColor="text-white"
-              cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-              textColor="text-slate-900"
-              labelColor="text-slate-600 font-bold"
-            />
-            <StatCard
-              id="stat-longest-nd"
-              icon={<Trophy className="size-4" />}
-              label="Max Streak"
-              value={longestStreak}
-              unit="ngày"
-              badgeBg="bg-gradient-to-br from-amber-400 to-amber-600"
-              iconColor="text-amber-950"
-              cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-              textColor="text-slate-900"
-              labelColor="text-slate-600 font-bold"
-            />
+            {/* Stats Row */}
+            <div className="grid grid-cols-3 gap-1.5 pt-1 sm:flex sm:flex-wrap sm:gap-3">
+              <StatCard
+                id="stat-xp-nd"
+                icon={<Award className="size-4" />}
+                label="Điểm XP"
+                value={xp}
+                badgeBg="bg-gradient-to-br from-amber-400 to-amber-500"
+                iconColor="text-amber-950"
+                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
+                textColor="text-slate-900"
+                labelColor="text-slate-600 font-bold"
+              />
+              <StatCard
+                id="stat-streak-nd"
+                icon={<Flame className="size-4" />}
+                label="Chuỗi ngày"
+                value={streakDays}
+                unit="ngày"
+                badgeBg="bg-gradient-to-br from-orange-400 to-red-500"
+                iconColor="text-white"
+                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
+                textColor="text-slate-900"
+                labelColor="text-slate-600 font-bold"
+              />
+              <StatCard
+                id="stat-longest-nd"
+                icon={<Trophy className="size-4" />}
+                label="Max Streak"
+                value={longestStreak}
+                unit="ngày"
+                badgeBg="bg-gradient-to-br from-amber-400 to-amber-600"
+                iconColor="text-amber-950"
+                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
+                textColor="text-slate-900"
+                labelColor="text-slate-600 font-bold"
+              />
+            </div>
           </div>
         </div>
 

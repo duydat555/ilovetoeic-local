@@ -116,14 +116,14 @@ export const AppLayout: React.FC = () => {
                 }
                 initial={reduceMotion ? false : { opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? { opacity: 1 } : { opacity: 0, x: -10 }}
+                exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
                 transition={
                   reduceMotion
                     ? { duration: 0 }
                     : {
-                        opacity: { duration: 0.18, ease: 'linear' },
-                        x: { duration: 0.22, ease: [0.4, 0, 0.2, 1] },
-                      }
+                      opacity: { duration: 0.16, ease: 'linear' },
+                      x: { duration: 0.18, ease: [0.4, 0, 0.2, 1] },
+                    }
                 }
               >
                 <Suspense

@@ -346,11 +346,10 @@ export const CommunityChatWidget: React.FC = () => {
 
                   {/* Bubble Content */}
                   <div
-                    className={`relative rounded-2xl px-4 py-2.5 text-xs font-medium leading-relaxed ${
-                      isMe
+                    className={`relative rounded-2xl px-4 py-2.5 text-xs font-medium leading-relaxed ${isMe
                         ? 'bg-amber-500/15 border border-amber-500/30 text-content dark:bg-amber-950/40 dark:text-amber-100 rounded-tr-xs'
                         : 'bg-surface-elevated border border-line text-content rounded-tl-xs'
-                    }`}
+                      }`}
                   >
                     {/* Parent Reply Quote Preview */}
                     {msg.replyTo && (
@@ -366,9 +365,8 @@ export const CommunityChatWidget: React.FC = () => {
 
                     {/* Action Bar (Reply, Reaction, Delete) */}
                     <div
-                      className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-xl border border-line bg-surface/90 backdrop-blur-md px-1.5 py-1 shadow-sm opacity-0 transition group-hover:opacity-100 ${
-                        isMe ? '-left-24' : '-right-24'
-                      }`}
+                      className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-xl border border-line bg-surface/95 backdrop-blur-md px-1.5 py-1 shadow-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity ${isMe ? 'right-full mr-1.5' : 'left-full ml-1.5'
+                        }`}
                     >
                       {/* React Button */}
                       <button
@@ -412,9 +410,8 @@ export const CommunityChatWidget: React.FC = () => {
                           initial={{ opacity: 0, scale: 0.9, y: 4 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.9, y: 4 }}
-                          className={`absolute z-20 top-full mt-1 flex items-center gap-1 rounded-2xl border border-amber-500/30 bg-surface p-1.5 shadow-lg ${
-                            isMe ? 'right-0' : 'left-0'
-                          }`}
+                          className={`absolute z-20 top-full mt-1 flex items-center gap-1 rounded-2xl border border-amber-500/30 bg-surface p-1.5 shadow-lg ${isMe ? 'right-0' : 'left-0'
+                            }`}
                         >
                           {QUICK_EMOJIS.map((emoji) => (
                             <button
@@ -434,20 +431,18 @@ export const CommunityChatWidget: React.FC = () => {
                   {/* Reaction Badges List */}
                   {msg.reactions && msg.reactions.length > 0 && (
                     <div
-                      className={`flex flex-wrap items-center gap-1.5 mt-1.5 ${
-                        isMe ? 'justify-end' : 'justify-start'
-                      }`}
+                      className={`flex flex-wrap items-center gap-1.5 mt-1.5 ${isMe ? 'justify-end' : 'justify-start'
+                        }`}
                     >
                       {msg.reactions.map((r) => (
                         <button
                           key={r.emoji}
                           type="button"
                           onClick={() => void handleToggleReaction(msg.id, r.emoji)}
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition active:scale-95 ${
-                            r.userReacted
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold transition active:scale-95 ${r.userReacted
                               ? 'border-amber-500/40 bg-amber-500/20 text-amber-800 dark:text-amber-200 shadow-2xs'
                               : 'border-line bg-surface-hover/80 text-content-muted hover:border-amber-500/30'
-                          }`}
+                            }`}
                         >
                           <span>{r.emoji}</span>
                           <span>{r.count}</span>

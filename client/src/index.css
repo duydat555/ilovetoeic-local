@@ -83,13 +83,23 @@
 }
 
 @keyframes theme-snapshot-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes theme-snapshot-in {
-  from { opacity: 0.15; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.15;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 ::view-transition-old(root) {
@@ -116,11 +126,11 @@
   }
 
   .surface {
-    @apply rounded-3xl border border-line bg-surface/95 shadow-[0_12px_40px_-24px_rgba(15,23,42,.28)] backdrop-blur-xl dark:shadow-none;
+    @apply rounded-3xl border border-line bg-surface/95 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.28)] backdrop-blur-xl dark:shadow-none;
   }
 
   .surface-hover {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:border-brand-300 hover:bg-surface-hover hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,.32)] dark:hover:border-brand-500/40 dark:hover:shadow-none;
+    @apply transition-all duration-300 hover:-translate-y-1 hover:border-brand-300 hover:bg-surface-hover hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,0.32)] dark:hover:border-brand-500/40 dark:hover:shadow-none;
   }
 
   .eyebrow {
@@ -158,12 +168,15 @@
   width: 6px;
   height: 6px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-300 dark:bg-slate-700 rounded-full;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-slate-400 dark:bg-slate-600;
 }
@@ -172,13 +185,16 @@
 .perspective-1000 {
   perspective: 1000px;
 }
+
 .transform-style-3d {
   transform-style: preserve-3d;
 }
+
 .backface-hidden {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
@@ -212,18 +228,39 @@
 
 /* Micro-interaction & Animation Keyframes */
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes pulseGlow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.05); }
+
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 .animate-float {
@@ -239,10 +276,11 @@
 }
 
 .card-interactive {
-  @apply transition-all duration-300 hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,.32)] hover:-translate-y-1 hover:border-brand-300 dark:hover:border-brand-500/60;
+  @apply transition-all duration-300 hover:shadow-[0_22px_50px_-28px_rgba(138,94,21,0.32)] hover:-translate-y-1 hover:border-brand-300 dark:hover:border-brand-500/60;
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -391,11 +429,11 @@ kbd {
   overflow-wrap: anywhere;
 }
 
-.toeic-passage > :first-child {
+.toeic-passage> :first-child {
   margin-top: 0;
 }
 
-.toeic-passage > :last-child {
+.toeic-passage> :last-child {
   margin-bottom: 0;
 }
 
@@ -413,9 +451,17 @@ kbd {
   line-height: 1.3;
 }
 
-.toeic-passage h1 { font-size: 1.35em; }
-.toeic-passage h2 { font-size: 1.25em; }
-.toeic-passage h3 { font-size: 1.15em; }
+.toeic-passage h1 {
+  font-size: 1.35em;
+}
+
+.toeic-passage h2 {
+  font-size: 1.25em;
+}
+
+.toeic-passage h3 {
+  font-size: 1.15em;
+}
 
 .toeic-passage ul,
 .toeic-passage ol {
@@ -423,9 +469,17 @@ kbd {
   padding-left: 1.5rem;
 }
 
-.toeic-passage ul { list-style: disc; }
-.toeic-passage ol { list-style: decimal; }
-.toeic-passage li + li { margin-top: 0.3rem; }
+.toeic-passage ul {
+  list-style: disc;
+}
+
+.toeic-passage ol {
+  list-style: decimal;
+}
+
+.toeic-passage li+li {
+  margin-top: 0.3rem;
+}
 
 .toeic-passage table {
   max-width: 100%;
@@ -435,17 +489,14 @@ kbd {
   margin: 1rem 2.5rem;
 }
 
-.dark .toeic-passage :where(
-  [style*="color:black" i],
+.dark .toeic-passage :where([style*="color:black" i],
   [style*="color: black" i],
   [style*="color:#000" i],
-  [style*="color: #000" i]
-) {
+  [style*="color: #000" i]) {
   color: rgb(var(--color-text-primary)) !important;
 }
 
-.dark .toeic-passage :where(
-  [bgcolor="white" i],
+.dark .toeic-passage :where([bgcolor="white" i],
   [bgcolor="#fff" i],
   [bgcolor="#ffffff" i],
   [style*="background:white" i],
@@ -455,8 +506,7 @@ kbd {
   [style*="background-color:white" i],
   [style*="background-color: white" i],
   [style*="background-color:#fff" i],
-  [style*="background-color: #fff" i]
-) {
+  [style*="background-color: #fff" i]) {
   color: #0f172a !important;
 }
 

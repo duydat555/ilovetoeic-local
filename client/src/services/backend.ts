@@ -79,7 +79,11 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
     const message =
       (typeof detail === 'object' ? detail?.message : detail)
       || body?.message
-      || (response.status === 502 ? 'Máy chủ đang cập nhật/khởi động lại...' : 'Không thể kết nối máy chủ MySQL.');
+      || (response.status === 502
+          ? 'Máy chủ đang cập nhật/khởi động lại...'
+          : response.status === 500
+          ? 'Lỗi hệ thống máy chủ (500). Vui lòng thử lại sau.'
+          : 'Không thể kết nối máy chủ.');
     throw new ApiError(message, response.status, body);
   }
   return body as T;

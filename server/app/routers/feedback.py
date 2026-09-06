@@ -25,7 +25,38 @@ class FeedbackUpdate(BaseModel):
     admin_response: Optional[str] = None
 
 
+def ensure_feedback_table():
+    """Ensure user_feedback table exists even if migrations were not run manually."""
+    try:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_feedback (
+                id CHAR(36) PRIMARY KEY,
+                user_id CHAR(36) NOT NULL,
+                type ENUM('feature_request', 'suggestion') NOT NULL DEFAULT 'feature_request',
+                title VARCHAR(255) NOT NULL,
+                description TEXT NOT NULL,
+                images JSON NULL,
+                status ENUM('pending', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'pending',
+                admin_response TEXT NULL,
+                responded_at DATETIME NULL,
+                responded_by CHAR(36) NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_feedback_user_created (user_id, created_at),
+                INDEX idx_feedback_status_created (status, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            """
+        )
+    except Exception as e:
+        print(f"[!] Warning: Could not auto-ensure user_feedback table: {e}")
+
+
 def format_feedback_item(row: dict) -> dict:
+    if not row or not isinstance(row, dict):
+        return {}
+
     raw_images = row.get("images")
     images_list = []
     if raw_images:
@@ -37,22 +68,25 @@ def format_feedback_item(row: dict) -> dict:
             except Exception:
                 images_list = []
 
+    responded_at_val = row.get("responded_at")
+    created_at_val = row.get("created_at")
+
     return {
-        "id": row["id"],
-        "userId": row["user_id"],
+        "id": str(row.get("id") or ""),
+        "userId": str(row.get("user_id") or ""),
         "type": row.get("type") or "feature_request",
         "title": row.get("title") or "",
         "description": row.get("description") or "",
         "images": images_list if isinstance(images_list, list) else [],
         "status": row.get("status") or "pending",
         "adminResponse": row.get("admin_response") or None,
-        "respondedAt": row.get("responded_at").isoformat()
-        if isinstance(row.get("responded_at"), datetime)
-        else (str(row.get("responded_at") or "") or None),
+        "respondedAt": responded_at_val.isoformat()
+        if hasattr(responded_at_val, "isoformat")
+        else (str(responded_at_val or "") or None),
         "respondedBy": row.get("responded_by") or None,
-        "createdAt": row.get("created_at").isoformat()
-        if isinstance(row.get("created_at"), datetime)
-        else str(row.get("created_at") or ""),
+        "createdAt": created_at_val.isoformat()
+        if hasattr(created_at_val, "isoformat")
+        else str(created_at_val or ""),
         "userName": row.get("user_name") or row.get("full_name") or "Học viên",
         "userEmail": row.get("user_email") or row.get("email") or "",
         "userAvatar": row.get("avatar_url")
@@ -63,28 +97,45 @@ def format_feedback_item(row: dict) -> dict:
 @router.post("")
 def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)):
     feedback_id = str(uuid.uuid4())
-    images_json = json.dumps(data.images) if data.images else json.dumps([])
+    images_json = json.dumps(data.images) if data.images else None
 
-    db.execute(
-        """
-        INSERT INTO user_feedback (id, user_id, type, title, description, images, status)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending')
-        """,
-        (
-            feedback_id,
-            current_user["id"],
-            data.type,
-            data.title.strip(),
-            data.description.strip(),
-            images_json,
-        ),
-    )
+    try:
+        db.execute(
+            """
+            INSERT INTO user_feedback (id, user_id, type, title, description, images, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+            """,
+            (
+                feedback_id,
+                current_user["id"],
+                data.type,
+                data.title.strip(),
+                data.description.strip(),
+                images_json,
+            ),
+        )
+    except Exception:
+        ensure_feedback_table()
+        db.execute(
+            """
+            INSERT INTO user_feedback (id, user_id, type, title, description, images, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending')
+            """,
+            (
+                feedback_id,
+                current_user["id"],
+                data.type,
+                data.title.strip(),
+                data.description.strip(),
+                images_json,
+            ),
+        )
 
     created_row = db.fetch_one(
         """
         SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
         FROM user_feedback f
-        JOIN users u ON u.id = f.user_id
+        LEFT JOIN users u ON u.id = f.user_id
         WHERE f.id = ?
         """,
         (feedback_id,),
@@ -98,17 +149,31 @@ def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)
 
 @router.get("/my-feedback")
 def get_my_feedback(current_user=Depends(get_current_user)):
-    rows = db.fetch_all(
-        """
-        SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-        FROM user_feedback f
-        JOIN users u ON u.id = f.user_id
-        WHERE f.user_id = ?
-        ORDER BY f.created_at DESC
-        """,
-        (current_user["id"],),
-        use_cache=False,
-    )
+    try:
+        rows = db.fetch_all(
+            """
+            SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
+            FROM user_feedback f
+            LEFT JOIN users u ON u.id = f.user_id
+            WHERE f.user_id = ?
+            ORDER BY f.created_at DESC
+            """,
+            (current_user["id"],),
+            use_cache=False,
+        )
+    except Exception:
+        ensure_feedback_table()
+        rows = db.fetch_all(
+            """
+            SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
+            FROM user_feedback f
+            LEFT JOIN users u ON u.id = f.user_id
+            WHERE f.user_id = ?
+            ORDER BY f.created_at DESC
+            """,
+            (current_user["id"],),
+            use_cache=False,
+        )
     return {"data": [format_feedback_item(r) for r in rows]}
 
 
@@ -125,7 +190,7 @@ def get_admin_feedback(
     query = """
         SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
         FROM user_feedback f
-        JOIN users u ON u.id = f.user_id
+        LEFT JOIN users u ON u.id = f.user_id
         WHERE 1=1
     """
     params = []
@@ -145,7 +210,11 @@ def get_admin_feedback(
 
     query += " ORDER BY f.created_at DESC"
 
-    rows = db.fetch_all(query, tuple(params), use_cache=False)
+    try:
+        rows = db.fetch_all(query, tuple(params), use_cache=False)
+    except Exception:
+        ensure_feedback_table()
+        rows = db.fetch_all(query, tuple(params), use_cache=False)
     return {"data": [format_feedback_item(r) for r in rows]}
 
 
@@ -189,7 +258,7 @@ def update_admin_feedback(
         """
         SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
         FROM user_feedback f
-        JOIN users u ON u.id = f.user_id
+        LEFT JOIN users u ON u.id = f.user_id
         WHERE f.id = ?
         """,
         (feedback_id,),

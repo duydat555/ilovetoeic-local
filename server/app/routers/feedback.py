@@ -26,10 +26,15 @@ class FeedbackUpdate(BaseModel):
     admin_response: Optional[str] = None
 
 
+_TABLE_ENSURED = False
+
+
 def ensure_feedback_table():
-    """Ensure user_feedback table exists even if migrations were not run manually.
-    Avoids hard foreign keys to prevent collation mismatch errors across environments.
-    """
+    """Ensure user_feedback table and performance indexes exist."""
+    global _TABLE_ENSURED
+    if _TABLE_ENSURED:
+        return
+
     ddl = """
     CREATE TABLE IF NOT EXISTS user_feedback (
         id CHAR(36) PRIMARY KEY,
@@ -45,13 +50,19 @@ def ensure_feedback_table():
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         INDEX idx_feedback_user_created (user_id, created_at),
-        INDEX idx_feedback_status_created (status, created_at)
+        INDEX idx_feedback_status_created (status, created_at),
+        INDEX idx_feedback_created_at (created_at DESC)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """
     try:
         db.execute(ddl)
     except Exception as e:
         print(f"[!] Warning: Could not auto-ensure user_feedback table: {e}")
+
+    try:
+        db.execute("ALTER TABLE user_feedback ADD INDEX idx_feedback_created_at (created_at DESC)")
+    except Exception:
+        pass
 
     # Ensure admin status and feature flag exist
     try:
@@ -76,6 +87,8 @@ def ensure_feedback_table():
         )
     except Exception as e:
         print(f"[!] Warning: Could not insert admin feedback feature status: {e}")
+
+    _TABLE_ENSURED = True
 
 
 def attach_user_info(rows: List[dict]) -> List[dict]:
@@ -204,8 +217,19 @@ def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)
 def get_my_feedback(current_user=Depends(get_current_user)):
     ensure_feedback_table()
     try:
+        # Deferred join: Avoid filesort on heavy JSON images column (prevents MySQL 1038 Out of sort memory)
         rows = db.fetch_all(
-            "SELECT * FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC",
+            """
+            SELECT f.id, f.user_id, f.type, f.title, f.description, f.images, f.status,
+                   f.admin_response, f.responded_at, f.responded_by, f.created_at, f.updated_at
+            FROM (
+                SELECT id, created_at FROM user_feedback
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+            ) AS sorted_ids
+            JOIN user_feedback f ON f.id = sorted_ids.id
+            ORDER BY sorted_ids.created_at DESC
+            """,
             (current_user["id"],),
             use_cache=False,
         )
@@ -233,23 +257,37 @@ def get_admin_feedback(
 
     ensure_feedback_table()
 
-    query = "SELECT * FROM user_feedback WHERE 1=1"
+    where_clauses = ["1=1"]
     params = []
 
     if status and status in ("pending", "in_progress", "resolved", "rejected"):
-        query += " AND status = ?"
+        where_clauses.append("status = ?")
         params.append(status)
 
     if type and type in ("feature_request", "suggestion"):
-        query += " AND type = ?"
+        where_clauses.append("type = ?")
         params.append(type)
 
     if search and search.strip():
         term = f"%{search.strip()}%"
-        query += " AND (title LIKE ? OR description LIKE ?)"
+        where_clauses.append("(title LIKE ? OR description LIKE ?)")
         params.extend([term, term])
 
-    query += " ORDER BY created_at DESC"
+    where_sql = " AND ".join(where_clauses)
+
+    # Deferred join: Sort only small ID and timestamp in memory, then join to fetch large JSON images
+    # This completely eliminates MySQL Error 1038 (Out of sort memory)
+    query = f"""
+        SELECT f.id, f.user_id, f.type, f.title, f.description, f.images, f.status,
+               f.admin_response, f.responded_at, f.responded_by, f.created_at, f.updated_at
+        FROM (
+            SELECT id, created_at FROM user_feedback
+            WHERE {where_sql}
+            ORDER BY created_at DESC
+        ) AS sorted_ids
+        JOIN user_feedback f ON f.id = sorted_ids.id
+        ORDER BY sorted_ids.created_at DESC
+    """
 
     try:
         rows = db.fetch_all(query, tuple(params), use_cache=False)
@@ -258,7 +296,6 @@ def get_admin_feedback(
         # In-memory filter for student name/email search if provided
         if search and search.strip():
             term_lower = search.strip().lower()
-            # If the search matches student name or email, also include or retain
             matched_items = [
                 r for r in rows_with_user
                 if term_lower in r.get("user_name", "").lower()

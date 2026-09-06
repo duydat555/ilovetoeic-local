@@ -15,14 +15,14 @@ router = APIRouter(prefix="/api/v1/feedback", tags=["Feedback"])
 
 
 class FeedbackCreate(BaseModel):
-    type: Literal["feature_request", "suggestion"] = "feature_request"
-    title: str = Field(..., min_length=3, max_length=255)
-    description: str = Field(..., min_length=5)
-    images: Optional[List[str]] = Field(default=[], max_length=4)
+    type: Optional[str] = "feature_request"
+    title: str = Field(..., min_length=1, max_length=500)
+    description: str = Field(..., min_length=1)
+    images: Optional[List[str]] = Field(default=[])
 
 
 class FeedbackUpdate(BaseModel):
-    status: Optional[Literal["pending", "in_progress", "resolved", "rejected"]] = None
+    status: Optional[str] = None
     admin_response: Optional[str] = None
 
 
@@ -85,7 +85,7 @@ def attach_user_info(rows: List[dict]) -> List[dict]:
     user_ids = list({r["user_id"] for r in rows if r.get("user_id")})
     user_map = {}
     if user_ids:
-        placeholders = ", ".join(["%s"] * len(user_ids))
+        placeholders = ", ".join(["?"] * len(user_ids))
         try:
             user_rows = db.fetch_all(
                 f"SELECT id, full_name, email, avatar_url FROM users WHERE id IN ({placeholders})",
@@ -152,7 +152,17 @@ def format_feedback_item(row: dict) -> dict:
 def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)):
     ensure_feedback_table()
     feedback_id = str(uuid.uuid4())
-    images_json = json.dumps(data.images) if data.images else None
+    fb_type = data.type if data.type in ("feature_request", "suggestion") else "feature_request"
+    clean_title = (data.title or "").strip()
+    clean_desc = (data.description or "").strip()
+
+    if not clean_title:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập tiêu đề góp ý.")
+    if not clean_desc:
+        raise HTTPException(status_code=400, detail="Vui lòng nhập mô tả chi tiết.")
+
+    clean_images = [img for img in (data.images or []) if isinstance(img, str)][:4]
+    images_json = json.dumps(clean_images) if clean_images else None
 
     try:
         db.execute(
@@ -163,9 +173,9 @@ def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)
             (
                 feedback_id,
                 current_user["id"],
-                data.type,
-                data.title.strip(),
-                data.description.strip(),
+                fb_type,
+                clean_title,
+                clean_desc,
                 images_json,
             ),
         )

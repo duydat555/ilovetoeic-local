@@ -75,14 +75,37 @@ export class ApiError extends Error {
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const body = await response.json().catch(() => null);
   if (!response.ok) {
+    let detailMsg = '';
     const detail = body?.detail;
+    if (Array.isArray(detail)) {
+      detailMsg = detail
+        .map((item: any) => {
+          if (typeof item === 'string') return item;
+          const loc = Array.isArray(item?.loc) ? item.loc[item.loc.length - 1] : '';
+          const msg = item?.msg || item?.message || '';
+          return loc && loc !== 'body' ? `${loc}: ${msg}` : msg;
+        })
+        .filter(Boolean)
+        .join('; ');
+    } else if (typeof detail === 'object' && detail !== null) {
+      detailMsg = detail?.message || detail?.detail || JSON.stringify(detail);
+    } else if (typeof detail === 'string') {
+      detailMsg = detail;
+    }
+
     const message =
-      (typeof detail === 'object' ? detail?.message : detail)
+      detailMsg
       || body?.message
       || (response.status === 502
           ? 'Máy chủ đang cập nhật/khởi động lại...'
           : response.status === 500
           ? 'Lỗi hệ thống máy chủ (500). Vui lòng thử lại sau.'
+          : response.status === 422
+          ? 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại các trường nhập.'
+          : response.status === 403
+          ? 'Bạn không có quyền thực hiện thao tác này.'
+          : response.status === 401
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
           : 'Không thể kết nối máy chủ.');
     throw new ApiError(message, response.status, body);
   }

@@ -1,4 +1,5 @@
 import json
+import traceback
 import uuid
 from datetime import datetime
 from typing import List, Literal, Optional
@@ -26,31 +27,84 @@ class FeedbackUpdate(BaseModel):
 
 
 def ensure_feedback_table():
-    """Ensure user_feedback table exists even if migrations were not run manually."""
+    """Ensure user_feedback table exists even if migrations were not run manually.
+    Avoids hard foreign keys to prevent collation mismatch errors across environments.
+    """
+    ddl = """
+    CREATE TABLE IF NOT EXISTS user_feedback (
+        id CHAR(36) PRIMARY KEY,
+        user_id CHAR(36) NOT NULL,
+        type ENUM('feature_request', 'suggestion') NOT NULL DEFAULT 'feature_request',
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        images JSON NULL,
+        status ENUM('pending', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'pending',
+        admin_response TEXT NULL,
+        responded_at DATETIME NULL,
+        responded_by CHAR(36) NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_feedback_user_created (user_id, created_at),
+        INDEX idx_feedback_status_created (status, created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """
+    try:
+        db.execute(ddl)
+    except Exception as e:
+        print(f"[!] Warning: Could not auto-ensure user_feedback table: {e}")
+
+    # Ensure admin status and feature flag exist
     try:
         db.execute(
             """
-            CREATE TABLE IF NOT EXISTS user_feedback (
-                id CHAR(36) PRIMARY KEY,
-                user_id CHAR(36) NOT NULL,
-                type ENUM('feature_request', 'suggestion') NOT NULL DEFAULT 'feature_request',
-                title VARCHAR(255) NOT NULL,
-                description TEXT NOT NULL,
-                images JSON NULL,
-                status ENUM('pending', 'in_progress', 'resolved', 'rejected') NOT NULL DEFAULT 'pending',
-                admin_response TEXT NULL,
-                responded_at DATETIME NULL,
-                responded_by CHAR(36) NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                INDEX idx_feedback_user_created (user_id, created_at),
-                INDEX idx_feedback_status_created (status, created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            INSERT INTO admin_feature_statuses (
+                route, status, title, description, icon_key, action_label, action_path, sort_order
+            ) VALUES (
+                '/admin/feedback', 'ready', 'Quản lý Góp ý', 'Xem và phản hồi ý kiến, đóng góp từ học viên.', 'message-square', NULL, NULL, 45
+            ) ON DUPLICATE KEY UPDATE
+                title = VALUES(title),
+                description = VALUES(description),
+                status = VALUES(status),
+                icon_key = VALUES(icon_key);
+            """
+        )
+        db.execute(
+            """
+            INSERT INTO feature_flags (feature_key, is_enabled) VALUES ('feedback', 1)
+            ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key);
             """
         )
     except Exception as e:
-        print(f"[!] Warning: Could not auto-ensure user_feedback table: {e}")
+        print(f"[!] Warning: Could not insert admin feedback feature status: {e}")
+
+
+def attach_user_info(rows: List[dict]) -> List[dict]:
+    """In-memory user resolution to eliminate SQL collation mismatch risks."""
+    if not rows:
+        return []
+    user_ids = list({r["user_id"] for r in rows if r.get("user_id")})
+    user_map = {}
+    if user_ids:
+        placeholders = ", ".join(["%s"] * len(user_ids))
+        try:
+            user_rows = db.fetch_all(
+                f"SELECT id, full_name, email, avatar_url FROM users WHERE id IN ({placeholders})",
+                tuple(user_ids),
+                use_cache=False,
+            )
+            user_map = {u["id"]: u for u in user_rows}
+        except Exception as err:
+            print(f"[!] Error fetching users for feedback: {err}")
+
+    result = []
+    for r in rows:
+        user = user_map.get(r.get("user_id"), {})
+        r_copy = dict(r)
+        r_copy["user_name"] = user.get("full_name") or "Học viên"
+        r_copy["user_email"] = user.get("email") or ""
+        r_copy["avatar_url"] = user.get("avatar_url")
+        result.append(r_copy)
+    return result
 
 
 def format_feedback_item(row: dict) -> dict:
@@ -96,6 +150,7 @@ def format_feedback_item(row: dict) -> dict:
 
 @router.post("")
 def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)):
+    ensure_feedback_table()
     feedback_id = str(uuid.uuid4())
     images_json = json.dumps(data.images) if data.images else None
 
@@ -114,67 +169,46 @@ def submit_feedback(data: FeedbackCreate, current_user=Depends(get_current_user)
                 images_json,
             ),
         )
-    except Exception:
-        ensure_feedback_table()
-        db.execute(
-            """
-            INSERT INTO user_feedback (id, user_id, type, title, description, images, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending')
-            """,
-            (
-                feedback_id,
-                current_user["id"],
-                data.type,
-                data.title.strip(),
-                data.description.strip(),
-                images_json,
-            ),
+
+        created_row = db.fetch_one(
+            "SELECT * FROM user_feedback WHERE id = ?",
+            (feedback_id,),
+            use_cache=False,
         )
+        if not created_row:
+            raise HTTPException(status_code=500, detail="Không thể tạo góp ý.")
 
-    created_row = db.fetch_one(
-        """
-        SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-        FROM user_feedback f
-        LEFT JOIN users u ON u.id = f.user_id
-        WHERE f.id = ?
-        """,
-        (feedback_id,),
-        use_cache=False,
-    )
-    if not created_row:
-        raise HTTPException(status_code=500, detail="Không thể tạo góp ý.")
-
-    return {"data": format_feedback_item(created_row)}
+        rows_with_user = attach_user_info([created_row])
+        return {"data": format_feedback_item(rows_with_user[0])}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"[Feedback API Error] Không thể gửi góp ý: {type(exc).__name__}: {str(exc)}",
+        )
 
 
 @router.get("/my-feedback")
 def get_my_feedback(current_user=Depends(get_current_user)):
+    ensure_feedback_table()
     try:
         rows = db.fetch_all(
-            """
-            SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-            FROM user_feedback f
-            LEFT JOIN users u ON u.id = f.user_id
-            WHERE f.user_id = ?
-            ORDER BY f.created_at DESC
-            """,
+            "SELECT * FROM user_feedback WHERE user_id = ? ORDER BY created_at DESC",
             (current_user["id"],),
             use_cache=False,
         )
-    except Exception:
-        ensure_feedback_table()
-        rows = db.fetch_all(
-            """
-            SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-            FROM user_feedback f
-            LEFT JOIN users u ON u.id = f.user_id
-            WHERE f.user_id = ?
-            ORDER BY f.created_at DESC
-            """,
-            (current_user["id"],),
-            use_cache=False,
+        rows_with_user = attach_user_info(rows)
+        return {"data": [format_feedback_item(r) for r in rows_with_user]}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"[Feedback API Error] Lỗi tải góp ý cá nhân: {type(exc).__name__}: {str(exc)}",
         )
-    return {"data": [format_feedback_item(r) for r in rows]}
 
 
 @router.get("/admin/list")
@@ -187,35 +221,52 @@ def get_admin_feedback(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Chỉ Giảng viên mới có quyền xem trang này.")
 
-    query = """
-        SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-        FROM user_feedback f
-        LEFT JOIN users u ON u.id = f.user_id
-        WHERE 1=1
-    """
+    ensure_feedback_table()
+
+    query = "SELECT * FROM user_feedback WHERE 1=1"
     params = []
 
     if status and status in ("pending", "in_progress", "resolved", "rejected"):
-        query += " AND f.status = ?"
+        query += " AND status = ?"
         params.append(status)
 
     if type and type in ("feature_request", "suggestion"):
-        query += " AND f.type = ?"
+        query += " AND type = ?"
         params.append(type)
 
     if search and search.strip():
         term = f"%{search.strip()}%"
-        query += " AND (f.title LIKE ? OR f.description LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)"
-        params.extend([term, term, term, term])
+        query += " AND (title LIKE ? OR description LIKE ?)"
+        params.extend([term, term])
 
-    query += " ORDER BY f.created_at DESC"
+    query += " ORDER BY created_at DESC"
 
     try:
         rows = db.fetch_all(query, tuple(params), use_cache=False)
-    except Exception:
-        ensure_feedback_table()
-        rows = db.fetch_all(query, tuple(params), use_cache=False)
-    return {"data": [format_feedback_item(r) for r in rows]}
+        rows_with_user = attach_user_info(rows)
+
+        # In-memory filter for student name/email search if provided
+        if search and search.strip():
+            term_lower = search.strip().lower()
+            # If the search matches student name or email, also include or retain
+            matched_items = [
+                r for r in rows_with_user
+                if term_lower in r.get("user_name", "").lower()
+                or term_lower in r.get("user_email", "").lower()
+                or term_lower in r.get("title", "").lower()
+                or term_lower in r.get("description", "").lower()
+            ]
+            rows_with_user = matched_items
+
+        return {"data": [format_feedback_item(r) for r in rows_with_user]}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"[Feedback API Error] Lỗi truy vấn danh sách góp ý: {type(exc).__name__}: {str(exc)}",
+        )
 
 
 @router.patch("/admin/{feedback_id}")
@@ -227,74 +278,82 @@ def update_admin_feedback(
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Chỉ Giảng viên mới có quyền cập nhật.")
 
-    existing = db.fetch_one(
-        "SELECT * FROM user_feedback WHERE id = ?", (feedback_id,), use_cache=False
-    )
-    if not existing:
-        raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi góp ý.")
+    ensure_feedback_table()
 
-    updates = []
-    params = []
-
-    if data.status and data.status != existing.get("status"):
-        updates.append("status = ?")
-        params.append(data.status)
-
-    if data.admin_response is not None:
-        updates.append("admin_response = ?")
-        params.append(data.admin_response.strip())
-        updates.append("responded_at = UTC_TIMESTAMP()")
-        updates.append("responded_by = ?")
-        params.append(current_user["id"])
-
-    if not updates:
-        return {"data": format_feedback_item(existing)}
-
-    query = f"UPDATE user_feedback SET {', '.join(updates)} WHERE id = ?"
-    params.append(feedback_id)
-    db.execute(query, tuple(params))
-
-    updated_row = db.fetch_one(
-        """
-        SELECT f.*, u.full_name AS user_name, u.email AS user_email, u.avatar_url
-        FROM user_feedback f
-        LEFT JOIN users u ON u.id = f.user_id
-        WHERE f.id = ?
-        """,
-        (feedback_id,),
-        use_cache=False,
-    )
-
-    # Notify student when admin responds or resolves/changes status
-    if data.admin_response:
-        msg = f"Giảng viên đã phản hồi góp ý của bạn ({updated_row.get('title')}): {data.admin_response[:100]}"
-        create_notification(
-            user_id=existing["user_id"],
-            notification_type="system",
-            title="Phản hồi từ Giảng viên",
-            message=msg,
-            action_url="/feedback",
-            dedupe_key=f"feedback_reply_{feedback_id}_{int(datetime.utcnow().timestamp())}",
+    try:
+        existing = db.fetch_one(
+            "SELECT * FROM user_feedback WHERE id = ?", (feedback_id,), use_cache=False
         )
-    elif data.status and data.status != existing.get("status"):
-        status_labels = {
-            "in_progress": "Đang thực hiện",
-            "resolved": "Đã giải quyết",
-            "rejected": "Từ chối",
-            "pending": "Chờ xử lý",
-        }
-        status_str = status_labels.get(data.status, data.status)
-        msg = f"Trạng thái góp ý '{updated_row.get('title')}' đã được đổi thành: {status_str}"
-        create_notification(
-            user_id=existing["user_id"],
-            notification_type="system",
-            title="Cập nhật góp ý",
-            message=msg,
-            action_url="/feedback",
-            dedupe_key=f"feedback_status_{feedback_id}_{data.status}",
+        if not existing:
+            raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi góp ý.")
+
+        updates = []
+        params = []
+
+        if data.status and data.status != existing.get("status"):
+            updates.append("status = ?")
+            params.append(data.status)
+
+        if data.admin_response is not None:
+            updates.append("admin_response = ?")
+            params.append(data.admin_response.strip())
+            updates.append("responded_at = UTC_TIMESTAMP()")
+            updates.append("responded_by = ?")
+            params.append(current_user["id"])
+
+        if not updates:
+            rows_with_user = attach_user_info([existing])
+            return {"data": format_feedback_item(rows_with_user[0])}
+
+        query = f"UPDATE user_feedback SET {', '.join(updates)} WHERE id = ?"
+        params.append(feedback_id)
+        db.execute(query, tuple(params))
+
+        updated_row = db.fetch_one(
+            "SELECT * FROM user_feedback WHERE id = ?",
+            (feedback_id,),
+            use_cache=False,
         )
 
-    return {"data": format_feedback_item(updated_row)}
+        # Notify student when admin responds or resolves/changes status
+        if data.admin_response:
+            msg = f"Giảng viên đã phản hồi góp ý của bạn ({updated_row.get('title')}): {data.admin_response[:100]}"
+            create_notification(
+                user_id=existing["user_id"],
+                notification_type="system",
+                title="Phản hồi từ Giảng viên",
+                message=msg,
+                action_url="/feedback",
+                dedupe_key=f"feedback_reply_{feedback_id}_{int(datetime.utcnow().timestamp())}",
+            )
+        elif data.status and data.status != existing.get("status"):
+            status_labels = {
+                "in_progress": "Đang thực hiện",
+                "resolved": "Đã giải quyết",
+                "rejected": "Từ chối",
+                "pending": "Chờ xử lý",
+            }
+            status_str = status_labels.get(data.status, data.status)
+            msg = f"Trạng thái góp ý '{updated_row.get('title')}' đã được đổi thành: {status_str}"
+            create_notification(
+                user_id=existing["user_id"],
+                notification_type="system",
+                title="Cập nhật góp ý",
+                message=msg,
+                action_url="/feedback",
+                dedupe_key=f"feedback_status_{feedback_id}_{data.status}",
+            )
+
+        rows_with_user = attach_user_info([updated_row] if updated_row else [])
+        return {"data": format_feedback_item(rows_with_user[0] if rows_with_user else {})}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"[Feedback API Error] Lỗi cập nhật góp ý: {type(exc).__name__}: {str(exc)}",
+        )
 
 
 @router.delete("/admin/{feedback_id}")
@@ -302,11 +361,22 @@ def delete_admin_feedback(feedback_id: str, current_user=Depends(get_current_use
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Chỉ Giảng viên mới có quyền xoá.")
 
-    existing = db.fetch_one(
-        "SELECT id FROM user_feedback WHERE id = ?", (feedback_id,), use_cache=False
-    )
-    if not existing:
-        raise HTTPException(status_code=404, detail="Không tìm thấy góp ý.")
+    ensure_feedback_table()
 
-    db.execute("DELETE FROM user_feedback WHERE id = ?", (feedback_id,))
-    return {"message": "Đã xoá góp ý thành công."}
+    try:
+        existing = db.fetch_one(
+            "SELECT id FROM user_feedback WHERE id = ?", (feedback_id,), use_cache=False
+        )
+        if not existing:
+            raise HTTPException(status_code=404, detail="Không tìm thấy góp ý.")
+
+        db.execute("DELETE FROM user_feedback WHERE id = ?", (feedback_id,))
+        return {"message": "Đã xoá góp ý thành công."}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"[Feedback API Error] Lỗi xoá góp ý: {type(exc).__name__}: {str(exc)}",
+        )

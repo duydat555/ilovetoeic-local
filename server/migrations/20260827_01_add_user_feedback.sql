@@ -1,5 +1,5 @@
 -- Migration: Add user_feedback table, admin navigation entry, and feature flag
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS user_feedback (
     id CHAR(36) PRIMARY KEY,
@@ -14,10 +14,9 @@ CREATE TABLE IF NOT EXISTS user_feedback (
     responded_by CHAR(36) NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_feedback_user_created (user_id, created_at),
     INDEX idx_feedback_status_created (status, created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO admin_feature_statuses (
     route, status, title, description, icon_key, action_label, action_path, sort_order

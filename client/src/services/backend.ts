@@ -721,6 +721,18 @@ export const backendService = {
     }
   },
 
+  async deleteVocabularyWord(_userId: string, wordId: string) {
+    try {
+      await authFetch(`/vocabulary/${encodeURIComponent(wordId)}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể xoá từ khỏi MySQL:', error);
+      return false;
+    }
+  },
+
   async getVocabularyTopicOverrides(_userId: string) {
     try {
       const response = await authFetch<{ data: any[] }>('/vocabulary/topic-overrides');

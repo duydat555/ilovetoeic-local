@@ -7,6 +7,7 @@ export interface BoneyardSkeletonProps {
   className?: string;
   containerClassName?: string;
   children?: React.ReactNode;
+  fallback?: React.ReactNode;
   variant?: 'card' | 'text' | 'rect' | 'circle' | 'button' | 'row';
   count?: number;
   height?: string | number;
@@ -20,6 +21,7 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
   className = '',
   containerClassName,
   children,
+  fallback,
   variant = 'rect',
   count = 1,
   height,
@@ -104,13 +106,15 @@ export const BoneyardSkeleton: React.FC<BoneyardSkeletonProps> = ({
     renderNodes = <div className="space-y-3 w-full">{skeletonItems}</div>;
   }
 
+  const finalFallback = fallback ?? renderNodes;
+
   try {
     return (
-      <BoneyardReactSkeleton name={name} loading={loading} fallback={renderNodes}>
+      <BoneyardReactSkeleton name={name} loading={loading} fallback={finalFallback}>
         {children ?? null}
       </BoneyardReactSkeleton>
     );
   } catch {
-    return <>{loading ? renderNodes : children}</>;
+    return <>{loading ? finalFallback : children}</>;
   }
 };

@@ -1182,6 +1182,15 @@ def save_vocabulary(
     return {"success": True}
 
 
+@router.delete("/vocabulary/{word_id}")
+def delete_vocabulary(word_id: str, user=Depends(get_current_user)):
+    db.execute(
+        "DELETE FROM user_vocabulary WHERE id = ? AND user_id = ?",
+        (word_id, user["id"]),
+    )
+    return {"success": True}
+
+
 @router.get("/vocabulary/topic-overrides")
 def get_topic_overrides(user=Depends(get_current_user)):
     rows = db.fetch_all(

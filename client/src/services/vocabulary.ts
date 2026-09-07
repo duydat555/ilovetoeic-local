@@ -232,6 +232,25 @@ export const vocabularyService = {
     return target ? backendService.addVocabularyWord(userId, target) : false;
   },
 
+  async saveOrUpdate(userId: string, word: VocabularyWord) {
+    const current = readLocal(userId);
+    const idx = current.findIndex((w) => w.id === word.id || w.word.trim().toLowerCase() === word.word.trim().toLowerCase());
+    let next: VocabularyWord[];
+    if (idx >= 0) {
+      next = current.map((w, i) => (i === idx ? { ...w, ...word } : w));
+    } else {
+      next = [word, ...current];
+    }
+    writeLocal(userId, next);
+    return backendService.addVocabularyWord(userId, word);
+  },
+
+  async remove(userId: string, id: string) {
+    const remaining = readLocal(userId).filter((word) => word.id !== id);
+    writeLocal(userId, remaining);
+    return backendService.deleteVocabularyWord(userId, id);
+  },
+
   async setTopic(
     userId: string,
     word: VocabularyWord,

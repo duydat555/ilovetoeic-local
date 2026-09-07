@@ -22,6 +22,7 @@ from app.routers import (
     submissions,
     tests,
     user_data,
+    system_vocabulary,
 )
 
 app = FastAPI(
@@ -67,6 +68,7 @@ app.include_router(feedback.router)
 app.include_router(features.router)
 app.include_router(grammar.router)
 app.include_router(user_data.router)
+app.include_router(system_vocabulary.router)
 app.include_router(ranking.router)
 app.include_router(notifications.router)
 app.include_router(community_chat.router)

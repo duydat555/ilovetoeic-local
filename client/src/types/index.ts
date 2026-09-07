@@ -301,7 +301,9 @@ export interface VocabularyWord {
   meaningVi: string;
   exampleEn: string;
   exampleVi: string;
+  imageUrl?: string;
   audioUrl?: string;
+  audioUkUrl?: string;
   remembered?: boolean;
   bookmarked?: boolean;
   definitionEn?: string;
@@ -309,7 +311,10 @@ export interface VocabularyWord {
   personalNote?: string;
   aiSource?: AiSource;
   difficulty?: 'easy' | 'medium' | 'hard';
+  level?: 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
   source?: 'curated' | 'gemini';
+  status?: 'new' | 'learning' | 'review' | 'mastered';
+  reviewCount?: number;
   createdAt?: string;
   lastReviewedAt?: string;
 }

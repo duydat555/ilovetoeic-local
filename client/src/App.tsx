@@ -24,6 +24,7 @@ const MockTestPage = lazy(() => import('./pages/MockTest/MockTestPage').then((m)
 const TestExamPage = lazy(() => import('./pages/MockTest/TestExamPage').then((m) => ({ default: m.TestExamPage })));
 const TestResultPage = lazy(() => import('./pages/Results/TestResultPage').then((m) => ({ default: m.TestResultPage })));
 const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then((m) => ({ default: m.TopicListPage })));
+const SetDetailPage = lazy(() => import('./pages/Vocabulary/SetDetailPage').then((m) => ({ default: m.SetDetailPage })));
 const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
 const RankingPage = lazy(() => import('./pages/Ranking/RankingPolishedPage').then((m) => ({ default: m.RankingPage })));
@@ -76,6 +77,8 @@ export const App: React.FC = () => {
               </Route>
               <Route element={<FeatureRouteGuard feature="vocabulary" />}>
                 <Route path="/vocabulary" element={<TopicListPage />} />
+                <Route path="/vocabulary/all" element={<Navigate to="/vocabulary" replace />} />
+                <Route path="/vocabulary/set/:setId" element={<SetDetailPage />} />
                 <Route path="/vocabulary/:topicId" element={<TopicFlashcardPage />} />
               </Route>
               <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>

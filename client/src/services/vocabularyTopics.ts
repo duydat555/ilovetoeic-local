@@ -17,10 +17,34 @@ export interface TopicMemberships {
 const TOPICS_PREFIX = 'toeic_vocabulary_topics';
 const MEMBERSHIPS_PREFIX = 'toeic_vocabulary_topic_memberships';
 
+import {
+  CURATED_STARTER_WORDS,
+  STARTER_UNIT1_TOPIC_ID,
+  STARTER_UNIT1_TOPIC_NAME,
+} from './curatedStarterVocabulary';
+
 export const SYSTEM_TOPICS: VocabularyTopic[] = [
+  {
+    id: STARTER_UNIT1_TOPIC_ID,
+    name: STARTER_UNIT1_TOPIC_NAME,
+    icon: 'sparkles',
+    description: '30 từ vựng cốt lõi TOEIC xuất hiện tần suất cao nhất trong đề thi thực tế.',
+    system: true,
+    createdAt: '',
+  },
   { id: 'system-office', name: 'Office & Workplace', icon: 'briefcase', description: 'Công sở, lịch họp và giao tiếp nội bộ.', system: true, createdAt: '' },
   { id: 'system-business', name: 'Business & Management', icon: 'chart', description: 'Kinh doanh, quản trị và vận hành doanh nghiệp.', system: true, createdAt: '' },
 ];
+
+export const MY_WORDS_TOPIC_ID = 'my-words';
+export const MY_WORDS_TOPIC: VocabularyTopic = {
+  id: MY_WORDS_TOPIC_ID,
+  name: 'Sổ tay từ vựng của tôi',
+  icon: 'bookmark',
+  description: 'Toàn bộ từ vựng cá nhân bạn đã lưu từ tra cứu AI, làm đề thi và bài đọc.',
+  system: false,
+  createdAt: '',
+};
 
 const topicKey = (userId: string) => `${TOPICS_PREFIX}:${userId}`;
 const membershipKey = (userId: string) => `${MEMBERSHIPS_PREFIX}:${userId}`;
@@ -89,8 +113,27 @@ export const vocabularyTopicService = {
   },
 
   wordsForTopic(userId: string, topicId: string, words: VocabularyWord[]) {
-    if (topicId === 'all') return words;
+    // Sổ tay từ vựng của tôi: trả về toàn bộ các từ học sinh đã lưu/tra cứu
+    if (topicId === 'my-words' || topicId === 'saved' || topicId === 'ai' || topicId === 'notebook') {
+      return words;
+    }
+    if (topicId === STARTER_UNIT1_TOPIC_ID) {
+      const userWordMap = new Map(words.map((w) => [w.id, w]));
+      return CURATED_STARTER_WORDS.map((starter) => userWordMap.get(starter.id) || starter);
+    }
+    if (topicId === 'all') {
+      const seen = new Set<string>();
+      const combined: VocabularyWord[] = [];
+      for (const w of [...words, ...CURATED_STARTER_WORDS]) {
+        const key = w.word.trim().toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          combined.push(w);
+        }
+      }
+      return combined;
+    }
     const ids = new Set(this.getWordIds(userId, topicId));
-    return words.filter((word) => ids.has(word.id));
+    return words.filter((word) => ids.has(word.id) || word.topicId === topicId);
   },
 };

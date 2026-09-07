@@ -88,9 +88,42 @@ jobs:
             exit 1
           fi
 
-          git fetch origin main
+          # Ensure GitHub SSH uses port 443 to avoid port 22 timeout / ISP blocks
+          mkdir -p "$HOME/.ssh"
+          touch "$HOME/.ssh/config"
+          if ! grep -q "ssh.github.com" "$HOME/.ssh/config"; then
+            cat >> "$HOME/.ssh/config" <<'SSH_CFG'
+
+Host github.com
+    Hostname ssh.github.com
+    Port 443
+    User git
+    StrictHostKeyChecking accept-new
+    ServerAliveInterval 15
+    ServerAliveCountMax 3
+    ConnectTimeout 15
+SSH_CFG
+            chmod 600 "$HOME/.ssh/config"
+          fi
+
+          echo "==> Fetching latest changes from GitHub"
+          FETCH_OK=0
+          for attempt in 1 2 3 4 5; do
+            if git fetch origin main; then
+              FETCH_OK=1
+              break
+            fi
+            echo "Fetch attempt $attempt failed. Retrying in 5 seconds..."
+            sleep 5
+          done
+
+          if [ "$FETCH_OK" -ne 1 ]; then
+            echo "Failed to fetch from GitHub after 5 attempts."
+            exit 1
+          fi
+
           git checkout main
-          git pull --ff-only origin main
+          git merge --ff-only origin/main
 
           echo "==> Creating database backup"
           install -d -m 700 /var/backups/toeic

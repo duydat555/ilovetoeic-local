@@ -92,17 +92,17 @@ jobs:
           mkdir -p "$HOME/.ssh"
           touch "$HOME/.ssh/config"
           if ! grep -q "ssh.github.com" "$HOME/.ssh/config"; then
-            cat >> "$HOME/.ssh/config" <<'SSH_CFG'
-
-Host github.com
-    Hostname ssh.github.com
-    Port 443
-    User git
-    StrictHostKeyChecking accept-new
-    ServerAliveInterval 15
-    ServerAliveCountMax 3
-    ConnectTimeout 15
-SSH_CFG
+            printf '%s\n' \
+              '' \
+              'Host github.com' \
+              '    Hostname ssh.github.com' \
+              '    Port 443' \
+              '    User git' \
+              '    StrictHostKeyChecking accept-new' \
+              '    ServerAliveInterval 15' \
+              '    ServerAliveCountMax 3' \
+              '    ConnectTimeout 15' \
+              >> "$HOME/.ssh/config"
             chmod 600 "$HOME/.ssh/config"
           fi
 

@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  BookOpen, Check, Cpu, FolderOpen, Loader2, Plus, Sparkles, StickyNote, Volume2, X,
+  BookOpen, Check, Cpu, FolderOpen, Loader2, Plus, StickyNote, Volume2, X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BoneyardSkeleton } from './BoneyardSkeleton';
 import { dictionaryService } from '../../services/dictionary';
+import { playPronunciation } from '../../utils/audioPronunciation';
 import {
   VocabularyTopicSelection,
   vocabularyService,
@@ -40,17 +41,45 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'wordFamily', label: 'Họ từ' },
 ];
 
-const speak = (word: string) => {
-  if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(word);
-  utterance.lang = 'en-US';
-  utterance.rate = 0.86;
-  const voices = window.speechSynthesis.getVoices();
-  utterance.voice = voices.find((voice) => voice.lang === 'en-US') ||
-    voices.find((voice) => voice.lang.startsWith('en')) ||
-    null;
-  window.speechSynthesis.speak(utterance);
+interface DualPhonetic {
+  us: string;
+  uk: string;
+}
+
+const parseDualPhonetic = (
+  rawPhonetic?: string,
+  phoneticUs?: string,
+  phoneticUk?: string,
+): DualPhonetic => {
+  let us = (phoneticUs || '').trim();
+  let uk = (phoneticUk || '').trim();
+
+  if (us && uk) {
+    return {
+      us: us.startsWith('/') ? us : `/${us}/`,
+      uk: uk.startsWith('/') ? uk : `/${uk}/`,
+    };
+  }
+
+  const text = (rawPhonetic || '').trim();
+  if (!text) return { us: '', uk: '' };
+
+  const ukMatch = text.match(/(?:UK|Anh|GB)[:\s]+(\/[^/]+\/|\[[^\]]+\]|[^\s|,|]+)/i);
+  const usMatch = text.match(/(?:US|Mỹ|Ame)[:\s]+(\/[^/]+\/|\[[^\]]+\]|[^\s|,|]+)/i);
+
+  if (ukMatch) uk = ukMatch[1].trim();
+  if (usMatch) us = usMatch[1].trim();
+
+  if (!uk && !us) {
+    const clean = text.startsWith('/') ? text : `/${text}/`;
+    return { us: clean, uk: clean };
+  }
+
+  const fallback = uk || us;
+  return {
+    us: us ? (us.startsWith('/') ? us : `/${us}/`) : (fallback.startsWith('/') ? fallback : `/${fallback}/`),
+    uk: uk ? (uk.startsWith('/') ? uk : `/${uk}/`) : (fallback.startsWith('/') ? fallback : `/${fallback}/`),
+  };
 };
 
 const TabSkeleton = () => (
@@ -59,12 +88,15 @@ const TabSkeleton = () => (
   </div>
 );
 
-const SourceBadge = ({ source }: { source: AiSource }) => (
-  <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">
-    {source === 'local' ? <Cpu className="size-3" /> : <Sparkles className="size-3" />}
-    {source === 'local' ? 'AI Local · Chrome' : 'Gemini API'}
-  </span>
-);
+const SourceBadge = ({ source }: { source: AiSource }) => {
+  if (source !== 'local') return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-md bg-brand-50 px-2 py-1 text-[10px] font-bold text-brand-700 dark:bg-brand-500/10 dark:text-brand-200">
+      <Cpu className="size-3" />
+      AI Local · Chrome
+    </span>
+  );
+};
 
 export const SelectionTranslator: React.FC = () => {
   const { user } = useAuth();
@@ -76,7 +108,24 @@ export const SelectionTranslator: React.FC = () => {
   const [position, setPosition] = useState<Position | null>(null);
   const [selectedWord, setSelectedWord] = useState('');
   const [translation, setTranslation] = useState<WordTranslation | null>(null);
+  const [playingAccent, setPlayingAccent] = useState<'US' | 'UK' | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('meaning');
+
+  const dualPhonetic = useMemo(() => {
+    if (!translation) return { us: '', uk: '' };
+    return parseDualPhonetic(translation.phonetic, translation.phoneticUs, translation.phoneticUk);
+  }, [translation]);
+
+  const handlePlay = useCallback(async (accent: 'US' | 'UK') => {
+    if (!selectedWord) return;
+    setPlayingAccent(accent);
+    try {
+      const audioUrl = accent === 'UK' ? translation?.audioUk : translation?.audioUs;
+      await playPronunciation(selectedWord, accent, undefined, audioUrl);
+    } finally {
+      setPlayingAccent((curr) => (curr === accent ? null : curr));
+    }
+  }, [selectedWord, translation]);
   const [details, setDetails] = useState<Partial<Record<DictionaryDetailSection, DictionaryDetailResult>>>({});
   const [loadingTabs, setLoadingTabs] = useState<Partial<Record<DictionaryDetailSection, boolean>>>({});
   const [tabErrors, setTabErrors] = useState<Partial<Record<DictionaryDetailSection, string>>>({});
@@ -155,6 +204,7 @@ export const SelectionTranslator: React.FC = () => {
     setPersonalNote('');
     setSaved(false);
     setSaving(false);
+    setPlayingAccent(null);
     setSelectedTopicId(DEFAULT_VOCABULARY_TOPIC.id);
   }, []);
 
@@ -196,6 +246,8 @@ export const SelectionTranslator: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    let debounceTimer: number | null = null;
+
     const translateSelection = () => {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
@@ -228,9 +280,21 @@ export const SelectionTranslator: React.FC = () => {
       void lookupWord(word, context);
     };
 
-    const onMouseUp = () => translateSelection();
-    const onTouchEnd = () => window.setTimeout(translateSelection, 80);
+    const onMouseUp = () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(translateSelection, 150);
+    };
+
+    const onTouchEnd = () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(translateSelection, 180);
+    };
+
     const onMouseDown = (event: MouseEvent | TouchEvent) => {
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
       if (
         rootRef.current &&
         !rootRef.current.contains(event.target as Node)
@@ -238,8 +302,15 @@ export const SelectionTranslator: React.FC = () => {
         close();
       }
     };
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      if (event.key === 'Escape') {
+        if (debounceTimer) {
+          window.clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        close();
+      }
     };
 
     document.addEventListener('mouseup', onMouseUp);
@@ -249,6 +320,7 @@ export const SelectionTranslator: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
 
     return () => {
+      if (debounceTimer) window.clearTimeout(debounceTimer);
       document.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('touchend', onTouchEnd);
       document.removeEventListener('mousedown', onMouseDown);
@@ -472,27 +544,75 @@ export const SelectionTranslator: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-3 flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <h3 className="truncate text-[25px] font-extrabold leading-none tracking-[-0.03em] text-slate-950 dark:text-content">{selectedWord}</h3>
-                {translation && (
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-content-muted">
-                    <span>{translation.phonetic}</span>
-                    {translation.partOfSpeech && (
-                      <span className="rounded-md bg-slate-100 px-2 py-0.5 font-semibold text-slate-600 dark:bg-surface-elevated dark:text-content-muted">
-                        {translation.partOfSpeech}
-                      </span>
-                    )}
-                  </div>
+            <div className="mt-3.5 space-y-2.5">
+              <div className="flex flex-wrap items-baseline gap-2.5">
+                <h3 className="truncate text-[26px] font-black tracking-tight text-slate-950 dark:text-content">
+                  {selectedWord}
+                </h3>
+                {translation?.partOfSpeech && (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:bg-surface-elevated dark:text-content-muted">
+                    {translation.partOfSpeech}
+                  </span>
                 )}
               </div>
-              <button
-                onClick={() => speak(selectedWord)}
-                className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-700 transition hover:scale-105 hover:bg-brand-100 active:scale-95 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
-                aria-label={`Nghe phát âm ${selectedWord}`}
-              >
-                <Volume2 className="size-4" />
-              </button>
+
+              {translation && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* UK Pronunciation */}
+                  <button
+                    type="button"
+                    onClick={() => void handlePlay('UK')}
+                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                      playingAccent === 'UK'
+                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 shadow-sm dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                        : 'border-slate-200/80 bg-slate-50/70 hover:border-indigo-300 hover:bg-indigo-50/50 text-slate-700 dark:border-line dark:bg-surface-elevated/50 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/30 dark:text-content'
+                    }`}
+                    title="Nghe phát âm Anh - Anh (UK)"
+                    aria-label={`Nghe phát âm Anh - Anh: ${dualPhonetic.uk || selectedWord}`}
+                  >
+                    <span className="flex items-center justify-center rounded-md bg-indigo-100/90 px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
+                      UK
+                    </span>
+                    <Volume2
+                      className={`size-3.5 transition-transform duration-200 group-hover:scale-110 ${
+                        playingAccent === 'UK'
+                          ? 'text-indigo-600 animate-pulse dark:text-indigo-400'
+                          : 'text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
+                      }`}
+                    />
+                    <span className="font-mono text-[12px] text-slate-600 dark:text-content-muted">
+                      {dualPhonetic.uk || translation.phonetic || 'Phát âm'}
+                    </span>
+                  </button>
+
+                  {/* US Pronunciation */}
+                  <button
+                    type="button"
+                    onClick={() => void handlePlay('US')}
+                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                      playingAccent === 'US'
+                        ? 'border-rose-500 bg-rose-500/15 text-rose-700 shadow-sm dark:text-rose-300 ring-2 ring-rose-500/20'
+                        : 'border-slate-200/80 bg-slate-50/70 hover:border-rose-300 hover:bg-rose-50/50 text-slate-700 dark:border-line dark:bg-surface-elevated/50 dark:hover:border-rose-500/50 dark:hover:bg-rose-950/30 dark:text-content'
+                    }`}
+                    title="Nghe phát âm Anh - Mỹ (US)"
+                    aria-label={`Nghe phát âm Anh - Mỹ: ${dualPhonetic.us || selectedWord}`}
+                  >
+                    <span className="flex items-center justify-center rounded-md bg-rose-100/90 px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                      US
+                    </span>
+                    <Volume2
+                      className={`size-3.5 transition-transform duration-200 group-hover:scale-110 ${
+                        playingAccent === 'US'
+                          ? 'text-rose-600 animate-pulse dark:text-rose-400'
+                          : 'text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400'
+                      }`}
+                    />
+                    <span className="font-mono text-[12px] text-slate-600 dark:text-content-muted">
+                      {dualPhonetic.us || translation.phonetic || 'Phát âm'}
+                    </span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="-mx-1 mt-3 flex gap-0.5 overflow-x-auto pb-2" role="tablist" aria-label="Nội dung từ điển">

@@ -351,6 +351,10 @@ export interface WordTranslation {
   sourceText: string;
   translatedText: string;
   phonetic: string;
+  phoneticUs?: string;
+  phoneticUk?: string;
+  audioUs?: string;
+  audioUk?: string;
   partOfSpeech: string;
   definitionEn: string;
   examples: { en: string; vi: string }[];

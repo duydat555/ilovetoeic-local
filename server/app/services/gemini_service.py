@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import re
 from collections import OrderedDict
 from typing import Any, Dict, List, Literal, Optional
 
@@ -25,7 +26,9 @@ class TranslationExample(BaseModel):
 class GeminiWordResult(BaseModel):
     source_text: str
     translated_text: str = Field(description="Concise Vietnamese meanings, ordered by relevance")
-    phonetic: str = Field(description="IPA pronunciation between slashes")
+    phonetic: str = Field(description="General IPA pronunciation between slashes")
+    phonetic_us: Optional[str] = Field(None, description="American English (US) IPA pronunciation between slashes, e.g. /əˈkɑː.mə.deɪt/")
+    phonetic_uk: Optional[str] = Field(None, description="British English (UK) IPA pronunciation between slashes, e.g. /əˈkɒm.ə.deɪt/")
     part_of_speech: str = Field(description="English part of speech, e.g. noun, verb")
     definition_en: str = Field(description="Short, learner-friendly English definition")
     examples: List[TranslationExample]
@@ -81,6 +84,7 @@ class GeminiTranslationService:
         self.stats = {
             "total_requests": 0,
             "memory_cache_hits": 0,
+            "system_vocabulary_hits": 0,
             "mysql_cache_hits": 0,
             "gemini_api_calls": 0,
             "dictionary_detail_calls": 0,
@@ -109,6 +113,215 @@ class GeminiTranslationService:
             self.memory_cache.popitem(last=False)
         self.memory_cache[text_hash] = data
 
+    def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
+        clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
+        if not clean_word or len(clean_word.split()) > 4:
+            return None
+        try:
+            record = db.fetch_one(
+                """
+                SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
+                       example_en, example_vi, example_toeic, audio_us, audio_uk, 
+                       synonyms, word_family, phrases
+                FROM system_vocabulary_words 
+                WHERE word = ? 
+                ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC 
+                LIMIT 1
+                """,
+                (clean_word,),
+                use_cache=False,
+            )
+            if not record:
+                return None
+
+            raw_phonetic = record.get("ipa") or ""
+            phonetic_us = ""
+            phonetic_uk = ""
+            if "UK:" in raw_phonetic and "US:" in raw_phonetic:
+                uk_m = re.search(r"UK:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+                us_m = re.search(r"US:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+                if uk_m:
+                    phonetic_uk = uk_m.group(1)
+                if us_m:
+                    phonetic_us = us_m.group(1)
+            if not phonetic_us:
+                phonetic_us = raw_phonetic
+            if not phonetic_uk:
+                phonetic_uk = raw_phonetic
+
+            examples = []
+            if record.get("example_en"):
+                examples.append({
+                    "en": record["example_en"],
+                    "vi": record.get("example_vi") or "",
+                })
+            elif record.get("example_toeic"):
+                toeic_ex = self._parse_json(record["example_toeic"], None)
+                if isinstance(toeic_ex, dict) and toeic_ex.get("en"):
+                    examples.append({
+                        "en": toeic_ex["en"],
+                        "vi": toeic_ex.get("vi") or "",
+                    })
+
+            synonyms = self._parse_json(record.get("synonyms"), [])
+            if isinstance(synonyms, list):
+                synonyms = [s for s in synonyms if isinstance(s, str)][:4]
+            else:
+                synonyms = []
+
+            return {
+                "source_text": record.get("word", word),
+                "translated_text": record.get("meaning_vi", ""),
+                "phonetic": raw_phonetic,
+                "phonetic_us": phonetic_us,
+                "phonetic_uk": phonetic_uk,
+                "audio_us": record.get("audio_us") or "",
+                "audio_uk": record.get("audio_uk") or "",
+                "part_of_speech": record.get("part_of_speech", ""),
+                "definition_en": record.get("definition_en", ""),
+                "examples": examples,
+                "synonyms": synonyms,
+                "cached": True,
+                "cache_source": "system_vocabulary",
+            }
+        except Exception as error:
+            print(f"[!] System vocabulary lookup failed: {error}")
+            return None
+
+    def _lookup_system_vocabulary_detail(
+        self,
+        word: str,
+        section: DictionaryDetailSection,
+    ) -> Optional[Dict[str, Any]]:
+        clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
+        if not clean_word or len(clean_word.split()) > 4:
+            return None
+        try:
+            record = db.fetch_one(
+                """
+                SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
+                       example_en, example_vi, example_toeic, 
+                       synonyms, word_family, phrases
+                FROM system_vocabulary_words 
+                WHERE word = ? 
+                ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC 
+                LIMIT 1
+                """,
+                (clean_word,),
+                use_cache=False,
+            )
+            if not record:
+                return None
+
+            if section == "collocations":
+                phrases_data = self._parse_json(record.get("phrases"), [])
+                if isinstance(phrases_data, list) and phrases_data:
+                    items = []
+                    for item in phrases_data:
+                        if isinstance(item, dict) and item.get("phrase"):
+                            items.append({
+                                "phrase": item["phrase"],
+                                "meaningVi": item.get("meaning") or item.get("meaningVi") or "",
+                            })
+                    if items:
+                        return {
+                            "source_text": record.get("word", word),
+                            "section": section,
+                            "items": items,
+                            "cached": True,
+                            "cache_source": "system_vocabulary",
+                        }
+
+            elif section == "synonyms":
+                synonyms_data = self._parse_json(record.get("synonyms"), [])
+                if isinstance(synonyms_data, list) and synonyms_data:
+                    valid_synonyms = [s for s in synonyms_data if isinstance(s, str) and s.strip()]
+                    if valid_synonyms:
+                        return {
+                            "source_text": record.get("word", word),
+                            "section": section,
+                            "items": valid_synonyms[:5],
+                            "cached": True,
+                            "cache_source": "system_vocabulary",
+                        }
+
+            elif section == "wordFamily":
+                wf_data = self._parse_json(record.get("word_family"), [])
+                if isinstance(wf_data, list) and wf_data:
+                    items = []
+                    for item in wf_data:
+                        if isinstance(item, dict) and item.get("word"):
+                            items.append({
+                                "word": item["word"],
+                                "partOfSpeech": item.get("pos") or item.get("part_of_speech") or "",
+                                "phonetic": item.get("ipa") or item.get("phonetic") or "",
+                            })
+                    if items:
+                        return {
+                            "source_text": record.get("word", word),
+                            "section": section,
+                            "items": items,
+                            "cached": True,
+                            "cache_source": "system_vocabulary",
+                        }
+
+            elif section == "examples":
+                examples_items = []
+                if record.get("example_toeic"):
+                    toeic_ex = self._parse_json(record["example_toeic"], None)
+                    if isinstance(toeic_ex, dict) and toeic_ex.get("en"):
+                        examples_items.append({
+                            "en": toeic_ex["en"],
+                            "vi": toeic_ex.get("vi") or "",
+                            "level": record.get("cefr") or "TOEIC",
+                            "context": "TOEIC Exam",
+                        })
+                if record.get("example_en"):
+                    examples_items.append({
+                        "en": record["example_en"],
+                        "vi": record.get("example_vi") or "",
+                        "level": record.get("cefr") or "Intermediate",
+                        "context": "Workplace & Daily Life",
+                    })
+                if examples_items:
+                    return {
+                        "source_text": record.get("word", word),
+                        "section": section,
+                        "items": examples_items,
+                        "cached": True,
+                        "cache_source": "system_vocabulary",
+                    }
+
+            return None
+        except Exception as error:
+            print(f"[!] System vocabulary detail lookup failed: {error}")
+            return None
+
+    def _format_database_cache_result(self, database_result: Dict[str, Any], text: str) -> Dict[str, Any]:
+        raw_phonetic = database_result.get("phonetic", "")
+        phonetic_us = ""
+        phonetic_uk = ""
+        if "UK:" in raw_phonetic and "US:" in raw_phonetic:
+            uk_m = re.search(r"UK:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+            us_m = re.search(r"US:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+            if uk_m:
+                phonetic_uk = uk_m.group(1)
+            if us_m:
+                phonetic_us = us_m.group(1)
+        return {
+            "source_text": database_result.get("source_text", text),
+            "translated_text": database_result.get("translated_text", ""),
+            "phonetic": raw_phonetic,
+            "phonetic_us": phonetic_us or raw_phonetic,
+            "phonetic_uk": phonetic_uk or raw_phonetic,
+            "part_of_speech": database_result.get("part_of_speech", ""),
+            "definition_en": database_result.get("definition_en", ""),
+            "examples": self._parse_json(database_result.get("examples"), []),
+            "synonyms": self._parse_json(database_result.get("synonyms"), []),
+            "cached": True,
+            "cache_source": "mysql",
+        }
+
     async def translate_text(
         self,
         text: str,
@@ -117,29 +330,37 @@ class GeminiTranslationService:
         context: str = "TOEIC",
     ) -> Dict[str, Any]:
         self.stats["total_requests"] += 1
-        text_hash = self._compute_hash(text, src_lang, target_lang, context)
+        clean_text = text.strip()
+        context_hash = self._compute_hash(clean_text, src_lang, target_lang, context)
+        word_only_hash = self._compute_hash(clean_text, src_lang, target_lang, "")
 
-        memory_result = self._get_from_memory_cache(text_hash)
+        # Tier 1: In-Memory RAM Cache (check context hash, then word-only hash)
+        memory_result = self._get_from_memory_cache(context_hash) or self._get_from_memory_cache(word_only_hash)
         if memory_result:
             return memory_result
 
-        database_result = await asyncio.to_thread(self._get_database_cache, text_hash)
+        # Tier 2: Local MySQL System Vocabulary (20,159 indexed words - ultra fast 2ms lookup)
+        if src_lang == "en" and target_lang == "vi":
+            system_result = await asyncio.to_thread(self._lookup_system_vocabulary, clean_text)
+            if system_result:
+                self.stats["system_vocabulary_hits"] += 1
+                self._save_to_memory_cache(context_hash, system_result)
+                self._save_to_memory_cache(word_only_hash, system_result)
+                return system_result
+
+        # Tier 3: MySQL translation_cache (check context hash, then word-only hash fallback)
+        database_result = await asyncio.to_thread(self._get_database_cache, context_hash)
+        if not database_result and context_hash != word_only_hash:
+            database_result = await asyncio.to_thread(self._get_database_cache, word_only_hash)
+
         if database_result:
             self.stats["mysql_cache_hits"] += 1
-            result = {
-                "source_text": database_result.get("source_text", text),
-                "translated_text": database_result.get("translated_text", ""),
-                "phonetic": database_result.get("phonetic", ""),
-                "part_of_speech": database_result.get("part_of_speech", ""),
-                "definition_en": database_result.get("definition_en", ""),
-                "examples": self._parse_json(database_result.get("examples"), []),
-                "synonyms": self._parse_json(database_result.get("synonyms"), []),
-                "cached": True,
-                "cache_source": "mysql",
-            }
-            self._save_to_memory_cache(text_hash, result)
+            result = self._format_database_cache_result(database_result, clean_text)
+            self._save_to_memory_cache(context_hash, result)
+            self._save_to_memory_cache(word_only_hash, result)
             return result
 
+        # Tier 4: Gemini API fallback with Concurrency Semaphore
         if not self.client:
             self.stats["errors"] += 1
             error = (
@@ -148,7 +369,7 @@ class GeminiTranslationService:
                 else "GEMINI_API_KEY chưa được cấu hình trên máy chủ."
             )
             return {
-                "source_text": text,
+                "source_text": clean_text,
                 "error": error,
                 "cached": False,
                 "cache_source": "error",
@@ -159,7 +380,7 @@ class GeminiTranslationService:
             try:
                 result = await asyncio.to_thread(
                     self._call_gemini_api,
-                    text,
+                    clean_text,
                     src_lang,
                     target_lang,
                     context,
@@ -174,7 +395,7 @@ class GeminiTranslationService:
                 }
                 print(f"[!] Gemini API exception ({error_type}): {error_message}")
                 return {
-                    "source_text": text,
+                    "source_text": clean_text,
                     "error": self._friendly_error(error),
                     "cached": False,
                     "cache_source": "error",
@@ -186,8 +407,11 @@ class GeminiTranslationService:
             "cached": False,
             "cache_source": "gemini_api",
         })
-        self._save_to_memory_cache(text_hash, result)
-        asyncio.create_task(asyncio.to_thread(self._save_database_cache, text_hash, result))
+        self._save_to_memory_cache(context_hash, result)
+        self._save_to_memory_cache(word_only_hash, result)
+        asyncio.create_task(asyncio.to_thread(self._save_database_cache, context_hash, result))
+        if context_hash != word_only_hash:
+            asyncio.create_task(asyncio.to_thread(self._save_database_cache, word_only_hash, result))
         return result
 
     async def get_dictionary_detail(
@@ -197,16 +421,27 @@ class GeminiTranslationService:
         context: str = "TOEIC",
     ) -> Dict[str, Any]:
         self.stats["total_requests"] += 1
+        clean_text = text.strip()
         detail_context = f"dictionary-detail:{section}:{context}"
-        text_hash = self._compute_hash(text, "en", "vi", detail_context)
-        memory_result = self._get_from_memory_cache(text_hash)
+        text_hash = self._compute_hash(clean_text, "en", "vi", detail_context)
+        word_only_hash = self._compute_hash(clean_text, "en", "vi", f"dictionary-detail:{section}")
+
+        memory_result = self._get_from_memory_cache(text_hash) or self._get_from_memory_cache(word_only_hash)
         if memory_result:
             return memory_result
+
+        # System vocabulary detail lookup
+        system_detail = await asyncio.to_thread(self._lookup_system_vocabulary_detail, clean_text, section)
+        if system_detail:
+            self.stats["system_vocabulary_hits"] += 1
+            self._save_to_memory_cache(text_hash, system_detail)
+            self._save_to_memory_cache(word_only_hash, system_detail)
+            return system_detail
 
         if not self.client:
             self.stats["errors"] += 1
             return {
-                "source_text": text,
+                "source_text": clean_text,
                 "section": section,
                 "error": "Gemini API chưa được cấu hình trên máy chủ.",
                 "cache_source": "error",
@@ -218,7 +453,7 @@ class GeminiTranslationService:
             try:
                 result = await asyncio.to_thread(
                     self._call_gemini_detail,
-                    text,
+                    clean_text,
                     section,
                     context,
                 )
@@ -229,19 +464,20 @@ class GeminiTranslationService:
                     "message": str(error)[:500],
                 }
                 return {
-                    "source_text": text,
+                    "source_text": clean_text,
                     "section": section,
                     "error": self._friendly_error(error),
                     "cache_source": "error",
                 }
 
         result.update({
-            "source_text": text,
+            "source_text": clean_text,
             "section": section,
             "cached": False,
             "cache_source": "gemini_api",
         })
         self._save_to_memory_cache(text_hash, result)
+        self._save_to_memory_cache(word_only_hash, result)
         return result
 
     @staticmethod
@@ -278,8 +514,8 @@ You are an English-Vietnamese dictionary editor specializing in TOEIC.
 Analyze the selected English word "{text}" from this nearby context:
 {context[:500]}
 
-Return its most contextually relevant Vietnamese meaning, IPA, part of speech,
-a short English definition, one natural bilingual example, and up to four
+Return its most contextually relevant Vietnamese meaning, US IPA and UK IPA pronunciations,
+part of speech, a short English definition, one natural bilingual example, and up to four
 common synonyms. Keep the explanation concise and suitable for a Vietnamese learner.
 Source language: {src_lang}. Target language: {target_lang}.
 """
@@ -336,6 +572,10 @@ Source language: {src_lang}. Target language: {target_lang}.
     @staticmethod
     def _save_database_cache(text_hash: str, data: Dict[str, Any]) -> bool:
         try:
+            phonetic_to_save = data.get("phonetic", "")
+            if data.get("phonetic_uk") and data.get("phonetic_us"):
+                phonetic_to_save = f"UK: {data['phonetic_uk']} | US: {data['phonetic_us']}"
+
             db.execute(
                 """
                 INSERT INTO translation_cache (
@@ -355,7 +595,7 @@ Source language: {src_lang}. Target language: {target_lang}.
                     text_hash,
                     data.get("source_text", ""),
                     data.get("translated_text", ""),
-                    data.get("phonetic", ""),
+                    phonetic_to_save,
                     data.get("part_of_speech", ""),
                     data.get("definition_en", ""),
                     json.dumps(data.get("examples", []), ensure_ascii=False),
@@ -446,7 +686,11 @@ Keep every item concise and accurate for a Vietnamese learner.
         return result
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        hits = self.stats["memory_cache_hits"] + self.stats["mysql_cache_hits"]
+        hits = (
+            self.stats["memory_cache_hits"]
+            + self.stats["mysql_cache_hits"]
+            + self.stats.get("system_vocabulary_hits", 0)
+        )
         total = self.stats["total_requests"]
         return {
             "metrics": self.stats,

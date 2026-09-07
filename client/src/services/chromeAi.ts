@@ -350,6 +350,8 @@ Return exactly:
   "sourceText": "${word}",
   "translatedText": "concise Vietnamese meaning",
   "phonetic": "/IPA/",
+  "phoneticUs": "/US IPA/",
+  "phoneticUk": "/UK IPA/",
   "partOfSpeech": "English part of speech",
   "definitionEn": "short learner-friendly English definition",
   "examples": [{"en": "one natural sentence", "vi": "Vietnamese translation"}],
@@ -359,6 +361,8 @@ Return exactly:
         sourceText: asString(data.sourceText) || word,
         translatedText: asString(data.translatedText),
         phonetic: asString(data.phonetic),
+        phoneticUs: asString(data.phoneticUs) || asString(data.phonetic),
+        phoneticUk: asString(data.phoneticUk) || asString(data.phonetic),
         partOfSpeech: asString(data.partOfSpeech),
         definitionEn: asString(data.definitionEn),
         examples: asArray(data.examples).map((item) => {

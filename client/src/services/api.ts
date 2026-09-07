@@ -97,13 +97,17 @@ export const apiService = {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => null);
-      throw new Error(body?.detail || 'Không thể kết nối dịch vụ Gemini.');
+      throw new Error(body?.detail || 'Không thể tra cứu từ này lúc này. Vui lòng thử lại.');
     }
     const data = await res.json();
     return {
       sourceText: data.source_text,
       translatedText: data.translated_text,
       phonetic: data.phonetic || '',
+      phoneticUs: data.phonetic_us || '',
+      phoneticUk: data.phonetic_uk || '',
+      audioUs: data.audio_us || '',
+      audioUk: data.audio_uk || '',
       partOfSpeech: data.part_of_speech || '',
       definitionEn: data.definition_en || '',
       examples: Array.isArray(data.examples) ? data.examples : [],

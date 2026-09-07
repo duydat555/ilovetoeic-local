@@ -57,17 +57,19 @@ export const VocabularyPageSkeleton: React.FC = () => (
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3, 4, 5, 6].map((id) => (
-          <div key={id} className="overflow-hidden rounded-3xl border border-line bg-surface shadow-sm">
-            <BoneyardSkeleton name={`vocab-set-cover-${id}`} height={180} className="rounded-none w-full" />
-            <div className="space-y-3 p-5">
-              <BoneyardSkeleton name={`vocab-set-title-${id}`} height={22} width="70%" className="rounded-lg" />
-              <BoneyardSkeleton name={`vocab-set-desc-1-${id}`} variant="text" width="95%" className="h-3" />
-              <BoneyardSkeleton name={`vocab-set-desc-2-${id}`} variant="text" width="60%" className="h-3" />
-              <div className="pt-3 border-t border-line flex justify-between items-center">
-                <BoneyardSkeleton name={`vocab-set-meta-1-${id}`} variant="text" width={80} className="h-3" />
-                <BoneyardSkeleton name={`vocab-set-meta-2-${id}`} variant="text" width={80} className="h-3" />
+          <div key={id} className="overflow-hidden rounded-3xl border border-line/80 bg-surface shadow-xs">
+            <BoneyardSkeleton name={`vocab-set-cover-${id}`} height={190} className="rounded-none w-full" />
+            <div className="flex flex-1 flex-col justify-between p-5">
+              <div>
+                <BoneyardSkeleton name={`vocab-set-title-${id}`} height={20} width="65%" className="rounded-lg" />
+                <BoneyardSkeleton name={`vocab-set-desc-1-${id}`} variant="text" width="95%" className="h-3 mt-2" />
+                <BoneyardSkeleton name={`vocab-set-desc-2-${id}`} variant="text" width="60%" className="h-3 mt-1.5" />
               </div>
-              <BoneyardSkeleton name={`vocab-set-btn-${id}`} height={40} className="rounded-xl w-full" />
+
+              <div className="mt-4 pt-3.5 border-t border-line/60 flex items-center justify-between">
+                <BoneyardSkeleton name={`vocab-set-meta-${id}`} variant="text" width={120} className="h-3.5" />
+                <BoneyardSkeleton name={`vocab-set-action-${id}`} variant="button" width={68} height={20} className="rounded-md" />
+              </div>
             </div>
           </div>
         ))}
@@ -86,13 +88,27 @@ export const VocabularyPageSkeleton: React.FC = () => (
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <BoneyardSkeleton
-            key={i}
-            name={`vocab-personal-card-${i}`}
-            variant="card"
-            height={210}
-            className="rounded-3xl"
-          />
+          <div key={i} className="rounded-3xl border border-line/80 bg-surface p-5 flex flex-col justify-between shadow-xs">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <BoneyardSkeleton name={`vocab-personal-icon-${i}`} width={44} height={44} className="rounded-2xl" />
+                <BoneyardSkeleton name={`vocab-personal-menu-${i}`} width={32} height={32} className="rounded-xl" />
+              </div>
+              <BoneyardSkeleton name={`vocab-personal-title-${i}`} height={20} width="60%" className="rounded-lg mt-3.5" />
+              <BoneyardSkeleton name={`vocab-personal-desc-${i}`} variant="text" width="85%" className="h-3 mt-2" />
+            </div>
+
+            <div className="mt-5 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <BoneyardSkeleton name={`vocab-personal-stat1-${i}`} variant="text" width={65} className="h-3" />
+                <BoneyardSkeleton name={`vocab-personal-stat2-${i}`} variant="text" width={100} className="h-3" />
+              </div>
+              <BoneyardSkeleton name={`vocab-personal-bar-${i}`} height={6} className="rounded-full w-full" />
+              <div className="pt-1.5">
+                <BoneyardSkeleton name={`vocab-personal-btn-${i}`} height={36} className="rounded-xl w-full" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </section>

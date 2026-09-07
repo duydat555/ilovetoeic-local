@@ -210,98 +210,100 @@ export const TopicListPage: React.FC = () => {
     const percent = stats.total ? Math.round((stats.remembered / stats.total) * 100) : 0;
 
     return (
-      <article className="group relative flex flex-col justify-between rounded-3xl border border-line bg-surface p-5 shadow-sm transition hover:-translate-y-1 hover:border-accent/50 hover:shadow-lg dark:shadow-none">
-        <Link
-          to={`/vocabulary/${topic.id}`}
-          className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <div className="flex items-start justify-between gap-4">
-            <span className="grid size-12 place-items-center rounded-2xl bg-accent/15 text-accent-strong transition-transform group-hover:scale-105">
+      <article className="group relative flex flex-col justify-between rounded-3xl border border-line/80 bg-surface p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-lg dark:shadow-none">
+        <div>
+          {/* Card Header: Icon + Menu */}
+          <div className="flex items-start justify-between gap-3">
+            <span className="grid size-11 place-items-center rounded-2xl bg-accent/10 text-accent-strong transition-transform group-hover:scale-105">
               <TopicIcon name={topic.icon} />
             </span>
 
-            <div
-              className="grid size-12 shrink-0 place-items-center rounded-full"
-              style={{
-                background: `conic-gradient(rgb(16 185 129) ${percent}%, rgb(226 232 240) 0)`,
-              }}
-            >
-              <span className="grid size-10 place-items-center rounded-full bg-surface text-xs font-black text-content">
-                {percent}%
-              </span>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMenuId(menuId === topic.id ? '' : topic.id)}
+                className="grid size-8 place-items-center rounded-xl text-content-muted hover:bg-surface-hover hover:text-content transition-colors"
+                aria-label={`Quản lý ${topic.name}`}
+              >
+                <MoreHorizontal className="size-4" />
+              </button>
+              {menuId === topic.id && (
+                <div className="absolute right-0 top-9 z-20 w-36 rounded-2xl border border-line bg-surface p-1.5 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(topic);
+                      setModalOpen(true);
+                      setMenuId('');
+                    }}
+                    className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
+                  >
+                    Sửa chủ đề
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMerging(topic);
+                      setMenuId('');
+                    }}
+                    className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
+                  >
+                    Gộp chủ đề
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeleting(topic);
+                      setMenuId('');
+                    }}
+                    className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
+                  >
+                    Xoá chủ đề
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <h3 className="mt-4 truncate pr-8 text-lg font-black text-content group-hover:text-accent-strong transition-colors">
-            {topic.name}
-          </h3>
-
-          <p className="mt-1 line-clamp-2 min-h-10 text-xs font-medium leading-relaxed text-content-muted">
-            {topic.description || 'Chủ đề từ vựng cá nhân.'}
-          </p>
-
-          <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-extrabold text-content-muted">
-            <span>{stats.total} từ vựng</span>
-            <span className="text-emerald-600 dark:text-emerald-400">
-              {stats.remembered}/{stats.total} đã thuộc
-            </span>
-          </div>
-        </Link>
-
-        <div className="mt-4 pt-1">
           <Link
             to={`/vocabulary/${topic.id}`}
-            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent/10 px-4 text-xs font-extrabold text-accent-strong transition hover:bg-accent hover:text-accent-contrast active:scale-98"
+            className="mt-3.5 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
           >
-            <Play className="size-3.5 fill-current" />
-            <span>Học chủ đề này</span>
+            <h3 className="truncate text-base font-extrabold text-content group-hover:text-accent-strong transition-colors">
+              {topic.name}
+            </h3>
+            <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
+              {topic.description || 'Chủ đề từ vựng cá nhân.'}
+            </p>
           </Link>
         </div>
 
-        <div className="absolute right-3 top-[76px]">
-          <button
-            type="button"
-            onClick={() => setMenuId(menuId === topic.id ? '' : topic.id)}
-            className="grid size-8 place-items-center rounded-lg text-content-muted hover:bg-surface-hover hover:text-content"
-            aria-label={`Quản lý ${topic.name}`}
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
-          {menuId === topic.id && (
-            <div className="absolute right-0 top-9 z-20 w-36 rounded-2xl border border-line bg-surface p-1.5 shadow-xl">
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(topic);
-                  setModalOpen(true);
-                  setMenuId('');
-                }}
-                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
-              >
-                Sửa chủ đề
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMerging(topic);
-                  setMenuId('');
-                }}
-                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
-              >
-                Gộp chủ đề
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleting(topic);
-                  setMenuId('');
-                }}
-                className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
-              >
-                Xoá chủ đề
-              </button>
-            </div>
-          )}
+        {/* Progress & Meta */}
+        <div className="mt-5 space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-content-muted">{stats.total} từ vựng</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+              {stats.remembered}/{stats.total} đã thuộc ({percent}%)
+            </span>
+          </div>
+
+          {/* Clean minimal progress bar */}
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-line/60">
+            <div
+              className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+
+          <div className="pt-1.5">
+            <Link
+              to={`/vocabulary/${topic.id}`}
+              className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-accent/20 bg-accent/5 px-3 text-xs font-bold text-accent-strong transition hover:bg-accent hover:text-accent-contrast active:scale-98"
+            >
+              <Play className="size-3 fill-current" />
+              <span>Luyện tập ngay</span>
+            </Link>
+          </div>
         </div>
       </article>
     );
@@ -310,7 +312,7 @@ export const TopicListPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-16">
       {/* Sổ tay từ vựng của tôi - Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/10 via-surface to-surface p-6 shadow-sm transition-all sm:p-7">
+      <div className="relative overflow-hidden rounded-3xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-6 shadow-xs transition-all sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1 text-xs font-black text-accent-strong">
@@ -320,20 +322,20 @@ export const TopicListPage: React.FC = () => {
             <h2 className="text-xl font-black text-content sm:text-2xl">
               Sổ tay từ vựng của tôi ({mySavedCount} từ đã lưu)
             </h2>
-            <p className="max-w-2xl text-xs sm:text-sm font-medium leading-relaxed text-content-muted">
+            <p className="max-w-2xl text-xs sm:text-sm font-normal leading-relaxed text-content-muted">
               Toàn bộ từ vựng bạn đã bôi đen tra cứu bằng AI khi đọc bài thi, luyện tập hoặc tự bổ sung. Ôn tập lại ngay với 5 chế độ học tương tác thông minh để nhớ lâu và phản xạ nhanh!
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <div className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-extrabold text-content">
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <div className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-content">
                 <span className="text-content-muted">Tổng:</span>
-                <span>{mySavedCount} từ</span>
+                <strong className="font-bold">{mySavedCount} từ</strong>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-extrabold text-emerald-600 dark:text-emerald-400">
+              <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="size-3.5" />
                 <span>{myRememberedCount} đã thuộc ({myPercent}%)</span>
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-extrabold text-amber-600 dark:text-amber-400">
+              <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                 <span>{myNeedReviewCount} cần ôn luyện</span>
               </div>
             </div>
@@ -342,7 +344,7 @@ export const TopicListPage: React.FC = () => {
           <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
             <Link
               to="/vocabulary/my-words"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-accent px-6 text-sm font-extrabold text-accent-contrast shadow-lg shadow-accent/20 transition hover:bg-accent/90 active:scale-98"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-accent px-6 text-sm font-bold text-accent-contrast shadow-md shadow-accent/20 transition hover:bg-accent/90 active:scale-98"
             >
               <Play className="size-4 fill-current" />
               <span>Học sổ tay của tôi</span>
@@ -350,7 +352,7 @@ export const TopicListPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setAddWordModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-5 text-sm font-extrabold text-content transition hover:border-accent/40 hover:bg-surface-hover active:scale-98"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-5 text-sm font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover active:scale-98"
             >
               <Plus className="size-4" />
               <span>Thêm từ mới</span>
@@ -372,7 +374,7 @@ export const TopicListPage: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveCategory(tab.id)}
-                  className={`inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-xs font-black transition active:scale-98 ${
+                  className={`inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-xs font-bold transition active:scale-98 ${
                     isActive
                       ? 'bg-accent text-accent-contrast shadow-md shadow-accent/20'
                       : 'border border-line bg-surface text-content-muted hover:bg-surface-hover hover:text-content'
@@ -398,7 +400,7 @@ export const TopicListPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Grid: Cloned System Vocabulary Sets */}
+      {/* Main Grid: System Vocabulary Sets */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
@@ -421,15 +423,15 @@ export const TopicListPage: React.FC = () => {
               <Link
                 key={set.id}
                 to={`/vocabulary/set/${set.id}`}
-                className="group flex flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-sm transition hover:-translate-y-1 hover:border-accent/60 hover:shadow-xl dark:shadow-none"
+                className="group flex flex-col overflow-hidden rounded-3xl border border-line/80 bg-surface shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-lg dark:hover:border-accent/40"
               >
                 {/* Set Cover Image Banner */}
-                <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface-elevated border-b border-line">
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface-elevated">
                   {set.cover_url ? (
                     <img
                       src={set.cover_url}
                       alt={set.name}
-                      className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="size-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                       loading="lazy"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -437,19 +439,18 @@ export const TopicListPage: React.FC = () => {
                     />
                   ) : (
                     <div className="grid size-full place-items-center bg-accent/10 text-accent-strong">
-                      <BookOpen className="size-12" />
+                      <BookOpen className="size-10 stroke-[1.5]" />
                     </div>
                   )}
+
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+
                   {/* Category Pill on Image */}
-                  <div className="absolute left-3 top-3">
-                    <span className="rounded-full bg-slate-950/70 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white backdrop-blur-md">
+                  <div className="absolute left-3.5 top-3.5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur-md shadow-xs">
+                      <span className="size-1.5 rounded-full bg-accent" />
                       {set.category}
-                    </span>
-                  </div>
-                  {/* Total Units Badge */}
-                  <div className="absolute right-3 top-3">
-                    <span className="rounded-full bg-accent/90 px-2.5 py-1 text-[10px] font-black text-accent-contrast backdrop-blur-md shadow-sm">
-                      {set.total_tests} bài học
                     </span>
                   </div>
                 </div>
@@ -457,24 +458,31 @@ export const TopicListPage: React.FC = () => {
                 {/* Set Details */}
                 <div className="flex flex-1 flex-col justify-between p-5">
                   <div>
-                    <h3 className="text-lg font-black text-content group-hover:text-accent-strong transition-colors">
+                    <h3 className="text-base sm:text-lg font-extrabold text-content group-hover:text-accent-strong transition-colors duration-200 line-clamp-1">
                       {set.name}
                     </h3>
-                    <p className="mt-1 line-clamp-2 min-h-10 text-xs font-medium leading-relaxed text-content-muted">
+                    <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
                       {set.description ||
                         `Toàn bộ từ vựng chọn lọc thuộc bộ ${set.name} chia theo các bài học chuyên sâu.`}
                     </p>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-line/60">
-                    <div className="flex items-center justify-between text-xs font-extrabold">
-                      <span className="text-content-muted">{set.total_tests} bài học</span>
-                      <span className="text-emerald-600 dark:text-emerald-400">{set.total_words} từ vựng</span>
+                  <div className="mt-4 pt-3.5 border-t border-line/60 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-medium text-content-muted">
+                      <span className="inline-flex items-center gap-1">
+                        <BookOpen className="size-3.5 text-accent" />
+                        <strong className="font-bold text-content">{set.total_tests}</strong> bài
+                      </span>
+                      <span className="text-line">·</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Layers className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <strong className="font-bold text-content">{set.total_words}</strong> từ
+                      </span>
                     </div>
 
-                    <div className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-accent/10 px-4 text-xs font-extrabold text-accent-strong transition group-hover:bg-accent group-hover:text-accent-contrast">
-                      <span>Khám phá các bài học</span>
-                      <ChevronRight className="size-3.5" />
+                    <div className="flex items-center gap-1 text-xs font-bold text-accent-strong group-hover:translate-x-0.5 transition-transform">
+                      <span>Học ngay</span>
+                      <ChevronRight className="size-4" />
                     </div>
                   </div>
                 </div>
@@ -498,7 +506,7 @@ export const TopicListPage: React.FC = () => {
               setEditing(null);
               setModalOpen(true);
             }}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-extrabold text-content transition hover:border-accent/40 hover:bg-surface-hover"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover"
           >
             <Plus className="size-3.5" />
             <span>Tạo bộ mới</span>
@@ -507,57 +515,54 @@ export const TopicListPage: React.FC = () => {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Card: Sổ tay từ vựng của tôi */}
-          <article className="group relative flex flex-col justify-between rounded-3xl border-2 border-accent/40 bg-surface p-5 shadow-sm transition hover:-translate-y-1 hover:border-accent hover:shadow-lg dark:shadow-none">
-            <Link
-              to="/vocabulary/my-words"
-              className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <span className="grid size-12 place-items-center rounded-2xl bg-accent text-accent-contrast shadow-md shadow-accent/20 transition-transform group-hover:scale-105">
-                  <BookMarked className="size-6" />
+          <article className="group relative flex flex-col justify-between rounded-3xl border border-accent/40 bg-gradient-to-br from-accent/5 via-surface to-surface p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-accent hover:shadow-lg dark:shadow-none">
+            <div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="grid size-11 place-items-center rounded-2xl bg-accent text-accent-contrast shadow-sm transition-transform group-hover:scale-105">
+                  <BookMarked className="size-5" />
                 </span>
-
-                <div
-                  className="grid size-12 shrink-0 place-items-center rounded-full"
-                  style={{
-                    background: `conic-gradient(rgb(16 185 129) ${myPercent}%, rgb(226 232 240) 0)`,
-                  }}
-                >
-                  <span className="grid size-10 place-items-center rounded-full bg-surface text-xs font-black text-content">
-                    {myPercent}%
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-2">
-                <h3 className="truncate text-lg font-black text-content group-hover:text-accent-strong transition-colors">
-                  Sổ tay từ vựng của tôi
-                </h3>
-                <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-black text-accent-strong">
-                  Chính
+                <span className="rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-[10px] font-extrabold text-accent-strong">
+                  Mặc định
                 </span>
               </div>
 
-              <p className="mt-1 line-clamp-2 min-h-10 text-xs font-medium leading-relaxed text-content-muted">
-                Kho từ vựng cá nhân bạn đã tra cứu AI, lưu từ đề thi và bài đọc TOEIC.
-              </p>
-
-              <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3 text-xs font-extrabold text-content-muted">
-                <span>{mySavedCount} từ vựng</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  {myRememberedCount}/{mySavedCount} đã thuộc
-                </span>
-              </div>
-            </Link>
-
-            <div className="mt-4 pt-1">
               <Link
                 to="/vocabulary/my-words"
-                className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 text-xs font-extrabold text-accent-contrast transition hover:bg-accent/90 active:scale-98 shadow-sm"
+                className="mt-3.5 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
               >
-                <Play className="size-3.5 fill-current" />
-                <span>Học sổ tay ({mySavedCount} từ)</span>
+                <h3 className="truncate text-base font-extrabold text-content group-hover:text-accent-strong transition-colors">
+                  Sổ tay từ vựng của tôi
+                </h3>
+                <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
+                  Kho từ vựng cá nhân bạn đã tra cứu AI, lưu từ đề thi và bài đọc TOEIC.
+                </p>
               </Link>
+            </div>
+
+            <div className="mt-5 space-y-2.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-content-muted">{mySavedCount} từ vựng</span>
+                <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                  {myRememberedCount}/{mySavedCount} đã thuộc ({myPercent}%)
+                </span>
+              </div>
+
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-line/60">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${myPercent}%` }}
+                />
+              </div>
+
+              <div className="pt-1.5">
+                <Link
+                  to="/vocabulary/my-words"
+                  className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-accent px-3 text-xs font-bold text-accent-contrast transition hover:bg-accent/90 active:scale-98 shadow-xs"
+                >
+                  <Play className="size-3 fill-current" />
+                  <span>Học sổ tay ({mySavedCount} từ)</span>
+                </Link>
+              </div>
             </div>
           </article>
 
@@ -568,12 +573,14 @@ export const TopicListPage: React.FC = () => {
               setEditing(null);
               setModalOpen(true);
             }}
-            className="group flex min-h-52 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-accent/50 bg-accent/5 p-5 text-center text-accent-strong transition hover:border-accent hover:bg-accent/10 active:scale-[.99]"
+            className="group flex min-h-[220px] flex-col items-center justify-center rounded-3xl border-2 border-dashed border-line hover:border-accent/60 bg-surface/50 hover:bg-accent/5 p-5 text-center transition-all duration-200 active:scale-[.99]"
           >
-            <span className="grid size-13 place-items-center rounded-2xl bg-accent text-accent-contrast shadow-md shadow-accent/20 transition-transform group-hover:scale-110">
-              <Plus className="size-6 stroke-[2.5]" />
+            <span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent-strong transition-transform group-hover:scale-110">
+              <Plus className="size-5 stroke-[2.5]" />
             </span>
-            <span className="mt-3 block text-base font-extrabold">Tạo bộ từ vựng mới</span>
+            <span className="mt-3 block text-sm font-extrabold text-content group-hover:text-accent-strong transition-colors">
+              Tạo bộ từ vựng mới
+            </span>
             <span className="mt-1 block text-xs text-content-muted">Gom các từ cần ôn theo sở thích</span>
           </button>
 

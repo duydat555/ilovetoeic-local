@@ -4,6 +4,7 @@ import hmac
 import json
 import re
 import secrets
+import time
 from datetime import date, datetime, timedelta
 from typing import Optional
 from urllib.parse import quote_plus
@@ -92,6 +93,9 @@ def revoke_session(token: str):
     db.execute("DELETE FROM user_sessions WHERE token_hash = ?", (token_hash(token),))
 
 
+_user_last_active_cache = {}
+
+
 def get_session_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ):
@@ -117,18 +121,20 @@ def get_session_user(
             detail="Thời hạn sử dụng tài khoản đã kết thúc. Vui lòng liên hệ Giảng viên.",
         )
 
-    # Tự động gia hạn phiên đăng nhập trong DB lên 10 năm liên tục mỗi khi người dùng truy cập
-    try:
-        db.execute(
-            "UPDATE user_sessions SET expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL 3650 DAY) WHERE token_hash = ?",
-            (token_hash(credentials.credentials),),
-        )
-        db.execute(
-            "UPDATE users SET last_active_at = UTC_TIMESTAMP() WHERE id = ?",
-            (user["id"],),
-        )
-    except Exception:
-        pass
+    # Cập nhật thời điểm hoạt động (last_active_at) có throttling (tối đa 1 lần / 2 phút / user)
+    # và KHÔNG làm xoá bộ nhớ đệm truy vấn RAM của toàn server (invalidate_cache=False)
+    now_ts = time.time()
+    user_id = user["id"]
+    if now_ts - _user_last_active_cache.get(user_id, 0) > 120:
+        _user_last_active_cache[user_id] = now_ts
+        try:
+            db.execute(
+                "UPDATE users SET last_active_at = UTC_TIMESTAMP() WHERE id = ?",
+                (user_id,),
+                invalidate_cache=False,
+            )
+        except Exception:
+            pass
 
     return user
 

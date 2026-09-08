@@ -99,10 +99,18 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
   return body as T;
 };
 
+let cachedCatalog: { data: GrammarCatalog; timestamp: number } | null = null;
+const CATALOG_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export const grammarService = {
-  async getCatalog(): Promise<GrammarCatalog> {
+  async getCatalog(forceRefresh = false): Promise<GrammarCatalog> {
+    const now = Date.now();
+    if (!forceRefresh && cachedCatalog && (now - cachedCatalog.timestamp < CATALOG_CACHE_TTL_MS)) {
+      return cachedCatalog.data;
+    }
     const response = await fetch(`${API_BASE_URL}/grammar/catalog`);
     const body = await parseResponse<GrammarCatalog & { success: boolean }>(response);
+    cachedCatalog = { data: body, timestamp: Date.now() };
     return body;
   },
 

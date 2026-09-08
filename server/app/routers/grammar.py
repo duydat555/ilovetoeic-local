@@ -1,15 +1,32 @@
-from typing import Literal, Optional
+import time
+from typing import Dict, Any, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.db import db
 
 
 router = APIRouter(prefix="/api/v1/grammar", tags=["Grammar"])
 
+_GRAMMAR_CATALOG_CACHE: Dict[str, Any] = {"data": None, "timestamp": 0}
+_GRAMMAR_QUESTIONS_CACHE: Dict[str, Any] = {}
+GRAMMAR_CACHE_TTL = 600  # 10 minutes
+
+
+def clear_grammar_caches():
+    """Call when an admin updates grammar data."""
+    _GRAMMAR_CATALOG_CACHE["data"] = None
+    _GRAMMAR_CATALOG_CACHE["timestamp"] = 0
+    _GRAMMAR_QUESTIONS_CACHE.clear()
+
 
 @router.get("/catalog")
-def get_grammar_catalog():
+def get_grammar_catalog(response: Response):
+    now = time.time()
+    if _GRAMMAR_CATALOG_CACHE["data"] and (now - _GRAMMAR_CATALOG_CACHE["timestamp"] < GRAMMAR_CACHE_TTL):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return _GRAMMAR_CATALOG_CACHE["data"]
+
     question_total = db.fetch_one("SELECT COUNT(*) AS total FROM grammar_questions")
     mode_counts = db.fetch_all(
         "SELECT source_mode, COUNT(*) AS question_count "
@@ -72,7 +89,7 @@ def get_grammar_catalog():
     for bank in banks:
         bank["tests"] = tests_by_bank.get(bank["set_id"], [])
 
-    return {
+    result = {
         "success": True,
         "question_count": int(question_total["total"]) if question_total else 0,
         "mode_counts": {item["source_mode"]: int(item["question_count"]) for item in mode_counts},
@@ -80,10 +97,15 @@ def get_grammar_catalog():
         "banks": banks,
         "difficulties": difficulties,
     }
+    _GRAMMAR_CATALOG_CACHE["data"] = result
+    _GRAMMAR_CATALOG_CACHE["timestamp"] = now
+    response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+    return result
 
 
 @router.get("/questions")
 def get_grammar_questions(
+    response: Response,
     mode: Literal["topic", "bank", "difficulty"] = Query(...),
     topic_id: Optional[str] = None,
     subtopic_id: Optional[str] = None,
@@ -93,6 +115,13 @@ def get_grammar_questions(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=50),
 ):
+    cache_key = f"{mode}:{topic_id}:{subtopic_id}:{bank_set_id}:{test_id}:{difficulty_level}:{offset}:{limit}"
+    now = time.time()
+    cached = _GRAMMAR_QUESTIONS_CACHE.get(cache_key)
+    if cached and (now - cached["timestamp"] < 300):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return cached["data"]
+
     filters = ["m.source_mode = ?"]
     params = [mode]
     for clause, value in (
@@ -134,8 +163,8 @@ def get_grammar_questions(
         WHERE {where_clause}
         ORDER BY m.order_index ASC, m.question_number ASC, m.id ASC
         LIMIT ? OFFSET ?
-    """, tuple([*params, limit, offset]), use_cache=False)
-    return {
+    """, tuple([*params, limit, offset]), use_cache=True)
+    result = {
         "success": True,
         "data": rows,
         "pagination": {
@@ -145,3 +174,6 @@ def get_grammar_questions(
             "has_more": offset + len(rows) < total,
         },
     }
+    _GRAMMAR_QUESTIONS_CACHE[cache_key] = {"data": result, "timestamp": now}
+    response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+    return result

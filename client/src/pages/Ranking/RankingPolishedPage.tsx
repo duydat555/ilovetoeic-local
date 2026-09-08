@@ -93,7 +93,7 @@ export const RankingPage: React.FC = () => {
             <div className="flex items-center justify-between gap-4 border-b border-line pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-base font-black text-content sm:text-lg">Thứ hạng học viên (Top 10)</h2>
+                  <h2 className="text-base font-black text-content sm:text-lg">Thứ hạng học viên</h2>
                   <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-[10px] font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300 uppercase tracking-wider">
                     Top 10
                   </span>

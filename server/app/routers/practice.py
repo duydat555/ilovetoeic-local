@@ -1,11 +1,36 @@
-from fastapi import APIRouter, HTTPException, Query
+import time
+from typing import Dict, Any
+from fastapi import APIRouter, HTTPException, Query, Response
 from app.db import db
 
 router = APIRouter(prefix="/api/v1", tags=["Practice"])
 
+# In-memory TTL caches for high-concurrency read-heavy endpoints
+_LEVEL_SUMMARY_CACHE: Dict[str, Any] = {"data": None, "timestamp": 0}
+_LEVEL_QUESTIONS_CACHE: Dict[str, Any] = {}
+_FULL_TEST_CACHE: Dict[str, Any] = {}
+_TEST_PART_CACHE: Dict[str, Any] = {}
+
+LEVEL_CACHE_TTL = 600       # 10 minutes
+FULL_TEST_CACHE_TTL = 1800  # 30 minutes
+
+
+def clear_practice_caches():
+    """Call when an admin modifies tests or questions."""
+    _LEVEL_SUMMARY_CACHE["data"] = None
+    _LEVEL_SUMMARY_CACHE["timestamp"] = 0
+    _LEVEL_QUESTIONS_CACHE.clear()
+    _FULL_TEST_CACHE.clear()
+    _TEST_PART_CACHE.clear()
+
 
 @router.get("/practice-by-level/summary")
-def get_practice_by_level_summary():
+def get_practice_by_level_summary(response: Response):
+    now = time.time()
+    if _LEVEL_SUMMARY_CACHE["data"] and (now - _LEVEL_SUMMARY_CACHE["timestamp"] < LEVEL_CACHE_TTL):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return _LEVEL_SUMMARY_CACHE["data"]
+
     rows = db.fetch_all("""
         SELECT q.part, q.difficulty_level, COUNT(*) AS question_count
         FROM questions q
@@ -16,7 +41,7 @@ def get_practice_by_level_summary():
         GROUP BY q.part, q.difficulty_level
         ORDER BY q.part ASC, q.difficulty_level ASC
     """)
-    return {
+    result = {
         "success": True,
         "data": [
             {
@@ -27,15 +52,25 @@ def get_practice_by_level_summary():
             for row in rows
         ],
     }
+    _LEVEL_SUMMARY_CACHE["data"] = result
+    _LEVEL_SUMMARY_CACHE["timestamp"] = now
+    response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+    return result
 
 
 @router.get("/practice-by-level/questions")
 def get_practice_by_level_questions(
+    response: Response,
     part: int = Query(..., ge=1, le=7),
     level: int = Query(..., ge=1, le=5),
 ):
-    # This endpoint is additive. Existing test-based practice endpoints keep their
-    # original query and response contract unchanged.
+    cache_key = f"{part}:{level}"
+    now = time.time()
+    cached = _LEVEL_QUESTIONS_CACHE.get(cache_key)
+    if cached and (now - cached["timestamp"] < LEVEL_CACHE_TTL):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return cached["data"]
+
     questions = db.fetch_all("""
         SELECT q.id, q.test_id, q.passage_id, q.part, q.section,
                q.question_number, COALESCE(q.audio_url, p.audio_url) AS audio_url,
@@ -56,28 +91,35 @@ def get_practice_by_level_questions(
     if not questions:
         raise HTTPException(status_code=404, detail="Không có câu hỏi phù hợp với Part và Level đã chọn.")
 
-    return {
+    result = {
         "success": True,
         "part": part,
         "level": level,
         "questions": questions,
         "total_questions": len(questions),
     }
+    _LEVEL_QUESTIONS_CACHE[cache_key] = {"data": result, "timestamp": now}
+    response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+    return result
+
 
 @router.get("/tests/{test_id}/full")
-def get_full_test(test_id: str):
-    # Check if test exists
+def get_full_test(test_id: str, response: Response):
+    now = time.time()
+    cached = _FULL_TEST_CACHE.get(test_id)
+    if cached and (now - cached["timestamp"] < FULL_TEST_CACHE_TTL):
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+        return cached["data"]
+
     test = db.fetch_one("SELECT * FROM tests WHERE id = ?", (test_id,))
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
 
-    # Get passages
     passages = db.fetch_all("SELECT * FROM passages WHERE test_id = ? ORDER BY order_index ASC", (test_id,))
     passages_dict = {p["id"]: dict(p) for p in passages}
     for p in passages_dict.values():
         p["questions"] = []
 
-    # Get questions including translation & explanation fields
     questions = db.fetch_all("""
         SELECT id, test_id, passage_id, part, section, question_number, audio_url, image_url,
                question_text, option_a, option_b, option_c, option_d, correct_answer,
@@ -88,7 +130,6 @@ def get_full_test(test_id: str):
     """, (test_id,))
 
     standalone_questions = []
-
     for q in questions:
         q_dict = dict(q)
         passage_id = q_dict.get("passage_id")
@@ -97,18 +138,29 @@ def get_full_test(test_id: str):
         else:
             standalone_questions.append(q_dict)
 
-    return {
+    result = {
         "success": True,
         "test": test,
         "passages": list(passages_dict.values()),
         "standalone_questions": standalone_questions,
         "total_questions": len(questions)
     }
+    _FULL_TEST_CACHE[test_id] = {"data": result, "timestamp": now}
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+    return result
+
 
 @router.get("/tests/{test_id}/parts/{part_num}")
-def get_test_part(test_id: str, part_num: int):
+def get_test_part(test_id: str, part_num: int, response: Response):
     if part_num < 1 or part_num > 7:
         raise HTTPException(status_code=400, detail="Invalid part number. Must be between 1 and 7.")
+
+    cache_key = f"{test_id}:{part_num}"
+    now = time.time()
+    cached = _TEST_PART_CACHE.get(cache_key)
+    if cached and (now - cached["timestamp"] < FULL_TEST_CACHE_TTL):
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+        return cached["data"]
 
     test = db.fetch_one("SELECT id, name, year FROM tests WHERE id = ?", (test_id,))
     if not test:
@@ -137,7 +189,7 @@ def get_test_part(test_id: str, part_num: int):
         else:
             standalone_questions.append(q_dict)
 
-    return {
+    result = {
         "success": True,
         "test_id": test_id,
         "part": part_num,
@@ -145,3 +197,6 @@ def get_test_part(test_id: str, part_num: int):
         "standalone_questions": standalone_questions,
         "total_questions": len(questions)
     }
+    _TEST_PART_CACHE[cache_key] = {"data": result, "timestamp": now}
+    response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+    return result

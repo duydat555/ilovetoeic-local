@@ -35,16 +35,25 @@ export interface PracticeLevelCount {
   questionCount: number;
 }
 
+let cachedLevelSummary: { data: PracticeLevelCount[]; timestamp: number } | null = null;
+const LEVEL_SUMMARY_CLIENT_TTL = 180_000; // 3 minutes
+const _cachedTestsMap = new Map<string, { data: MockTestItem[]; timestamp: number }>();
+
 export const apiService = {
-  async getPracticeLevelSummary(): Promise<PracticeLevelCount[]> {
+  async getPracticeLevelSummary(forceRefresh = false): Promise<PracticeLevelCount[]> {
+    if (!forceRefresh && cachedLevelSummary && Date.now() - cachedLevelSummary.timestamp < LEVEL_SUMMARY_CLIENT_TTL) {
+      return cachedLevelSummary.data;
+    }
     const res = await fetch(`${API_BASE_URL}/practice-by-level/summary`);
     if (!res.ok) throw new Error('Không thể tải số lượng câu hỏi theo Level.');
     const json = await res.json();
-    return (Array.isArray(json.data) ? json.data : []).map((item: any) => ({
+    const data = (Array.isArray(json.data) ? json.data : []).map((item: any) => ({
       part: Number(item.part),
       level: Number(item.level),
       questionCount: Number(item.question_count),
     }));
+    cachedLevelSummary = { data, timestamp: Date.now() };
+    return data;
   },
 
   async getPracticeLevelQuestions(part: number, level: number): Promise<Question[]> {
@@ -162,7 +171,13 @@ export const apiService = {
   },
 
   // 2. Get Tests
-  async getTests(setId?: string, year?: number): Promise<MockTestItem[]> {
+  async getTests(setId?: string, year?: number, forceRefresh = false): Promise<MockTestItem[]> {
+    const cacheKey = `${setId || ''}:${year || ''}`;
+    const cached = _cachedTestsMap.get(cacheKey);
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < 180_000) {
+      return cached.data;
+    }
+
     try {
       let url = `${API_BASE_URL}/tests`;
       const params = new URLSearchParams();
@@ -174,7 +189,7 @@ export const apiService = {
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
-          return json.data.map((t: any) => ({
+          const data = json.data.map((t: any) => ({
             id: t.id,
             title: t.name || `Đề Thi TOEIC ${t.year}`,
             year: Number(t.year),
@@ -189,6 +204,8 @@ export const apiService = {
             highestScore: t.highest_score == null ? undefined : Number(t.highest_score),
             completed: Boolean(t.completed),
           }));
+          _cachedTestsMap.set(cacheKey, { data, timestamp: Date.now() });
+          return data;
         }
       }
     } catch (e) {

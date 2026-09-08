@@ -1,5 +1,8 @@
 import json
+import queue
 import re
+import threading
+import time
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -10,6 +13,98 @@ from app import config
 from app.utils.html_cleaner import clean_html_text
 
 
+class MySQLConnectionPool:
+    """Thread-safe connection pool for MySQL using queue.Queue.
+    
+    Eliminates TCP/auth handshake overhead on every query under concurrent load.
+    """
+
+    def __init__(self, connect_fn, min_size=4, max_size=25, timeout=10.0):
+        self._connect_fn = connect_fn
+        self._min_size = min_size
+        self._max_size = max_size
+        self._timeout = timeout
+        self._pool = queue.Queue(maxsize=max_size)
+        self._size_lock = threading.Lock()
+        self._current_size = 0
+        self._warmup()
+
+    def _warmup(self):
+        with self._size_lock:
+            for _ in range(self._min_size):
+                try:
+                    conn = self._connect_fn()
+                    self._pool.put(conn)
+                    self._current_size += 1
+                except Exception as err:
+                    print(f"[!] Warmup connection error: {err}")
+                    break
+
+    def get_connection(self):
+        # 1. Try to get an idle connection from pool without blocking
+        try:
+            conn = self._pool.get_nowait()
+            try:
+                conn.ping(reconnect=True)
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                with self._size_lock:
+                    self._current_size -= 1
+        except queue.Empty:
+            pass
+
+        # 2. If pool is empty, can we create a new connection?
+        with self._size_lock:
+            if self._current_size < self._max_size:
+                try:
+                    conn = self._connect_fn()
+                    self._current_size += 1
+                    return conn
+                except Exception:
+                    pass
+
+        # 3. Wait for an existing connection to be returned
+        try:
+            conn = self._pool.get(timeout=self._timeout)
+            try:
+                conn.ping(reconnect=True)
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                with self._size_lock:
+                    self._current_size -= 1
+                conn = self._connect_fn()
+                with self._size_lock:
+                    self._current_size += 1
+                return conn
+        except queue.Empty:
+            raise TimeoutError("Hết kết nối khả dụng tới cơ sở dữ liệu MySQL (Connection pool timeout)")
+
+    def release_connection(self, conn):
+        if not conn:
+            return
+        try:
+            if conn.open:
+                self._pool.put_nowait(conn)
+                return
+        except (queue.Full, Exception):
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+        with self._size_lock:
+            if self._current_size > 0:
+                self._current_size -= 1
+
+
 class Database:
     """Small MySQL data-access layer used by every API router."""
 
@@ -18,6 +113,7 @@ class Database:
         self.gdrive_map = {}
         self.is_connected = False
         self.last_error = None
+        self._pool = None
         self.load_gdrive_mapping()
         self.initialize()
 
@@ -237,7 +333,9 @@ class Database:
                         )
             self.is_connected = True
             self.last_error = None
-            print(f"[+] MySQL connected: {config.DB_NAME} at {config.DB_HOST}:{config.DB_PORT}")
+            if self._pool is None:
+                self._pool = MySQLConnectionPool(self._connect, min_size=4, max_size=25)
+            print(f"[+] MySQL connected with connection pool: {config.DB_NAME} at {config.DB_HOST}:{config.DB_PORT}")
         except Exception as error:
             self.is_connected = False
             self.last_error = str(error)
@@ -251,6 +349,22 @@ class Database:
                 "MySQL is unavailable. Check DB_HOST, DB_PORT, DB_USER, "
                 "DB_PASSWORD and start the MySQL service."
             )
+
+    @contextmanager
+    def connection(self):
+        self.require_connection()
+        if self._pool is None:
+            conn = self._connect()
+            try:
+                yield conn
+            finally:
+                conn.close()
+        else:
+            conn = self._pool.get_connection()
+            try:
+                yield conn
+            finally:
+                self._pool.release_connection(conn)
 
     @contextmanager
     def transaction(self):
@@ -273,7 +387,7 @@ class Database:
             return self.query_ram_cache[cache_key]
 
         mysql_query = query.replace("?", "%s")
-        with self._connect() as conn:
+        with self.connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(mysql_query, params)
                 rows = [dict(row) for row in cursor.fetchall()]
@@ -287,20 +401,22 @@ class Database:
         results = self.fetch_all(query, params, use_cache=use_cache)
         return results[0] if results else None
 
-    def execute(self, query, params=()):
+    def execute(self, query, params=(), invalidate_cache=True):
         self.require_connection()
-        self.query_ram_cache.clear()
+        if invalidate_cache:
+            self.query_ram_cache.clear()
         mysql_query = query.replace("?", "%s")
-        with self._connect() as conn:
+        with self.connection() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(mysql_query, params)
                 return cursor.lastrowid
 
-    def executemany(self, query, params):
+    def executemany(self, query, params, invalidate_cache=True):
         self.require_connection()
-        self.query_ram_cache.clear()
+        if invalidate_cache:
+            self.query_ram_cache.clear()
         mysql_query = query.replace("?", "%s")
-        with self._connect() as conn:
+        with self.connection() as conn:
             with conn.cursor() as cursor:
                 return cursor.executemany(mysql_query, params)
 

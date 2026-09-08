@@ -30,7 +30,7 @@
             var cleanFont = ds.fontFamily.trim();
             if (cleanFont && cleanFont !== 'Inter' && cleanFont !== 'Be Vietnam Pro') {
               var linkId = 'google-font-' + cleanFont.toLowerCase().replace(/[^a-z0-9]/g, '-');
-              var fontUrl = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(cleanFont.replace(/\s+/g, '+')) + ':wght@300;400;500;600;700&display=swap';
+              var fontUrl = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(cleanFont) + ':wght@300;400;500;600;700&display=swap';
               var linkEl = document.createElement('link');
               linkEl.id = linkId;
               linkEl.rel = 'stylesheet';

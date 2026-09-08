@@ -86,13 +86,13 @@ export const TypographySettingsSection: React.FC = () => {
 
     setIsVerifyingFont(true);
     try {
-      const success = await loadGoogleFont(cleanFontName);
-      if (!success) {
+      const resolvedFont = await loadGoogleFont(cleanFontName);
+      if (!resolvedFont) {
         setFontError(`Không tìm thấy phông chữ "${cleanFontName}" trên Google Fonts hoặc lỗi kết nối. Vui lòng kiểm tra lại chính tả tên tiếng Anh.`);
       } else {
-        const updated = saveDisplaySettings({ fontFamily: cleanFontName, isCustomFont: true });
+        const updated = saveDisplaySettings({ fontFamily: resolvedFont, isCustomFont: true });
         setSettings(updated);
-        setFontSuccess(`Đã áp dụng thành công phông chữ "${cleanFontName}" từ Google Fonts!`);
+        setFontSuccess(`Đã áp dụng thành công phông chữ "${resolvedFont}" từ Google Fonts!`);
         setTimeout(() => setFontSuccess(null), 4000);
       }
     } catch {

@@ -129,64 +129,133 @@ export const getStoredDisplaySettings = (): DisplaySettings => {
 };
 
 /**
- * Dynamically inject or ensure a Google Font is loaded in document.head
+ * Canonical Google Fonts alias map for developer and popular fonts
+ * Handles case sensitivity and common variations.
  */
-export const loadGoogleFont = async (fontName: string): Promise<boolean> => {
-  const cleanName = fontName.trim();
-  if (!cleanName) return false;
+export const GOOGLE_FONT_CANONICAL_ALIASES: Record<string, string> = {
+  'jetbrains mono': 'JetBrains Mono',
+  'jetbrainsmono': 'JetBrains Mono',
+  'jetbrains-mono': 'JetBrains Mono',
+  'fira code': 'Fira Code',
+  'firacode': 'Fira Code',
+  'fira-code': 'Fira Code',
+  'fira sans': 'Fira Sans',
+  'source code pro': 'Source Code Pro',
+  'sourcecodepro': 'Source Code Pro',
+  'source sans pro': 'Source Sans Pro',
+  'source sans 3': 'Source Sans 3',
+  'source serif pro': 'Source Serif Pro',
+  'ibm plex sans': 'IBM Plex Sans',
+  'ibm plex mono': 'IBM Plex Mono',
+  'ibm plex serif': 'IBM Plex Serif',
+  'space mono': 'Space Mono',
+  'spacemono': 'Space Mono',
+  'roboto mono': 'Roboto Mono',
+  'roboto slab': 'Roboto Slab',
+  'plus jakarta sans': 'Plus Jakarta Sans',
+  'pt sans': 'PT Sans',
+  'pt serif': 'PT Serif',
+  'noto sans': 'Noto Sans',
+  'noto serif': 'Noto Serif',
+  'be vietnam pro': 'Be Vietnam Pro',
+  'be vietnam': 'Be Vietnam Pro',
+  'open sans': 'Open Sans',
+  'press start 2p': 'Press Start 2P',
+  'vt323': 'VT323',
+};
 
-  const fontId = `google-font-${cleanName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-  if (typeof document === 'undefined') return false;
+export const normalizeGoogleFontName = (rawName: string): string => {
+  const trimmed = rawName.trim().replace(/\s+/g, ' ');
+  const lower = trimmed.toLowerCase();
+  if (GOOGLE_FONT_CANONICAL_ALIASES[lower]) {
+    return GOOGLE_FONT_CANONICAL_ALIASES[lower];
+  }
+  // Title Case fallback for lowercase inputs (e.g. "montserrat" -> "Montserrat")
+  if (/^[a-z0-9\s-]+$/.test(trimmed)) {
+    return trimmed
+      .split(' ')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+  return trimmed;
+};
+
+/**
+ * Dynamically inject or ensure a Google Font is loaded in document.head.
+ * Returns the resolved canonical font name if successful, or null on failure.
+ */
+export const loadGoogleFont = async (fontName: string): Promise<string | null> => {
+  const cleanName = fontName.trim().replace(/\s+/g, ' ');
+  if (!cleanName) return null;
+
+  const normalizedName = normalizeGoogleFontName(cleanName);
+  const fontId = `google-font-${normalizedName.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+  if (typeof document === 'undefined') return normalizedName;
 
   // Already loaded
   if (document.getElementById(fontId)) {
-    return true;
+    return normalizedName;
   }
 
-  const encodedFamily = encodeURIComponent(cleanName.replace(/\s+/g, '+'));
-  const fontUrl = `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@300;400;500;600;700&display=swap`;
+  // Candidate names to attempt
+  const candidateNames = Array.from(
+    new Set([normalizedName, cleanName, cleanName.replace(/\b\w/g, (c) => c.toUpperCase())])
+  );
 
-  try {
-    // Validate by fetching the CSS stylesheet with timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+  for (const candidate of candidateNames) {
+    // Crucial fix: encodeURIComponent directly on the font name so spaces become %20.
+    // Replacing spaces with '+' inside encodeURIComponent resulted in '%2B', which Google Fonts rejects with 400.
+    const encodedFamily = encodeURIComponent(candidate);
+    const candidateUrls = [
+      `https://fonts.googleapis.com/css2?family=${encodedFamily}:wght@300;400;500;600;700&display=swap`,
+      `https://fonts.googleapis.com/css2?family=${encodedFamily}&display=swap`,
+    ];
 
-    const res = await fetch(fontUrl, { method: 'GET', signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      return false;
-    }
-
-    const cssText = await res.text();
-    // Google Fonts returns error comments in body if family not found
-    if (cssText.includes('/* Error:') || cssText.includes('not found')) {
-      return false;
-    }
-
-    // Inject stylesheet
-    const link = document.createElement('link');
-    link.id = fontId;
-    link.rel = 'stylesheet';
-    link.href = fontUrl;
-    document.head.appendChild(link);
-
-    // Optional: wait for fonts to load if FontFace API is available
-    if ('fonts' in document) {
+    for (const fontUrl of candidateUrls) {
       try {
-        await Promise.race([
-          document.fonts.load(`400 16px "${cleanName}"`),
-          new Promise((resolve) => setTimeout(resolve, 2000)),
-        ]);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+        const res = await fetch(fontUrl, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!res.ok) {
+          continue;
+        }
+
+        const cssText = await res.text();
+        // Google Fonts returns error comments in body if family not found
+        if (cssText.includes('/* Error:') || cssText.includes('not found') || cssText.includes('Missing font family')) {
+          continue;
+        }
+
+        // Inject stylesheet
+        const link = document.createElement('link');
+        link.id = fontId;
+        link.rel = 'stylesheet';
+        link.href = fontUrl;
+        document.head.appendChild(link);
+
+        // Optional: wait for fonts to load if FontFace API is available
+        if ('fonts' in document) {
+          try {
+            await Promise.race([
+              document.fonts.load(`400 16px "${candidate}"`),
+              new Promise((resolve) => setTimeout(resolve, 1500)),
+            ]);
+          } catch {
+            // Non-blocking fallback
+          }
+        }
+
+        return candidate;
       } catch {
-        // Non-blocking fallback
+        // Try next candidate URL
       }
     }
-
-    return true;
-  } catch {
-    return false;
   }
+
+  return null;
 };
 
 /**

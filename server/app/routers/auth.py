@@ -22,6 +22,7 @@ from app.security import (
     get_current_user,
     get_session_user,
     hash_password,
+    invalidate_user_session,
     is_access_expired,
     normalize_date,
     parse_student_ranking_name,
@@ -185,6 +186,7 @@ def update_approval(user_id: str, payload: dict, admin=Depends(require_admin)):
         """,
         (status, admin["id"], user_id),
     )
+    invalidate_user_session(user_id)
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
     return {"user": user_payload(updated)}
 
@@ -206,6 +208,7 @@ def reject_approval(user_id: str, _admin=Depends(require_admin)):
     with db.transaction() as conn:
         with conn.cursor() as cursor:
             cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    invalidate_user_session(user_id)
     return {"success": True, "deleted_user_id": user_id}
 
 
@@ -260,6 +263,7 @@ def update_account_access(user_id: str, payload: AccountAccessRequest, _admin=De
         )
     else:
         raise HTTPException(status_code=422, detail="Thao tác tài khoản không hợp lệ.")
+    invalidate_user_session(user_id)
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user_id,), use_cache=False)
     return {"user": user_payload(updated)}
 
@@ -378,6 +382,7 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
         )
     except IntegrityError as error:
         raise HTTPException(status_code=409, detail="Email này đã được sử dụng.") from error
+    invalidate_user_session(user["id"])
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
     return {"user": user_payload(updated), "email_confirmation_required": False}
 
@@ -395,6 +400,7 @@ def update_ranking_identity(payload: RankingIdentityRequest, user=Depends(get_cu
         """,
         (full_name, payload.family_middle_name.strip(), user["id"]),
     )
+    invalidate_user_session(user["id"])
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
     return {"user": user_payload(updated)}
 
@@ -420,6 +426,7 @@ def update_password(payload: PasswordRequest, user=Depends(get_current_user)):
         """,
         (hash_password(payload.new_password), user["id"]),
     )
+    invalidate_user_session(user["id"])
     return {"success": True}
 
 

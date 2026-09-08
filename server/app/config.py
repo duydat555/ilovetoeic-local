@@ -52,3 +52,11 @@ R2_PUBLIC_BASE_URL = os.getenv("R2_PUBLIC_BASE_URL", "").rstrip("/")
 # Performance & Concurrency Tuning for Samsung A50 Termux Server
 MAX_GEMINI_CONCURRENCY = int(os.getenv("MAX_GEMINI_CONCURRENCY", "10"))
 RAM_CACHE_MAX_SIZE = int(os.getenv("RAM_CACHE_MAX_SIZE", "2000"))
+
+# Redis Session & Shared Cache Configuration
+REDIS_ENABLED = os.getenv("REDIS_ENABLED", "true").lower() in ("true", "1", "yes")
+REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or None
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+

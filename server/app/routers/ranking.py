@@ -29,8 +29,24 @@ def serialize_member(row, identity):
     }
 
 
-@router.get("/leaderboard")
-def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_current_user)):
+import threading
+import time
+
+_ranking_cache_lock = threading.Lock()
+_cached_leaderboard: dict = {
+    "members": None,
+    "cohorts": None,
+    "timestamp": 0,
+}
+RANKING_CACHE_TTL = 120  # 2 minutes
+
+
+def _get_cached_leaderboard_data():
+    now = time.time()
+    with _ranking_cache_lock:
+        if _cached_leaderboard["members"] is not None and (now - _cached_leaderboard["timestamp"] < RANKING_CACHE_TTL):
+            return _cached_leaderboard["members"], _cached_leaderboard["cohorts"]
+
     rows = db.fetch_all(
         """
         WITH answer_events AS (
@@ -72,13 +88,6 @@ def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_cur
         if identity:
             members.append(serialize_member(row, identity))
 
-    current_identity = parse_student_ranking_name(user.get("full_name") or "")
-    current_cohort = current_identity[1] if current_identity else None
-    if scope == "cohort":
-        visible_members = [member for member in members if member["cohortCode"] == current_cohort]
-    else:
-        visible_members = members
-
     grouped = defaultdict(lambda: {
         "memberCount": 0, "streakDays": 0, "totalQuestions": 0, "correctQuestions": 0,
     })
@@ -99,6 +108,25 @@ def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_cur
             if total_questions else 0,
         })
     cohorts.sort(key=lambda item: int(item["cohortCode"][1:]))
+
+    with _ranking_cache_lock:
+        _cached_leaderboard["members"] = members
+        _cached_leaderboard["cohorts"] = cohorts
+        _cached_leaderboard["timestamp"] = time.time()
+
+    return members, cohorts
+
+
+@router.get("/leaderboard")
+def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_current_user)):
+    members, cohorts = _get_cached_leaderboard_data()
+
+    current_identity = parse_student_ranking_name(user.get("full_name") or "")
+    current_cohort = current_identity[1] if current_identity else None
+    if scope == "cohort":
+        visible_members = [member for member in members if member["cohortCode"] == current_cohort]
+    else:
+        visible_members = members
 
     return {
         "currentMemberId": user["id"],

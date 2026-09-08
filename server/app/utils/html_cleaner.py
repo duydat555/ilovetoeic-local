@@ -1,6 +1,8 @@
 import re
 import html
+from functools import lru_cache
 
+@lru_cache(maxsize=10000)
 def clean_html_text(raw_html: str) -> str:
     if not raw_html:
         return ""

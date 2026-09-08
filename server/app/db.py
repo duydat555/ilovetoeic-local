@@ -369,16 +369,33 @@ class Database:
     @contextmanager
     def transaction(self):
         self.require_connection()
-        conn = self._connect(autocommit=False)
-        try:
-            yield conn
-            conn.commit()
-            self.query_ram_cache.clear()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        if self._pool is None:
+            conn = self._connect(autocommit=False)
+            try:
+                yield conn
+                conn.commit()
+                self.query_ram_cache.clear()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                conn.close()
+        else:
+            conn = self._pool.get_connection()
+            try:
+                conn.autocommit(False)
+                yield conn
+                conn.commit()
+                self.query_ram_cache.clear()
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                try:
+                    conn.autocommit(True)
+                except Exception:
+                    pass
+                self._pool.release_connection(conn)
 
     def fetch_all(self, query, params=(), use_cache=True):
         self.require_connection()

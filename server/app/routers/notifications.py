@@ -38,11 +38,26 @@ def notification_response(row):
     }
 
 
+import threading
+
+_notification_check_lock = threading.Lock()
+_welcome_checked: set[str] = set()
+_daily_reminder_checked: dict[str, str] = {}
+
+
 def ensure_welcome_notification(user):
+    user_id = user["id"]
+    with _notification_check_lock:
+        if user_id in _welcome_checked:
+            return
+        if len(_welcome_checked) > 5000:
+            _welcome_checked.clear()
+        _welcome_checked.add(user_id)
+
     role = "Giáo viên" if user.get("role") == "admin" else "Học viên"
     action_url = "/admin/accounts" if user.get("role") == "admin" else "/dashboard"
     create_notification(
-        user["id"],
+        user_id,
         "system",
         f"Chào mừng {role} đến với ilovetoeic",
         "Khu vực thông báo sẽ cập nhật tiến độ học tập và những việc cần chú ý.",
@@ -73,20 +88,29 @@ def reminder_time_text(value):
 
 
 def ensure_daily_study_reminder(user):
-    preferences = ensure_notification_preferences(user["id"])
+    user_id = user["id"]
+    now = datetime.now()
+    today_str = now.date().isoformat()
+    with _notification_check_lock:
+        if _daily_reminder_checked.get(user_id) == today_str:
+            return
+        if len(_daily_reminder_checked) > 5000:
+            _daily_reminder_checked.clear()
+        _daily_reminder_checked[user_id] = today_str
+
+    preferences = ensure_notification_preferences(user_id)
     if not preferences or not bool(preferences.get("study_reminders")):
         return
-    now = datetime.now()
     reminder_time = reminder_time_text(preferences.get("reminder_time"))
     if now.strftime("%H:%M") < reminder_time:
         return
     create_notification(
-        user["id"],
+        user_id,
         "reminder",
         "Đến giờ học TOEIC hôm nay",
         "Dành ít nhất 10 phút luyện tập để duy trì nhịp học và chuỗi ngày hiện tại.",
         action_url="/dashboard",
-        dedupe_key=f"daily-study-reminder:{now.date().isoformat()}",
+        dedupe_key=f"daily-study-reminder:{today_str}",
     )
 
 
@@ -119,6 +143,23 @@ def update_notification_preferences(
         "success": True,
         "studyReminders": payload.studyReminders,
         "reminderTime": payload.reminderTime,
+    }
+
+
+@router.get("/unread-count")
+def get_unread_notification_count(user=Depends(get_current_user)):
+    unread = db.fetch_one(
+        """
+        SELECT COUNT(*) AS unread_count
+        FROM user_notifications
+        WHERE user_id = ? AND read_at IS NULL
+        """,
+        (user["id"],),
+        use_cache=False,
+    )
+    return {
+        "success": True,
+        "unreadCount": int((unread or {}).get("unread_count") or 0),
     }
 
 

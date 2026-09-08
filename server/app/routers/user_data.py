@@ -401,13 +401,13 @@ def get_recent_active_students():
     rows = db.fetch_all(
         """
         SELECT u.id, u.full_name, u.avatar_url, u.role, u.current_score, u.streak_days,
-               u.last_active_at, u.updated_at, u.created_at
+               u.last_active_at
         FROM users u
         WHERE u.role = 'student' OR u.role IS NULL
-        ORDER BY COALESCE(u.last_active_at, u.updated_at, u.created_at) DESC
+        ORDER BY u.last_active_at DESC
         LIMIT 10
         """,
-        use_cache=False,
+        use_cache=True,
     )
     now = datetime.utcnow()
     students = []

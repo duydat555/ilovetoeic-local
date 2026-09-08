@@ -14,6 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import config
 from app.db import db
+from app.services.cache_service import cache_service
 
 
 def get_dicebear_avatar(seed_text: str) -> str:
@@ -90,7 +91,14 @@ def create_session(user_id: str, remember: bool = True) -> str:
 
 
 def revoke_session(token: str):
-    db.execute("DELETE FROM user_sessions WHERE token_hash = ?", (token_hash(token),))
+    th = token_hash(token)
+    db.execute("DELETE FROM user_sessions WHERE token_hash = ?", (th,))
+    cache_service.invalidate_token(th)
+
+
+def invalidate_user_session(user_id: str):
+    """Purge all cached sessions for a given user across all workers via Redis."""
+    cache_service.invalidate_user(user_id)
 
 
 _user_last_active_cache = {}
@@ -101,21 +109,33 @@ def get_session_user(
 ):
     if not credentials or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Bạn cần đăng nhập để tiếp tục.")
-    user = db.fetch_one(
-        """
-        SELECT u.*
-        FROM user_sessions s
-        JOIN users u ON u.id = s.user_id
-        WHERE s.token_hash = ?
-        """,
-        (token_hash(credentials.credentials),),
-        use_cache=False,
-    )
+
+    th = token_hash(credentials.credentials)
+
+    # 1. Kiểm tra cache trước (Redis / Memory) để giảm 90% query xác thực
+    user = cache_service.get_session(th)
+
     if not user:
-        raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn.")
+        # 2. Cache miss: Query database
+        user = db.fetch_one(
+            """
+            SELECT u.*
+            FROM user_sessions s
+            JOIN users u ON u.id = s.user_id
+            WHERE s.token_hash = ?
+            """,
+            (th,),
+            use_cache=False,
+        )
+        if not user:
+            raise HTTPException(status_code=401, detail="Phiên đăng nhập đã hết hạn.")
+
+        # Lưu session vào Redis (shared giữa 2 workers, TTL 60s)
+        cache_service.set_session(th, user, ttl_seconds=60)
 
     if is_access_expired(user):
         db.execute("DELETE FROM user_sessions WHERE user_id = ?", (user["id"],))
+        cache_service.invalidate_user(user["id"])
         raise HTTPException(
             status_code=401,
             detail="Thời hạn sử dụng tài khoản đã kết thúc. Vui lòng liên hệ Giảng viên.",

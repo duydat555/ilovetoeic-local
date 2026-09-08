@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Award, ArrowRight, Sparkles } from 'lucide-react';
+import { Flame, Trophy, Award, ArrowRight, Play, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
@@ -131,7 +131,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <Sparkles className="size-3.5 text-amber-950 animate-spin-slow" />
+            <Flame className="size-3.5 text-amber-950 fill-amber-950/20" />
             <span>Chào mừng trở lại</span>
           </motion.div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-950 tracking-tight leading-snug">
@@ -210,7 +210,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
             <span className="cta-shine-sweep absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent transform -skew-x-12 -translate-x-full pointer-events-none" />
             
             <span className="relative z-10 flex items-center gap-1.5">
-              <Sparkles className="size-4 animate-pulse" />
+              <Play className="size-4 fill-current text-amber-950" />
               Làm đề ngay
             </span>
             <ArrowRight className="relative z-10 size-4 transition-transform group-hover:translate-x-1" />

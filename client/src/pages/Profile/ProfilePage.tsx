@@ -12,7 +12,7 @@ import {
   Mail,
   Save,
   ShieldCheck,
-  Sparkles,
+  Shuffle,
   Target,
   Upload,
   UserRound,
@@ -79,7 +79,7 @@ const DiceBearAvatarSelector: React.FC<{
           onClick={handleRandomize}
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 transition"
         >
-          <Sparkles className="size-3.5" /> Tạo ngẫu nhiên
+          <Shuffle className="size-3.5" /> Tạo ngẫu nhiên
         </button>
       </div>
 

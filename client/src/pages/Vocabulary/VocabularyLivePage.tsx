@@ -4,9 +4,10 @@ import {
   ArrowLeft,
   Settings,
   List,
+  BookOpen,
   HelpCircle,
   GraduationCap,
-  Sparkles,
+  PlusCircle,
   Gamepad2,
   CheckCircle2,
   Clock,
@@ -83,7 +84,7 @@ export const TopicFlashcardPage: React.FC = () => {
               setTopic({
                 id: topicId,
                 name: systemRes.topicName,
-                icon: 'sparkles',
+                icon: 'compass',
                 description: `Bộ từ vựng trọng tâm (${systemRes.total} từ)`,
                 system: true,
                 createdAt: '',
@@ -221,7 +222,7 @@ export const TopicFlashcardPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-1.5 rounded-xl border border-sky-500/20 bg-sky-500/10 px-3 py-1.5 text-xs font-extrabold text-sky-600 dark:text-sky-400">
-              <Sparkles className="size-3.5" />
+              <PlusCircle className="size-3.5" />
               <span>Mới: {newCount}</span>
             </div>
 
@@ -333,7 +334,7 @@ export const TopicFlashcardPage: React.FC = () => {
           {words.length === 0 && activeMode !== 'list' ? (
             <div className="grid min-h-80 place-items-center rounded-3xl border border-line bg-surface p-8 text-center">
               <div>
-                <Sparkles className="mx-auto size-12 text-accent" />
+                <BookOpen className="mx-auto size-12 text-accent" />
                 <h3 className="mt-3 text-lg font-black text-content">Chưa có từ vựng để ôn tập</h3>
                 <p className="mt-1 text-sm text-content-muted">
                   Hãy thêm từ mới vào sổ tay hoặc chuyển sang chế độ "Xem từ" để quản lý từ vựng.
@@ -379,7 +380,7 @@ export const TopicFlashcardPage: React.FC = () => {
                 />
               )}
 
-              {activeMode === 'game' && <WordGameView words={words} />}
+              {activeMode === 'game' && <WordGameView words={words} topicName={topic?.name} />}
             </>
           )}
         </div>

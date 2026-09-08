@@ -13,6 +13,36 @@
       } catch (_) {
         // Light mode remains the default when storage is unavailable.
       }
+
+      try {
+        var rawSettings = localStorage.getItem('display_settings');
+        if (rawSettings) {
+          var ds = JSON.parse(rawSettings);
+          var rootEl = document.documentElement;
+          if (ds.fontSizeScale) {
+            var scaleMap = { 90: 0.80, 100: 1.00, 110: 1.15, 125: 1.30 };
+            var sc = scaleMap[ds.fontSizeScale] !== undefined ? scaleMap[ds.fontSizeScale] : (Number(ds.fontSizeScale) / 100);
+            rootEl.style.setProperty('--app-font-scale', String(sc));
+            rootEl.style.fontSize = 'calc(100% * var(--app-font-scale, 1))';
+          }
+          if (ds.fontFamily) {
+            rootEl.style.setProperty('--app-font-family', '"' + ds.fontFamily + '", "Inter", "Be Vietnam Pro", system-ui, sans-serif');
+            var cleanFont = ds.fontFamily.trim();
+            if (cleanFont && cleanFont !== 'Inter' && cleanFont !== 'Be Vietnam Pro') {
+              var linkId = 'google-font-' + cleanFont.toLowerCase().replace(/[^a-z0-9]/g, '-');
+              var fontUrl = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(cleanFont.replace(/\s+/g, '+')) + ':wght@300;400;500;600;700&display=swap';
+              var linkEl = document.createElement('link');
+              linkEl.id = linkId;
+              linkEl.rel = 'stylesheet';
+              linkEl.href = fontUrl;
+              document.head.appendChild(linkEl);
+            }
+          }
+          if (ds.fontWeight) {
+            rootEl.style.setProperty('--app-font-weight', String(ds.fontWeight));
+          }
+        }
+      } catch (_) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

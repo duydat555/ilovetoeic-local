@@ -27,7 +27,7 @@ export const SYSTEM_TOPICS: VocabularyTopic[] = [
   {
     id: STARTER_UNIT1_TOPIC_ID,
     name: STARTER_UNIT1_TOPIC_NAME,
-    icon: 'sparkles',
+    icon: 'compass',
     description: '30 từ vựng cốt lõi TOEIC xuất hiện tần suất cao nhất trong đề thi thực tế.',
     system: true,
     createdAt: '',

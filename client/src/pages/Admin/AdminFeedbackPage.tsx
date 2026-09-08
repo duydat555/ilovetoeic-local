@@ -5,11 +5,12 @@ import {
   CheckCircle2,
   Clock,
   Filter,
+  GraduationCap,
   Lightbulb,
+  Loader2,
   MessageSquare,
   Search,
   Send,
-  Sparkles,
   Trash2,
   User,
   X,
@@ -219,7 +220,7 @@ export const AdminFeedbackPage: React.FC = () => {
       {/* Main List */}
       {isLoading ? (
         <div className="flex items-center justify-center rounded-3xl border border-line bg-surface p-12 text-center text-sm font-medium text-content-muted">
-          <Sparkles className="size-5 animate-spin text-emerald-500" />
+          <Loader2 className="size-5 animate-spin text-emerald-500" />
           <span className="ml-2">Đang tải danh sách góp ý...</span>
         </div>
       ) : errorMsg ? (
@@ -333,7 +334,7 @@ export const AdminFeedbackPage: React.FC = () => {
               {item.adminResponse && (
                 <div className="mt-4 rounded-2xl border border-emerald-500/20 bg-emerald-50/50 p-4 dark:bg-emerald-950/30">
                   <div className="flex items-center gap-2 text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
-                    <Sparkles className="size-4" />
+                    <GraduationCap className="size-4" />
                     <span>Phản hồi từ Giảng viên</span>
                     {item.respondedAt && (
                       <span className="text-[11px] font-medium text-content-muted">
@@ -440,7 +441,7 @@ export const AdminFeedbackPage: React.FC = () => {
                 >
                   {isSaving ? (
                     <>
-                      <Sparkles className="size-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                       <span>Đang lưu...</span>
                     </>
                   ) : (

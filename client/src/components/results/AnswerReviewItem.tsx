@@ -5,9 +5,9 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  BookMarked,
   Languages,
   Plus,
-  Sparkles,
 } from 'lucide-react';
 import { Question } from '../../types';
 import { cleanExplanationText, cleanTranscriptSpacing, getUnifiedQuestionTranslationText } from '../../utils/practice';
@@ -150,7 +150,7 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
         <div className="mt-3.5 border-t border-line pt-3">
           <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
             <span className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-amber-500" />
+              <BookMarked className="size-3.5 text-amber-500" />
               <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
             </span>
           </div>

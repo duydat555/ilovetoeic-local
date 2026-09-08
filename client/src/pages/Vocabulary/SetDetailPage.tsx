@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft,
   BookOpen,
-  Sparkles,
+  Tag,
   Play,
   Search,
   BookMarked,
@@ -116,7 +116,7 @@ export const SetDetailPage: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-accent-strong">
-                    <Sparkles className="size-3" />
+                    <Tag className="size-3" />
                     {setData.category}
                   </span>
                   <span className="rounded-full border border-line bg-surface-elevated px-3 py-1 text-xs font-extrabold text-content-muted">

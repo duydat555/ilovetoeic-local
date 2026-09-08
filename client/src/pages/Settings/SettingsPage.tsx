@@ -9,6 +9,7 @@ import { AiSourcePreference } from '../../types';
 import { notificationPreferencesService } from '../../services/notificationPreferences';
 import { backendService } from '../../services/backend';
 import { useNotifications } from '../../context/NotificationContext';
+import { TypographySettingsSection } from './components/TypographySettingsSection';
 
 export const SettingsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
@@ -126,6 +127,9 @@ export const SettingsPage: React.FC = () => {
             <div className={`w-4 h-4 rounded-full bg-white transition-transform ${isDarkMode ? 'translate-x-6' : 'translate-x-0'}`} />
           </button>
         </div>
+
+        {/* Typography & Display Settings Section */}
+        <TypographySettingsSection />
 
         {/* Study Reminder Notifications */}
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">

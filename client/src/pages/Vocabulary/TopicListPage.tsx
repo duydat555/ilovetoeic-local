@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Briefcase,
+  Compass,
   MoreHorizontal,
   Plus,
   Search,
-  Sparkles,
   TrendingUp,
   X,
   Play,
@@ -33,7 +33,7 @@ import type { VocabularyWord } from '../../types';
 
 const TopicIcon = ({ name }: { name: string }) => {
   if (name === 'chart') return <TrendingUp className="size-5" aria-hidden="true" />;
-  if (name === 'sparkles') return <Sparkles className="size-5" aria-hidden="true" />;
+  if (name === 'sparkles' || name === 'compass') return <Compass className="size-5" aria-hidden="true" />;
   if (name === 'bookmark') return <BookMarked className="size-5" aria-hidden="true" />;
   return <Briefcase className="size-5" aria-hidden="true" />;
 };

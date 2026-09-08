@@ -7,8 +7,9 @@ import {
   XCircle,
   Volume2,
   ArrowRight,
+  BookOpen,
   RotateCcw,
-  Sparkles,
+  Trophy,
 } from 'lucide-react';
 import { VocabularyWord } from '../../../types';
 import { playPronunciation } from '../../../utils/audioPronunciation';
@@ -60,7 +61,7 @@ export const GuessWordView: React.FC<Props> = ({ words, onWordMastered, onWordNe
     return (
       <div className="grid min-h-80 place-items-center rounded-3xl border border-line bg-surface p-8 text-center">
         <div>
-          <Sparkles className="mx-auto size-12 text-accent" />
+          <Trophy className="mx-auto size-12 text-amber-500" />
           <h3 className="mt-3 text-lg font-black text-content">Đã hoàn thành tất cả từ vựng!</h3>
           <p className="mt-1 text-sm text-content-muted">Bạn không có từ vựng nào cần đoán trong phạm vi này.</p>
           <button
@@ -227,7 +228,7 @@ export const GuessWordView: React.FC<Props> = ({ words, onWordMastered, onWordNe
               />
             ) : (
               <div className="flex size-full flex-col items-center justify-center bg-gradient-to-br from-accent/15 via-brand-500/10 to-accent/5 text-accent-strong">
-                <Sparkles className="size-8" />
+                <BookOpen className="size-8" />
                 <span className="mt-1 text-[10px] font-bold uppercase tracking-wider">
                   {currentWord.partOfSpeech}
                 </span>

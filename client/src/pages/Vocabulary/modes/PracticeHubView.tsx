@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Volume2,
   ArrowRight,
-  Sparkles,
+  Layers,
   Trophy,
 } from 'lucide-react';
 import { VocabularyWord } from '../../../types';
@@ -241,7 +241,7 @@ export const PracticeHubView: React.FC<Props> = ({ words, onWordMastered, onWord
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-black text-accent-strong">
-                <Sparkles className="size-3.5" />
+                <Layers className="size-3.5" />
                 Luyện tập đa phương thức
               </span>
               <span className="rounded-full border border-line bg-surface-elevated px-2.5 py-0.5 text-xs font-bold text-content-muted">

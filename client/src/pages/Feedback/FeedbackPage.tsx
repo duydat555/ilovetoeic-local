@@ -4,13 +4,15 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  GraduationCap,
+  HeartHandshake,
   HelpCircle,
   ImagePlus,
   Lightbulb,
+  Loader2,
   MessageSquare,
   MessageSquarePlus,
   SendHorizontal,
-  Sparkles,
   X,
   XCircle,
   ZoomIn,
@@ -239,7 +241,7 @@ export const FeedbackPage: React.FC = () => {
       {/* Header Banner */}
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-xs font-bold text-accent-strong">
-          <Sparkles className="size-3.5 text-accent-strong" />
+          <HeartHandshake className="size-3.5 text-accent-strong" />
           <span>Đồng hành phát triển cùng TOEIC Master</span>
         </div>
 
@@ -468,7 +470,7 @@ export const FeedbackPage: React.FC = () => {
               >
                 {isSubmitting ? (
                   <>
-                    <Sparkles className="size-4 animate-spin text-current" />
+                    <Loader2 className="size-4 animate-spin text-current" />
                     <span>Đang gửi ý kiến...</span>
                   </>
                 ) : (
@@ -630,7 +632,7 @@ export const FeedbackPage: React.FC = () => {
                     <div className="mt-3.5 rounded-2xl border border-accent/25 bg-accent/5 p-3.5">
                       <div className="flex items-center justify-between text-xs font-extrabold text-accent-strong">
                         <div className="flex items-center gap-1.5">
-                          <Sparkles className="size-3.5" />
+                          <GraduationCap className="size-3.5" />
                           <span>Phản hồi từ Ban Đào Tạo</span>
                         </div>
                         {item.respondedAt && (

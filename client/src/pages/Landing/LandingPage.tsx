@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowRight, CheckCircle2, Headphones, BookOpen,
-  Languages, BarChart3, Target, Sparkles, Menu, X, Star, Users, Award, ShieldCheck
+  Languages, BarChart3, Target, Menu, X, Star, Users, Award, ShieldCheck
 } from 'lucide-react';
 import { BrandLogo } from '../../components/common/BrandLogo';
 import { BrandName } from '../../components/common/BrandName';
@@ -107,7 +107,7 @@ export const LandingPage: React.FC = () => {
           className="relative flex flex-col gap-6"
         >
           <div className="eyebrow w-fit">
-            <Sparkles className="w-4 h-4" />
+            <Award className="w-4 h-4 text-brand-600 dark:text-brand-400" />
             <span>Nền tảng luyện thi TOEIC AI cá nhân hóa #1 Việt Nam</span>
           </div>
 

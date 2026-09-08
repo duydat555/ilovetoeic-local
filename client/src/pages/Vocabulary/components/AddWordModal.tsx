@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Plus,
-  Sparkles,
+  Languages,
   X,
   Loader2,
   BookOpen,
@@ -218,9 +218,9 @@ export const AddWordModal: React.FC<Props> = ({
                   {loadingLookup ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    <Sparkles className="size-4" />
+                    <Languages className="size-4" />
                   )}
-                  <span>Tra AI</span>
+                  <span>Tra từ</span>
                 </button>
               </div>
             </div>

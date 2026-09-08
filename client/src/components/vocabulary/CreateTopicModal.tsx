@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Briefcase, Check, Loader2, Search, Sparkles, TrendingUp, X } from 'lucide-react';
+import { Briefcase, Check, Compass, Languages, Loader2, Search, TrendingUp, X } from 'lucide-react';
 import { getModalMotion } from '../common/modalMotion';
 import { ModalPortal } from '../common/ModalPortal';
 import { dictionaryService } from '../../services/dictionary';
@@ -11,7 +11,7 @@ import type { VocabularyWord, WordTranslation } from '../../types';
 const ICONS = [
   { id: 'briefcase', label: 'Công việc', Icon: Briefcase },
   { id: 'chart', label: 'Kinh doanh', Icon: TrendingUp },
-  { id: 'sparkles', label: 'Tự chọn', Icon: Sparkles },
+  { id: 'compass', label: 'Tự chọn', Icon: Compass },
 ];
 
 interface CreateTopicModalProps {
@@ -105,7 +105,7 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({ userId, word
               <div className="mt-3 max-h-44 space-y-1 overflow-y-auto">{filteredWords.map((word) => { const selected = selectedWordIds.includes(word.id); return <label key={word.id} className="flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2 hover:bg-surface-hover"><input type="checkbox" className="sr-only" checked={selected} onChange={() => setSelectedWordIds((current) => selected ? current.filter((id) => id !== word.id) : [...current, word.id])} /><span className={`grid size-5 shrink-0 place-items-center rounded-md border ${selected ? 'border-accent bg-accent text-accent-contrast' : 'border-line'}`}>{selected && <Check className="size-3.5" />}</span><span className="min-w-0"><span className="block truncate text-sm font-bold text-content">{word.word}</span><span className="block truncate text-xs text-content-muted">{word.meaningVi}</span></span></label>; })}</div>
             </section>
 
-            {!topic && <section className="rounded-2xl border border-line p-4"><h3 className="text-sm font-extrabold text-content">Hoặc thêm từ mới bằng AI</h3><div className="mt-3 flex gap-2"><input value={newWord} onChange={(e) => { setNewWord(e.target.value); setTranslation(null); }} className="min-h-10 min-w-0 flex-1 rounded-xl bg-surface-elevated px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30" placeholder="Nhập từ hoặc cụm từ tiếng Anh" /><button type="button" onClick={() => void lookup()} disabled={lookupLoading || !newWord.trim()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-content px-4 text-sm font-bold text-surface disabled:opacity-50">{lookupLoading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Sparkles className="size-4" />} Tra AI</button></div>{translation && <div className="mt-3 rounded-xl bg-brand-50 p-3 dark:bg-brand-500/10"><p className="font-extrabold text-content">{translation.sourceText}</p><p className="mt-1 text-sm text-content-muted">{translation.translatedText}</p>{translation.examples[0] && <p className="mt-2 text-xs text-content-muted">{translation.examples[0].en}</p>}</div>}</section>}
+            {!topic && <section className="rounded-2xl border border-line p-4"><h3 className="text-sm font-extrabold text-content">Hoặc thêm từ mới bằng từ điển</h3><div className="mt-3 flex gap-2"><input value={newWord} onChange={(e) => { setNewWord(e.target.value); setTranslation(null); }} className="min-h-10 min-w-0 flex-1 rounded-xl bg-surface-elevated px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30" placeholder="Nhập từ hoặc cụm từ tiếng Anh" /><button type="button" onClick={() => void lookup()} disabled={lookupLoading || !newWord.trim()} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-content px-4 text-sm font-bold text-surface disabled:opacity-50">{lookupLoading ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : <Languages className="size-4" />} Tra từ</button></div>{translation && <div className="mt-3 rounded-xl bg-brand-50 p-3 dark:bg-brand-500/10"><p className="font-extrabold text-content">{translation.sourceText}</p><p className="mt-1 text-sm text-content-muted">{translation.translatedText}</p>{translation.examples[0] && <p className="mt-2 text-xs text-content-muted">{translation.examples[0].en}</p>}</div>}</section>}
 
             {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{error}</p>}
           </div>

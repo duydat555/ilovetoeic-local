@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   CornerUpLeft,
+  Loader2,
   MessageCircle,
   SendHorizontal,
   Smile,
-  Sparkles,
   Trash2,
   Users,
   Wifi,
@@ -297,7 +297,7 @@ export const CommunityChatWidget: React.FC = () => {
       <div ref={chatContainerRef} className="relative h-[340px] overflow-y-auto p-4 sm:p-5 space-y-4">
         {isLoading ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-content-muted">
-            <Sparkles className="size-5 animate-spin text-amber-500" />
+            <Loader2 className="size-5 animate-spin text-amber-500" />
             <span className="text-xs font-semibold">Đang tải phòng chat...</span>
           </div>
         ) : errorMsg ? (
@@ -507,7 +507,7 @@ export const CommunityChatWidget: React.FC = () => {
             className="absolute right-1.5 flex size-8 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold shadow-xs transition hover:opacity-95 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
           >
             {isSending ? (
-              <Sparkles className="size-3.5 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <SendHorizontal className="size-4" />
             )}

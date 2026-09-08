@@ -8,7 +8,7 @@ import {
   CheckCircle2,
   X,
   BookOpen,
-  Sparkles,
+  Quote,
   ExternalLink,
   Plus,
   Trash2,
@@ -599,7 +599,7 @@ const WordDetailModal: React.FC<DetailModalProps> = ({
 
                 <div className="flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/20 px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                    <Sparkles className="size-3.5" />
+                    <Quote className="size-3.5" />
                     <span>Câu ví dụ TOEIC thực tế</span>
                   </span>
 

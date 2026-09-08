@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Target, Trophy } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { backendService, LeaderboardMember, LeaderboardResponse } from '../../services/backend';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
@@ -111,7 +111,7 @@ export const RankingPage: React.FC = () => {
             ) : sortedMembers.length === 0 ? (
               <div className="mt-4 grid min-h-64 place-items-center rounded-2xl border border-dashed border-line bg-canvas p-6 text-center">
                 <div>
-                  <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"><Sparkles className="size-6" /></span>
+                  <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300"><Trophy className="size-6" /></span>
                   <p className="mt-3 font-black text-content">Chưa có dữ liệu xếp hạng</p>
                   <p className="mx-auto mt-1 max-w-sm text-xs text-content-muted">Hãy hoàn thành các câu hỏi để xuất hiện trong bảng xếp hạng.</p>
                 </div>
@@ -132,7 +132,7 @@ export const RankingPage: React.FC = () => {
                   <div className="mt-5 border-t border-dashed border-line pt-4">
                     <div className="mb-2 flex items-center justify-between px-1 text-xs font-bold text-content-muted">
                       <span className="flex items-center gap-1.5 text-brand-600 dark:text-brand-400">
-                        <Sparkles className="size-3.5" />
+                        <Target className="size-3.5" />
                         Vị trí hiện tại của bạn
                       </span>
                       <span className="font-extrabold text-content">

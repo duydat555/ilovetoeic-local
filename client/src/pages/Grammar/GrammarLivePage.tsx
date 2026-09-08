@@ -9,15 +9,16 @@ import {
   AlertCircle,
   Database,
   FileQuestion,
+  Languages,
   Layers3,
   LibraryBig,
+  Lightbulb,
   ListChecks,
   ListRestart,
   Loader2,
   Plus,
   RefreshCcw,
   RotateCcw,
-  Sparkles,
   Target,
   Trash2,
   X,
@@ -178,7 +179,7 @@ function renderFormattedExplanation(text?: string, correctAnswer?: string) {
           return (
             <div key={idx} className="mb-3 rounded-xl bg-surface-elevated/90 p-3 border border-brand-500/20 shadow-xs">
               <span className="font-extrabold block text-xs uppercase tracking-wider mb-1.5 text-accent-strong flex items-center gap-1.5">
-                <Sparkles className="size-3.5" /> Giải thích chi tiết:
+                <Lightbulb className="size-3.5" /> Giải thích chi tiết:
               </span>
               <div className="text-content leading-relaxed">{highlightGrammarTokens(rest)}</div>
             </div>
@@ -1111,7 +1112,7 @@ export const GrammarLivePage: React.FC = () => {
                       }`}>
                       {currentQuestion.translation_vi && (
                         <section className="bg-surface px-4 py-4 sm:px-5">
-                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><Sparkles className="size-3.5 text-accent-strong" /> Bản dịch câu</h3>
+                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><Languages className="size-3.5 text-accent-strong" /> Bản dịch câu</h3>
                           <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-content-muted">{currentQuestion.translation_vi}</p>
                         </section>
                       )}

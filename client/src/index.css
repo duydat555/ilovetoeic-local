@@ -19,6 +19,9 @@
     --color-accent-green: 5 150 105;
     --color-accent-red: 220 38 38;
     --color-border-subtle: 226 232 240;
+    --app-font-scale: 1;
+    --app-font-family: 'Inter', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    --app-font-weight: 400;
   }
 
   .dark {
@@ -40,14 +43,26 @@
   }
 
   html {
+    font-size: calc(100% * var(--app-font-scale, 1));
     scroll-behavior: smooth;
     background: rgb(var(--color-bg-canvas));
   }
 
   body {
-    font-family: 'Inter', 'Be Vietnam Pro', sans-serif;
+    font-family: var(--app-font-family, 'Inter', 'Be Vietnam Pro', system-ui, sans-serif);
+    font-weight: var(--app-font-weight, 400);
     @apply bg-canvas text-content antialiased;
     text-rendering: optimizeLegibility;
+  }
+
+  /* Exception per specification: Headings & brand stay with system design typography */
+  h1, h2, h3, h4, h5, h6, .brand-font, [data-brand-heading] {
+    font-family: 'Inter', 'Be Vietnam Pro', system-ui, -apple-system, sans-serif !important;
+  }
+
+  /* Elements with font-normal adopt user chosen weight */
+  .font-normal {
+    font-weight: var(--app-font-weight, 400) !important;
   }
 
   button,

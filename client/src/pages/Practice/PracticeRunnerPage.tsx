@@ -4,6 +4,7 @@ import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import {
   AlertCircle,
   ArrowLeft,
+  BookMarked,
   BookOpen,
   Check,
   CheckCircle2,
@@ -16,9 +17,9 @@ import {
   ListChecks,
   Plus,
   RefreshCcw,
-  Sparkles,
   StickyNote,
   Target,
+  Trophy,
   XCircle,
 } from 'lucide-react';
 import { vocabularyService } from '../../services/vocabulary';
@@ -456,7 +457,7 @@ export const PracticeRunnerPage: React.FC = () => {
       <div className="mx-auto max-w-3xl space-y-6 pb-12">
         <div className="surface overflow-hidden rounded-2xl p-8 text-center">
           <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-hover text-brand-ink shadow-lg shadow-brand-500/20">
-            <Sparkles className="size-8" />
+            <Trophy className="size-8" />
           </div>
           <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-950 dark:text-content">Hoàn thành phần luyện tập!</h1>
           <p className="mt-1 text-xs text-slate-500">Bạn đã hoàn thành tất cả các câu hỏi trong phần luyện tập này.</p>
@@ -704,7 +705,7 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
                               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-300">
                                 <span className="flex items-center gap-1.5">
-                                  <Sparkles className="size-3.5 text-amber-500" />
+                                  <BookMarked className="size-3.5 text-amber-500" />
                                   <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
                                 </span>
                               </div>
@@ -770,7 +771,7 @@ export const PracticeRunnerPage: React.FC = () => {
                             <div className="mt-3.5 border-t border-line pt-3">
                               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-accent-strong">
                                 <span className="flex items-center gap-1.5">
-                                  <Sparkles className="size-3.5 text-amber-500" />
+                                  <BookMarked className="size-3.5 text-amber-500" />
                                   <span>Từ vựng cần học trong bài ({currentGroup.keyVocabulary.length}):</span>
                                 </span>
                               </div>
@@ -870,7 +871,7 @@ export const PracticeRunnerPage: React.FC = () => {
                                   <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
                                     <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
                                       <span className="flex items-center gap-1.5">
-                                        <Sparkles className="size-3.5 text-amber-500" />
+                                        <BookMarked className="size-3.5 text-amber-500" />
                                         <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
                                       </span>
                                     </div>
@@ -1094,7 +1095,7 @@ export const PracticeRunnerPage: React.FC = () => {
                               <div className="mt-3.5 border-t border-brand-100/80 pt-3 dark:border-brand-900/50">
                                 <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
                                   <span className="flex items-center gap-1.5">
-                                    <Sparkles className="size-3.5 text-amber-500" />
+                                    <BookMarked className="size-3.5 text-amber-500" />
                                     <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
                                   </span>
                                 </div>

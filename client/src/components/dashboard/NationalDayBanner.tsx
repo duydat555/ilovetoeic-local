@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Award, ArrowRight, Sparkles } from 'lucide-react';
+import { Flame, Trophy, Award, ArrowRight, Star, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
@@ -93,7 +93,7 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
               >
-                <Sparkles className="size-3.5 text-[#FFCD00] animate-spin-slow" />
+                <Star className="size-3.5 fill-[#FFCD00] text-[#FFCD00]" />
                 <span>Mừng Quốc khánh 2/9 🇻🇳</span>
               </motion.div>
 
@@ -179,7 +179,7 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
             >
               <span className="nd-cta-shine absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/50 to-transparent transform -skew-x-12 -translate-x-full pointer-events-none" />
               <span className="relative z-10 flex items-center gap-1.5">
-                <Sparkles className="size-4 animate-pulse text-amber-950" />
+                <Play className="size-4 fill-current text-amber-950" />
                 Làm đề ngay
               </span>
               <ArrowRight className="relative z-10 size-4 transition-transform group-hover:translate-x-1 text-amber-950" />

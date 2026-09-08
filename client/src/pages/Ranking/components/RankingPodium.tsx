@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, CheckCircle2, Crown, Flame, Medal, Sparkles, Target, Trophy } from 'lucide-react';
+import { Award, CheckCircle2, Crown, Flame, Medal, Target, Trophy } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
 import { RankingPodiumSkeleton } from './RankingPageSkeleton';
@@ -222,7 +222,7 @@ const PodiumCard: React.FC<{
       ) : (
         <div className="my-8 flex flex-col items-center justify-center text-center">
           <span className="grid size-14 place-items-center rounded-2xl border border-dashed border-line bg-canvas">
-            <Sparkles className="size-6 text-content-muted" aria-hidden="true" />
+            <Medal className="size-6 text-content-muted" aria-hidden="true" />
           </span>
           <p className="mt-3 text-xs font-bold text-content">Vị trí đang chờ bạn</p>
           <p className="mt-0.5 text-[11px] text-content-muted">Luyện tập ngay để bước lên bục vinh quang!</p>
@@ -265,7 +265,7 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
       <div className="relative mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line/70 pb-4">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-50/80 px-3 py-1 text-[11px] font-black text-amber-800 shadow-2xs dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200">
-            <Sparkles className="size-3.5 text-amber-500" />
+            <Crown className="size-3.5 text-amber-500" />
             <span>BẢNG VINH DANH DANH DỰ</span>
           </div>
           <h2 className="mt-1.5 text-lg font-black tracking-tight text-content sm:text-xl">

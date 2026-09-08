@@ -6,7 +6,7 @@ import {
   Languages, 
   LibraryBig, 
   ArrowRight, 
-  Sparkles, 
+  Star, 
   Clock, 
   Award 
 } from 'lucide-react';
@@ -79,7 +79,7 @@ export const NationalDayPracticeList: React.FC = () => {
     <div className="w-full space-y-3 mt-6">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-[#DA251D] animate-pulse" />
+          <Star className="size-4 fill-[#DA251D] text-[#DA251D]" />
           <h2 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
             Nội dung luyện tập nổi bật dịp Quốc khánh 2/9
           </h2>

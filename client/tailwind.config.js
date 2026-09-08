@@ -55,7 +55,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'Be Vietnam Pro', 'system-ui', 'sans-serif'],
+        sans: ['var(--app-font-family)', 'Inter', 'Be Vietnam Pro', 'system-ui', 'sans-serif'],
+        brand: ['Inter', 'Be Vietnam Pro', 'system-ui', 'sans-serif'],
       }
     },
   },

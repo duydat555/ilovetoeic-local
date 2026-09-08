@@ -1,11 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Trophy, RotateCcw, Timer, Flame, CheckCircle2 } from 'lucide-react';
+import {
+  Gamepad2,
+  Trophy,
+  RotateCcw,
+  Timer,
+  Flame,
+  CheckCircle2,
+  Layers,
+  CloudRain,
+  Zap,
+} from 'lucide-react';
 import { VocabularyWord } from '../../../types';
 import { playPronunciation } from '../../../utils/audioPronunciation';
+import { WordRainGameView } from './WordRainGameView';
 
 interface Props {
   words: VocabularyWord[];
+  topicName?: string;
 }
 
 interface GameTile {
@@ -16,7 +28,8 @@ interface GameTile {
   isMatched: boolean;
 }
 
-export const WordGameView: React.FC<Props> = ({ words }) => {
+export const WordGameView: React.FC<Props> = ({ words, topicName }) => {
+  const [activeGame, setActiveGame] = useState<'rain' | 'tiles'>('rain');
   const [tiles, setTiles] = useState<GameTile[]>([]);
   const [firstPick, setFirstPick] = useState<GameTile | null>(null);
   const [secondPick, setSecondPick] = useState<GameTile | null>(null);
@@ -138,8 +151,44 @@ export const WordGameView: React.FC<Props> = ({ words }) => {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  if (activeGame === 'rain') {
+    return (
+      <WordRainGameView
+        words={words}
+        topicName={topicName}
+        activeGameTab={activeGame}
+        onChangeGameTab={setActiveGame}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
+      {/* Game Navigation Tabs at Top */}
+      <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface p-1.5 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveGame('tiles')}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-extrabold bg-accent text-accent-contrast shadow-sm transition-all"
+        >
+          <Layers className="size-4" />
+          <span>Ghép thẻ</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveGame('rain')}
+          className="relative flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs sm:text-sm font-extrabold text-content-muted hover:bg-surface-hover hover:text-content transition-all"
+        >
+          <CloudRain className="size-4 text-amber-500" />
+          <span>Mưa từ vựng</span>
+          <span className="flex items-center gap-0.5 rounded-full bg-amber-500/20 border border-amber-500/35 px-2 py-0.5 text-[10px] font-black uppercase text-amber-700 dark:text-amber-300 shadow-sm">
+            <Zap className="size-2.5" />
+            MỚI
+          </span>
+        </button>
+      </div>
+
       {/* Top Bar: Timer, Combos & Reset */}
       <div className="flex items-center justify-between rounded-2xl border border-line bg-surface p-4">
         <div className="flex items-center gap-4">

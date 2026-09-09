@@ -218,24 +218,54 @@ export const PracticeByLevelPage: React.FC = () => {
     setDeletingWrong(true);
     setDeleteError('');
     try {
-      const historyResult = await backendService.deleteLevelStudyHistory(
-        deleteScope.part,
-        deleteScope.level,
-      );
-      const wrongResult = await backendService.deleteWrongQuestions('level', {
-        part: deleteScope.part,
-        level: deleteScope.level,
-      });
-      await backendService.deletePracticeSessionsForLevel(deleteScope.part, deleteScope.level);
+      // 1. Luôn dọn dẹp phiên làm bài local trước
       deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
+
+      // 2. Gửi lệnh xoá lên database
+      let serverDeleted = 0;
+      let wrongDeleted = 0;
+
+      try {
+        const historyResult = await backendService.deleteLevelStudyHistory(
+          deleteScope.part,
+          deleteScope.level,
+        );
+        serverDeleted = historyResult?.deletedCount || 0;
+      } catch (err) {
+        console.warn('[!] Không thể xoá lịch sử level từ server:', err);
+      }
+
+      try {
+        const wrongResult = await backendService.deleteWrongQuestions('level', {
+          part: deleteScope.part,
+          level: deleteScope.level,
+        });
+        wrongDeleted = wrongResult?.deletedCount || 0;
+      } catch (err) {
+        console.warn('[!] Không thể xoá câu sai level từ server:', err);
+      }
+
+      try {
+        await backendService.deletePracticeSessionsForLevel(deleteScope.part, deleteScope.level);
+      } catch (err) {
+        console.warn('[!] Không thể xoá phiên level từ server:', err);
+      }
+
+      // 3. Cập nhật state UI và đóng modal
       const key = `${deleteScope.part}:${deleteScope.level}`;
       setAttempts((current) => current.filter((attempt) => {
         const parsed = getLevelAttempt(attempt);
         return !parsed || parsed.part !== deleteScope.part || parsed.level !== deleteScope.level;
       }));
       setWrongCounts((current) => ({ ...current, [key]: 0 }));
-      setToastMessage(`Đã xoá ${historyResult.deletedCount} lượt làm và ${wrongResult.deletedCount} câu sai của ${deleteScope.label}.`);
+      const totalDeleted = Math.max(serverDeleted, deleteScope.displayCount || deleteScope.attemptCount || 0);
+      setToastMessage(
+        totalDeleted > 0 || wrongDeleted > 0
+          ? `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteScope.label}.`
+          : `Đã dọn sạch dữ liệu luyện tập của ${deleteScope.label}.`,
+      );
       setDeleteScope(null);
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (requestError) {
       setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
     } finally {

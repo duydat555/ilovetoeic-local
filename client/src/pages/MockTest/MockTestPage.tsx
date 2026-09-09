@@ -129,20 +129,42 @@ export const MockTestPage: React.FC = () => {
 
   useEffect(() => {
     let active = true;
-    if (!user) {
-      setHistoryCounts({});
-      return () => { active = false; };
-    }
     const loadHistoryCounts = () => {
-      void backendService.getStudyHistory(user.id).then((attempts) => {
-        if (!active || !attempts) return;
-        const next: Record<string, number> = {};
-        attempts.forEach((attempt) => {
-          if (attempt.testId) next[attempt.testId] = (next[attempt.testId] || 0) + 1;
+      const next: Record<string, number> = {};
+
+      try {
+        const localHistory = storage.getTestHistory();
+        localHistory.forEach((item) => {
+          if (item.testId) {
+            next[item.testId] = (next[item.testId] || 0) + 1;
+          }
         });
+      } catch (err) {
+        console.warn('[!] Lỗi đọc local test history:', err);
+      }
+
+      if (!user) {
         setHistoryCounts(next);
+        return;
+      }
+
+      void backendService.getStudyHistory(user.id).then((attempts) => {
+        if (!active || !attempts) {
+          setHistoryCounts(next);
+          return;
+        }
+        const merged: Record<string, number> = { ...next };
+        attempts.forEach((attempt) => {
+          if (attempt.testId) {
+            merged[attempt.testId] = (merged[attempt.testId] || 0) + 1;
+          }
+        });
+        setHistoryCounts(merged);
+      }).catch(() => {
+        if (active) setHistoryCounts(next);
       });
     };
+
     loadHistoryCounts();
     window.addEventListener('wrong-questions-updated', loadHistoryCounts);
     return () => {
@@ -206,15 +228,44 @@ export const MockTestPage: React.FC = () => {
     setDeletingWrong(true);
     setDeleteError('');
     try {
-      const historyResult = await backendService.deleteTestStudyHistory(deleteTest.id);
-      const wrongResult = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
-      await backendService.deletePracticeSessionsForTest(deleteTest.id);
+      // 1. Luôn xoá sạch dữ liệu local trước để người dùng thấy kết quả ngay lập tức
       const localHistoryDeleted = storage.deleteTestHistory(deleteTest.id);
       storage.clearExamDraft(deleteTest.id);
       deleteTestPracticeSessions(deleteTest.id);
+
+      // 2. Đồng bộ xoá trên cơ sở dữ liệu (resilient: không làm gián đoạn UI nếu mạng lag/offline)
+      let serverDeleted = 0;
+      let wrongDeleted = 0;
+
+      try {
+        const historyResult = await backendService.deleteTestStudyHistory(deleteTest.id);
+        serverDeleted = historyResult?.deletedCount || 0;
+      } catch (err) {
+        console.warn('[!] Không thể xoá lịch sử đề từ server:', err);
+      }
+
+      try {
+        const wrongResult = await backendService.deleteWrongQuestions('test', { testId: deleteTest.id });
+        wrongDeleted = wrongResult?.deletedCount || 0;
+      } catch (err) {
+        console.warn('[!] Không thể xoá câu sai từ server:', err);
+      }
+
+      try {
+        await backendService.deletePracticeSessionsForTest(deleteTest.id);
+      } catch (err) {
+        console.warn('[!] Không thể xoá phiên làm bài từ server:', err);
+      }
+
+      // 3. Cập nhật state UI và đóng modal
       setWrongCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
       setHistoryCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
-      setToastMessage(`Đã xoá ${historyResult.deletedCount + localHistoryDeleted} lượt làm và ${wrongResult.deletedCount} câu sai của ${deleteTest.title}.`);
+      const totalDeleted = Math.max(serverDeleted, localHistoryDeleted);
+      setToastMessage(
+        totalDeleted > 0 || wrongDeleted > 0
+          ? `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteTest.title}.`
+          : `Đã dọn sạch dữ liệu bài làm của ${deleteTest.title}.`,
+      );
       setDeleteTest(null);
       window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (requestError) {
@@ -224,7 +275,11 @@ export const MockTestPage: React.FC = () => {
     }
   };
   const deleteTestHistoryCount = deleteTest
-    ? Math.max(historyCounts[deleteTest.id] || 0, countTestPracticeSessions(deleteTest.id))
+    ? Math.max(
+        historyCounts[deleteTest.id] || 0,
+        storage.getTestHistory().filter((h) => String(h.testId) === String(deleteTest.id)).length,
+        countTestPracticeSessions(deleteTest.id),
+      )
     : 0;
 
   return (
@@ -333,7 +388,11 @@ export const MockTestPage: React.FC = () => {
                 test={test}
                 onOpenMode={openModeModal}
                 wrongCount={wrongCounts[test.id] || 0}
-                historyCount={Math.max(historyCounts[test.id] || 0, countTestPracticeSessions(test.id))}
+                historyCount={Math.max(
+                  historyCounts[test.id] || 0,
+                  storage.getTestHistory().filter((h) => String(h.testId) === String(test.id)).length,
+                  countTestPracticeSessions(test.id),
+                )}
                 onViewHistory={(selectedTest) => {
                   setHistoryFilteredTestId(selectedTest.id);
                   setHistoryFilteredTestYear(selectedTest.year);

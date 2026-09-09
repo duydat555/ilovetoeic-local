@@ -73,6 +73,8 @@ export const App: React.FC = () => {
                 <Route path="/practice/runner/:partId" element={<PracticeRunnerPage />} />
                 <Route path="/mock-test" element={<MockTestPage />} />
                 <Route path="/mock-test/exam/:testId" element={<TestExamPage />} />
+                <Route path="/tests" element={<Navigate to="/mock-test" replace />} />
+                <Route path="/history" element={<Navigate to="/mock-test?tab=history" replace />} />
                 <Route path="/results" element={<TestResultPage />} />
               </Route>
               <Route element={<FeatureRouteGuard feature="vocabulary" />}>

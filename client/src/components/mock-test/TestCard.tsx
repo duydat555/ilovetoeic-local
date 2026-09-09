@@ -77,7 +77,11 @@ export const TestCard: React.FC<TestCardProps> = ({
             <button
               type="button"
               disabled={historyCount === 0 && wrongCount === 0}
-              onClick={() => onDeleteHistory?.(test)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDeleteHistory?.(test);
+              }}
               aria-label={`Xoá lịch sử làm bài của ${test.title}`}
               title={historyCount === 0 && wrongCount === 0 ? 'Chưa có lịch sử làm bài để xoá' : 'Xoá lịch sử làm bài'}
               className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"

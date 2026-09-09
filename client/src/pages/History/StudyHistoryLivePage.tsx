@@ -131,15 +131,15 @@ export const StudyHistoryLivePage: React.FC = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      const res = await backendService.deleteSingleStudyAttempt(deleteTarget.id);
-      if (res.success) {
-        storage.deleteSingleAttempt(deleteTarget.id);
-        setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
-        setDeleteTarget(null);
-        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
-      } else {
-        setDeleteError('Không thể xoá lượt làm bài này.');
+      storage.deleteSingleAttempt(deleteTarget.id);
+      try {
+        await backendService.deleteSingleStudyAttempt(deleteTarget.id);
+      } catch (serverErr) {
+        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
       }
+      setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
     } finally {

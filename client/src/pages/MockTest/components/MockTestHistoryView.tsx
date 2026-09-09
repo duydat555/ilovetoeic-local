@@ -160,26 +160,72 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     }
   }, [filteredTestYear]);
 
-  // Load study history directly from database
+  // Load study history: kết hợp dữ liệu từ database và local storage
   const loadHistory = async (isSilent = false) => {
-    if (!userId) {
-      setAttempts([]);
-      setLoading(false);
-      return;
-    }
     if (!isSilent && attempts.length === 0) {
       setLoading(true);
     }
     setError('');
     try {
-      const data = await backendService.getStudyHistory(userId);
-      if (data === null) {
-        setError('Không thể kết nối với cơ sở dữ liệu để tải lịch sử làm bài.');
-      } else {
-        setAttempts(data);
+      // 1. Đọc lịch sử đã lưu tại trình duyệt
+      const localAttempts: StudyAttempt[] = storage.getTestHistory().map((item) => {
+        const listeningPart = item.partBreakdown?.find((p) => p.part.toLowerCase().includes('listening'));
+        const readingPart = item.partBreakdown?.find((p) => p.part.toLowerCase().includes('reading'));
+        const totalQ = item.questionIds?.length || (item.correctAnswers + item.wrongAnswers + item.skippedAnswers);
+        const attId = String(item.attemptId || (item as any).id || `${item.testId}-${item.completedAt}`);
+        return {
+          id: attId,
+          userId: userId || 'local',
+          testId: item.testId,
+          testName: item.testName || item.testTitle,
+          testYear: item.testYear,
+          mode: ((item as any).mode || 'exam') as 'exam' | 'practice',
+          totalQuestions: totalQ,
+          answeredQuestions: item.correctAnswers + item.wrongAnswers,
+          correctAnswers: item.correctAnswers,
+          accuracyRate: item.accuracyRate,
+          timeSpentSeconds: item.timeSpentSeconds,
+          listeningCorrect: listeningPart?.correct || 0,
+          readingCorrect: readingPart?.correct || 0,
+          listeningScore: item.listeningScore,
+          readingScore: item.readingScore,
+          totalScore: item.totalScore,
+          answers: item.answers || {},
+          questionIds: item.questionIds || [],
+          completedAt: item.completedAt,
+          metadata: {
+            test_name: item.testTitle,
+            test_year: item.testYear,
+            selected_parts: item.selectedParts,
+            is_partial: item.isPartial,
+          },
+        };
+      });
+
+      // 2. Tải lịch sử từ database nếu đã đăng nhập
+      let serverAttempts: StudyAttempt[] = [];
+      if (userId) {
+        try {
+          const data = await backendService.getStudyHistory(userId);
+          if (data && Array.isArray(data)) {
+            serverAttempts = data;
+          }
+        } catch (err) {
+          console.warn('[!] Không thể tải lịch sử từ MySQL, dùng bản ghi local:', err);
+        }
       }
+
+      // 3. Hợp nhất: bản ghi server ghi đè bản ghi local nếu trùng id
+      const attemptMap = new Map<string, StudyAttempt>();
+      localAttempts.forEach((a) => attemptMap.set(a.id, a));
+      serverAttempts.forEach((a) => attemptMap.set(a.id, a));
+
+      const merged = Array.from(attemptMap.values()).sort(
+        (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
+      );
+      setAttempts(merged);
     } catch {
-      setError('Lỗi khi tải lịch sử làm bài từ database.');
+      setError('Lỗi khi tải lịch sử làm bài.');
     } finally {
       setLoading(false);
     }
@@ -199,22 +245,27 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     };
   }, [userId]);
 
-  // Handle deleting a single attempt
+  // Handle deleting a single attempt (resilient)
   const handleDeleteAttempt = async () => {
     if (!deleteTarget || deleting) return;
     setDeleting(true);
     setDeleteError('');
     try {
-      const res = await backendService.deleteSingleStudyAttempt(deleteTarget.id);
-      if (res.success) {
-        storage.deleteSingleAttempt(deleteTarget.id);
-        setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
-        setToastMessage('Đã xoá lượt làm bài thành công.');
-        setDeleteTarget(null);
-        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
-      } else {
-        setDeleteError('Không thể xoá lượt làm bài này.');
+      // 1. Xoá ở local storage ngay lập tức
+      storage.deleteSingleAttempt(deleteTarget.id);
+
+      // 2. Đồng bộ xoá trên server (không chặn UI nếu server đã xoá hoặc offline)
+      try {
+        await backendService.deleteSingleStudyAttempt(deleteTarget.id);
+      } catch (serverErr) {
+        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
       }
+
+      // 3. Cập nhật state UI
+      setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      setToastMessage('Đã xoá lượt làm bài thành công.');
+      setDeleteTarget(null);
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
     } finally {
@@ -222,7 +273,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     }
   };
 
-  // Handle bulk deleting history for a specific test or all tests
+  // Handle bulk deleting history for a specific test or all tests (resilient)
   const handleConfirmBulkDelete = async () => {
     if (!bulkDeleteTarget || bulkDeleting) return;
     setBulkDeleting(true);
@@ -230,26 +281,63 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     try {
       if (bulkDeleteTarget.type === 'test' && bulkDeleteTarget.testId) {
         const tId = bulkDeleteTarget.testId;
-        const res = await backendService.deleteTestStudyHistory(tId);
-        await backendService.deleteWrongQuestions('test', { testId: tId });
-        await backendService.deletePracticeSessionsForTest(tId);
+
+        // 1. Xoá sạch local storage & draft
         const localDeleted = storage.deleteTestHistory(tId);
         storage.clearExamDraft(tId);
         deleteTestPracticeSessions(tId);
 
+        // 2. Gửi lệnh xoá lên database
+        let serverDeleted = 0;
+        try {
+          const res = await backendService.deleteTestStudyHistory(tId);
+          serverDeleted = res?.deletedCount || 0;
+        } catch (err) {
+          console.warn('[!] Không thể xoá đề từ database:', err);
+        }
+
+        try {
+          await backendService.deleteWrongQuestions('test', { testId: tId });
+        } catch (err) {
+          console.warn('[!] Không thể xoá câu sai từ database:', err);
+        }
+
+        try {
+          await backendService.deletePracticeSessionsForTest(tId);
+        } catch (err) {
+          console.warn('[!] Không thể xoá phiên làm bài từ database:', err);
+        }
+
         setAttempts((prev) => prev.filter((a) => a.testId !== tId));
-        setToastMessage(`Đã xoá ${res.deletedCount + localDeleted} lượt làm và dữ liệu liên quan của ${bulkDeleteTarget.testTitle || 'đề thi'}.`);
+        const totalDeleted = Math.max(serverDeleted, localDeleted);
+        setToastMessage(
+          totalDeleted > 0
+            ? `Đã xoá ${totalDeleted} lượt làm và dữ liệu liên quan của ${bulkDeleteTarget.testTitle || 'đề thi'}.`
+            : `Đã dọn sạch dữ liệu của ${bulkDeleteTarget.testTitle || 'đề thi'}.`,
+        );
         setBulkDeleteTarget(null);
         window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       } else {
         // Delete all history
-        const res = await backendService.deleteAllStudyHistory('all');
-        await backendService.deleteWrongQuestions('all');
-        deleteAllPracticeSessions();
         storage.clearAllTestHistory();
+        deleteAllPracticeSessions();
+
+        let serverDeleted = 0;
+        try {
+          const res = await backendService.deleteAllStudyHistory('all');
+          serverDeleted = res?.deletedCount || 0;
+        } catch (err) {
+          console.warn('[!] Không thể xoá toàn bộ lịch sử từ database:', err);
+        }
+
+        try {
+          await backendService.deleteWrongQuestions('all');
+        } catch (err) {
+          console.warn('[!] Không thể xoá toàn bộ câu sai từ database:', err);
+        }
 
         setAttempts([]);
-        setToastMessage(`Đã dọn sạch toàn bộ ${res.deletedCount || bulkDeleteTarget.count} lượt làm bài thi.`);
+        setToastMessage(`Đã dọn sạch toàn bộ ${serverDeleted || bulkDeleteTarget.count} lượt làm bài thi.`);
         setBulkDeleteTarget(null);
         window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       }

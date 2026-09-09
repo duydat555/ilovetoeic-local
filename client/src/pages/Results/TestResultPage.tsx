@@ -76,15 +76,19 @@ export const TestResultPage: React.FC = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      const res = await backendService.deleteSingleStudyAttempt(targetAttemptId);
-      if (res.success) {
-        storage.deleteSingleAttempt(targetAttemptId);
-        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
-        setShowDeleteModal(false);
-        navigate('/mock-test?tab=history', { replace: true });
-      } else {
-        setDeleteError('Không thể xoá lượt làm bài này.');
+      // 1. Luôn xoá local storage trước
+      storage.deleteSingleAttempt(targetAttemptId);
+
+      // 2. Đồng bộ xoá trên cơ sở dữ liệu
+      try {
+        await backendService.deleteSingleStudyAttempt(targetAttemptId);
+      } catch (serverErr) {
+        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
       }
+
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      setShowDeleteModal(false);
+      navigate('/mock-test?tab=history', { replace: true });
     } catch (err) {
       setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
     } finally {
@@ -369,7 +373,7 @@ export const TestResultPage: React.FC = () => {
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           <button
             type="button"
-            onClick={() => navigate('/tests')}
+            onClick={() => navigate('/mock-test')}
             className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-black text-brand-ink transition hover:bg-accent-hover shadow-2xs"
           >
             <LayoutGrid className="size-4" />
@@ -377,7 +381,7 @@ export const TestResultPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/tests?tab=history')}
+            onClick={() => navigate('/mock-test?tab=history')}
             className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2.5 text-xs font-bold text-content transition hover:bg-surface-hover shadow-2xs"
           >
             <History className="size-4 text-content-muted" />

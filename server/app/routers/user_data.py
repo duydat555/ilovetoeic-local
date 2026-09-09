@@ -587,7 +587,7 @@ def delete_single_study_attempt(
         use_cache=False,
     )
     if not attempt:
-        raise HTTPException(status_code=404, detail="Không tìm thấy lượt làm bài này.")
+        return {"success": True, "message": "Lượt làm bài không tồn tại hoặc đã được xoá trước đó."}
 
     with db.transaction() as conn:
         with conn.cursor() as cursor:

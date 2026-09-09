@@ -125,7 +125,11 @@ export const storage = {
   deleteSingleAttempt(attemptId: string) {
     try {
       const history = this.getTestHistory();
-      const remaining = history.filter((result) => result.attemptId !== attemptId);
+      const targetStr = String(attemptId);
+      const remaining = history.filter((result) => {
+        const currentId = String(result.attemptId || (result as any).id || '');
+        return currentId !== targetStr;
+      });
       localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));
       return history.length - remaining.length;
     } catch (e) {

@@ -308,7 +308,7 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
       const scopeParam = parts.length === 7 ? 'all' : parts.join(',');
       navigate(`/practice/runner/${scopeParam}?testId=${encodeURIComponent(testId)}`);
     } else {
-      navigate('/tests');
+      navigate('/mock-test');
     }
   };
 
@@ -316,9 +316,9 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     if (onViewHistory) {
       onViewHistory();
     } else if (testId) {
-      navigate(`/tests?tab=history&testId=${encodeURIComponent(testId)}`);
+      navigate(`/mock-test?tab=history&testId=${encodeURIComponent(testId)}`);
     } else {
-      navigate('/tests?tab=history');
+      navigate('/mock-test?tab=history');
     }
   };
 
@@ -344,7 +344,7 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <button
               type="button"
-              onClick={() => navigate('/tests')}
+              onClick={() => navigate('/mock-test')}
               className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 font-bold text-content-muted transition hover:bg-surface-hover hover:text-content"
             >
               <span>← Kho đề thi</span>

@@ -23,7 +23,45 @@ interface Position {
 
 type TabId = 'meaning' | DictionaryDetailSection;
 
-const WORD_OR_PHRASE_PATTERN = /^[A-Za-z]+(?:['’-][A-Za-z]+)?(?:\s+[A-Za-z]+(?:['’-][A-Za-z]+)?){0,5}$/;
+/**
+ * Trích xuất text từ vùng chọn có chèn khoảng trắng ở ranh giới các thẻ DOM.
+ * Khắc phục triệt để lỗi dính liền chữ (vd: <span>westchester</span> <b>reviews</b> -> "westchester reviews").
+ */
+const extractTextFromSelection = (selection: Selection): string => {
+  if (!selection || selection.rangeCount === 0) return '';
+  const range = selection.getRangeAt(0);
+  const fragment = range.cloneContents();
+  const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+  let extracted = '';
+  let node = walker.nextNode();
+  while (node) {
+    const val = node.nodeValue || '';
+    if (val) {
+      if (extracted && !/\s$/.test(extracted) && !/^\s/.test(val)) {
+        extracted += ' ';
+      }
+      extracted += val;
+    }
+    node = walker.nextNode();
+  }
+  return extracted.replace(/\s+/g, ' ').trim();
+};
+
+/**
+ * Kiểm tra tính hợp lệ của vùng chọn trước khi gọi mạng:
+ * - Chỉ cho phép 1-4 từ.
+ * - Mỗi từ >= 2 ký tự (chặn nhãn trắc nghiệm a, b, c, d).
+ * - Chỉ chứa chữ cái và dấu nháy/gạch nối hợp lệ.
+ * - Giới hạn độ dài <= 40 ký tự (tránh kéo lố cả câu).
+ */
+export const isValidSelection = (text: string): boolean => {
+  const trimmed = text.trim();
+  const pattern = /^[A-Za-z]{2,}(?:['’-][A-Za-z]+)*(\s[A-Za-z]{2,}(?:['’-][A-Za-z]+)*){0,3}$/;
+  if (!pattern.test(trimmed)) return false;
+  if (trimmed.length > 40) return false;
+  return true;
+};
+
 const CARD_WIDTH = 450;
 const CARD_HEIGHT = 560;
 const DEFAULT_VOCABULARY_TOPIC: VocabularyTopicSelection = {
@@ -253,8 +291,8 @@ export const SelectionTranslator: React.FC = () => {
       if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
       if (rootRef.current?.contains(selection.anchorNode)) return;
 
-      const word = selection.toString().replace(/\s+/g, ' ').trim();
-      if (!WORD_OR_PHRASE_PATTERN.test(word)) return;
+      const word = extractTextFromSelection(selection);
+      if (!isValidSelection(word)) return;
 
       const range = selection.getRangeAt(0);
       const container = range.commonAncestorContainer.parentElement;

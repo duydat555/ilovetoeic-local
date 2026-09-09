@@ -30,47 +30,56 @@ class TranslationExample(BaseModel):
 
 class GeminiWordResult(BaseModel):
     source_text: str
+    word_type: Literal["vocabulary", "proper_noun", "invalid_selection"] = Field(
+        default="vocabulary",
+        description=(
+            "Classification of the selected text: "
+            "'vocabulary' for common English dictionary words, verbs, adjectives, idioms, collocations, or phrases suitable for vocabulary learning; "
+            "'proper_noun' for names of specific people, corporations, brand names, cities, or locations (e.g. Wilson, Drew, Partyon); "
+            "'invalid_selection' for typos, concatenated words without spaces, fragmented syllables, non-words, or test answer labels (A, B, C, D)."
+        ),
+    )
     translated_text: str = Field(description="Concise Vietnamese meanings, ordered by relevance")
-    phonetic: Optional[str] = Field(default="", description="General IPA pronunciation between slashes, or empty string for phrases")
+    phonetic: Optional[str] = Field(default="", description="General IPA pronunciation between slashes, or empty string for phrases/proper nouns")
     phonetic_us: Optional[str] = Field(default="", description="American English (US) IPA pronunciation between slashes")
     phonetic_uk: Optional[str] = Field(default="", description="British English (UK) IPA pronunciation between slashes")
-    part_of_speech: Optional[str] = Field(default="phrase", description="English part of speech, e.g. noun, verb, idiom, phrase, adjective")
+    part_of_speech: Optional[str] = Field(default="phrase", description="English part of speech, e.g. noun, verb, idiom, phrase, adjective, proper noun")
     definition_en: Optional[str] = Field(default="", description="Short, learner-friendly English definition")
     examples: List[TranslationExample] = Field(default_factory=list, description="Bilingual contextual examples")
     synonyms: List[str] = Field(default_factory=list, description="Up to four common English synonyms or related phrases")
 
 class CollocationItem(BaseModel):
     phrase: str
-    meaning_vi: str
+    meaning_vi: str = Field(default="", description="Vietnamese meaning")
 
 
 class CollocationResult(BaseModel):
-    items: List[CollocationItem] = Field(min_length=2, max_length=4)
+    items: List[CollocationItem] = Field(default_factory=list, description="Common collocations")
 
 
 class ExtendedExample(BaseModel):
     en: str
-    vi: str
-    level: str
-    context: str
+    vi: str = Field(default="")
+    level: Optional[str] = Field(default="TOEIC")
+    context: Optional[str] = Field(default="Workplace")
 
 
 class ExampleResult(BaseModel):
-    items: List[ExtendedExample] = Field(min_length=2, max_length=3)
+    items: List[ExtendedExample] = Field(default_factory=list, description="Bilingual examples")
 
 
 class SynonymResult(BaseModel):
-    items: List[str] = Field(min_length=3, max_length=5)
+    items: List[str] = Field(default_factory=list, description="Synonyms")
 
 
 class WordFamilyItem(BaseModel):
     word: str
-    part_of_speech: str
-    phonetic: str
+    part_of_speech: Optional[str] = Field(default="")
+    phonetic: Optional[str] = Field(default="")
 
 
 class WordFamilyResult(BaseModel):
-    items: List[WordFamilyItem] = Field(min_length=1, max_length=6)
+    items: List[WordFamilyItem] = Field(default_factory=list, description="Word family members")
 
 
 DictionaryDetailSection = Literal["collocations", "examples", "synonyms", "wordFamily"]
@@ -93,6 +102,7 @@ class GeminiTranslationService:
             "passage_prewarms": 0,
             "memory_cache_hits": 0,
             "direct_system_hits": 0,
+            "system_vocabulary_hits": 0,
             "inflection_table_hits": 0,
             "community_translation_hits": 0,
             "gemini_api_calls": 0,
@@ -534,6 +544,49 @@ class GeminiTranslationService:
             print(f"[!] MySQL translation_cache sync failed: {error}")
             return False
 
+    @staticmethod
+    def _get_invalid_selection(word: str) -> Optional[Dict[str, Any]]:
+        clean_w = word.strip().lower()[:100]
+        try:
+            record = db.fetch_one(
+                "SELECT * FROM invalid_selections WHERE word = ? LIMIT 1",
+                (clean_w,),
+                use_cache=False,
+            )
+            if record:
+                try:
+                    db.execute(
+                        "UPDATE invalid_selections SET hit_count = hit_count + 1 WHERE id = ?",
+                        (record["id"],),
+                    )
+                except Exception:
+                    pass
+                return record
+        except Exception as error:
+            print(f"[!] MySQL invalid_selections read failed: {error}")
+        return None
+
+    @staticmethod
+    def _save_invalid_selection(word: str, word_type: str, translated_text: str = "") -> bool:
+        clean_w = word.strip().lower()[:100]
+        try:
+            db.execute(
+                """
+                INSERT INTO invalid_selections (word, word_type, translated_text, hit_count)
+                VALUES (?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE
+                    word_type = VALUES(word_type),
+                    translated_text = VALUES(translated_text),
+                    hit_count = hit_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (clean_w, word_type, (translated_text or "")[:500]),
+            )
+            return True
+        except Exception as error:
+            print(f"[!] MySQL invalid_selections write failed: {error}")
+            return False
+
     async def translate_text(
         self,
         text: str,
@@ -584,6 +637,27 @@ class GeminiTranslationService:
                 self._save_to_memory_cache(word_only_hash, result)
             return result
 
+        # Tier 3.5: MySQL invalid_selections (chuỗi đã biết là rác/tên riêng đã được ghi nhớ)
+        invalid_record = await asyncio.to_thread(self._get_invalid_selection, clean_text)
+        if invalid_record:
+            self.stats["memory_cache_hits"] += 1
+            w_type = invalid_record.get("word_type") or "invalid_selection"
+            default_txt = "Tên riêng" if w_type == "proper_noun" else "Lựa chọn không hợp lệ"
+            res = {
+                "source_text": clean_text,
+                "word_type": w_type,
+                "translated_text": invalid_record.get("translated_text") or default_txt,
+                "phonetic": "",
+                "part_of_speech": "proper noun" if w_type == "proper_noun" else "invalid",
+                "definition_en": "Proper noun or non-vocabulary selection" if w_type == "proper_noun" else "Invalid selection",
+                "examples": [],
+                "synonyms": [],
+                "cached": True,
+                "cache_source": "invalid_selections",
+            }
+            self._save_to_memory_cache(context_hash, res)
+            return res
+
         # Tier 4: Gemini API fallback with Concurrency Semaphore
         if not self.client:
             self.stats["errors"] += 1
@@ -632,11 +706,19 @@ class GeminiTranslationService:
             "cache_source": "gemini_api",
         })
         self._save_to_memory_cache(context_hash, result)
-        asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
-        # Phrases (collocations, idioms) or generic context safely cache the base word-only key
-        if (is_phrase or is_generic_context) and context_hash != word_only_hash:
-            self._save_to_memory_cache(word_only_hash, result)
-            asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
+
+        word_type = result.get("word_type", "vocabulary")
+        # CHỈ lưu vào community_translations khi là từ vựng học tập hợp lệ ("vocabulary")
+        if word_type == "vocabulary":
+            asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
+            # Phrases (collocations, idioms) or generic context safely cache the base word-only key
+            if (is_phrase or is_generic_context) and context_hash != word_only_hash:
+                self._save_to_memory_cache(word_only_hash, result)
+                asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
+        else:
+            # Ghi nhớ vào bảng invalid_selections để nhận diện chuỗi này là tên riêng/chuỗi rác mà không ô nhiễm từ điển
+            asyncio.create_task(asyncio.to_thread(self._save_invalid_selection, clean_text, word_type, result.get("translated_text", "")))
+
         return result
 
     def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
@@ -781,6 +863,7 @@ class GeminiTranslationService:
         # System vocabulary detail lookup
         system_detail = await asyncio.to_thread(self._lookup_system_vocabulary_detail, clean_text, section)
         if system_detail:
+            self.stats["direct_system_hits"] += 1
             self.stats["system_vocabulary_hits"] += 1
             self._save_to_memory_cache(text_hash, system_detail)
             self._save_to_memory_cache(word_only_hash, system_detail)
@@ -859,12 +942,23 @@ class GeminiTranslationService:
             raise RuntimeError("google-genai is not installed")
         prompt = f"""
 You are an English-Vietnamese dictionary editor specializing in TOEIC.
-Analyze the selected English word or phrase "{text}" from this nearby context:
+Analyze the selected English text "{text}" from this nearby context:
 {context[:500]}
 
-Return its most contextually relevant Vietnamese meaning, US IPA and UK IPA pronunciations (if applicable, or empty string for multi-word phrases),
-part of speech (e.g. noun, verb, adjective, adverb, phrase, idiom, phrasal verb, preposition), a short English definition, one natural bilingual example, and up to four
-common synonyms or related expressions. Keep the explanation concise and suitable for a Vietnamese learner.
+First, classify the word_type:
+- "vocabulary": A valid general English dictionary word, phrasal verb, collocation, or idiom suitable for vocabulary learning.
+- "proper_noun": A proper noun such as a person's name (e.g. Wilson, Drew, Gerson), company name (e.g. Partyon, Westchester), brand, or specific city.
+- "invalid_selection": Meaningless character sequences, concatenated words (e.g. "westchesterreviews"), fragments, exam options (A, B, C, D), or typos.
+
+Then provide:
+- Concise Vietnamese meaning (for proper nouns, explicitly explain e.g. "Tên riêng: Wilson")
+- US IPA and UK IPA pronunciations (if applicable, or empty string)
+- Part of speech (e.g. noun, verb, adjective, proper noun, phrase, idiom)
+- Short English definition
+- One natural bilingual example
+- Up to four common synonyms or related expressions (empty list for proper nouns or invalid selections)
+
+Keep the explanation concise and learner-friendly.
 Source language: {src_lang}. Target language: {target_lang}.
 """
         response = self.client.models.generate_content(
@@ -1017,19 +1111,41 @@ Keep every item concise and accurate for a Vietnamese learner.
             result = schema.model_validate_json(response.text).model_dump()
 
         # The client uses camelCase consistently.
+        raw_items = result.get("items") or []
         if section == "collocations":
             result["items"] = [
-                {"phrase": item["phrase"], "meaningVi": item["meaning_vi"]}
-                for item in result["items"]
+                {
+                    "phrase": item.get("phrase", ""),
+                    "meaningVi": item.get("meaning_vi") or item.get("meaningVi", ""),
+                }
+                for item in raw_items
+                if isinstance(item, dict)
             ]
         elif section == "wordFamily":
             result["items"] = [
                 {
-                    "word": item["word"],
-                    "partOfSpeech": item["part_of_speech"],
-                    "phonetic": item["phonetic"],
+                    "word": item.get("word", ""),
+                    "partOfSpeech": item.get("part_of_speech") or item.get("partOfSpeech", ""),
+                    "phonetic": item.get("phonetic", ""),
                 }
-                for item in result["items"]
+                for item in raw_items
+                if isinstance(item, dict)
+            ]
+        elif section == "examples":
+            result["items"] = [
+                {
+                    "en": item.get("en", ""),
+                    "vi": item.get("vi", ""),
+                    "level": item.get("level") or "TOEIC",
+                    "context": item.get("context") or "Workplace",
+                }
+                for item in raw_items
+                if isinstance(item, dict)
+            ]
+        elif section == "synonyms":
+            result["items"] = [
+                s for s in raw_items
+                if isinstance(s, str) and s.strip()
             ]
         return result
 
@@ -1045,6 +1161,7 @@ Keep every item concise and accurate for a Vietnamese learner.
 
         inflections_count = 0
         community_count = 0
+        invalid_count = 0
         try:
             inf_row = db.fetch_one("SELECT COUNT(*) as c FROM word_inflections", use_cache=True)
             if inf_row:
@@ -1052,6 +1169,9 @@ Keep every item concise and accurate for a Vietnamese learner.
             comm_row = db.fetch_one("SELECT COUNT(*) as c FROM community_translations", use_cache=True)
             if comm_row:
                 community_count = comm_row["c"]
+            inv_row = db.fetch_one("SELECT COUNT(*) as c FROM invalid_selections", use_cache=True)
+            if inv_row:
+                invalid_count = inv_row["c"]
         except Exception:
             pass
 
@@ -1064,6 +1184,7 @@ Keep every item concise and accurate for a Vietnamese learner.
             "passage_cache_current_size": len(self.passage_vocabulary_cache),
             "word_inflections_count": inflections_count,
             "community_translations_count": community_count,
+            "invalid_selections_count": invalid_count,
             "mysql_connected": db.is_connected,
             "model": config.GEMINI_MODEL,
         }

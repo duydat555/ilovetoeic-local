@@ -558,3 +558,14 @@ CREATE TABLE IF NOT EXISTS system_vocabulary_words (
     CONSTRAINT fk_sys_vocab_words_topic FOREIGN KEY (topic_id) REFERENCES system_vocabulary_topics(id) ON DELETE CASCADE,
     CONSTRAINT fk_sys_vocab_words_set FOREIGN KEY (set_id) REFERENCES system_vocabulary_sets(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS word_inflections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    inflected_form VARCHAR(100) NOT NULL,
+    lemma_word VARCHAR(100) NOT NULL,
+    inflection_type VARCHAR(20) NOT NULL DEFAULT 'REGULAR',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_inflected_lemma (inflected_form, lemma_word),
+    INDEX idx_inflected_form (inflected_form),
+    INDEX idx_lemma_word (lemma_word)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

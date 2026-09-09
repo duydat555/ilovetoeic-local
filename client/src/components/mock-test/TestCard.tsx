@@ -18,6 +18,7 @@ interface TestCardProps {
   historyCount?: number;
   onRetryWrong?: (test: MockTestItem) => void;
   onDeleteHistory?: (test: MockTestItem) => void;
+  onViewHistory?: (test: MockTestItem) => void;
   variant?: 'default' | 'picker';
   selected?: boolean;
   onSelect?: (test: MockTestItem) => void;
@@ -30,6 +31,7 @@ export const TestCard: React.FC<TestCardProps> = ({
   historyCount = 0,
   onRetryWrong,
   onDeleteHistory,
+  onViewHistory,
   variant = 'default',
   selected = false,
   onSelect,
@@ -98,7 +100,25 @@ export const TestCard: React.FC<TestCardProps> = ({
       </div>
 
       <p className={`${picker ? 'text-sm' : 'text-xs'} font-medium text-content-muted`}>
-        {picker ? `${test.type} - ${test.difficulty}` : historyCount > 0 ? `${historyCount} lượt đã làm` : 'Chưa luyện tập'}
+        {picker ? (
+          `${test.type} - ${test.difficulty}`
+        ) : historyCount > 0 ? (
+          onViewHistory ? (
+            <button
+              type="button"
+              onClick={() => onViewHistory(test)}
+              className="group/hist inline-flex items-center gap-1 font-semibold text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
+              title="Bấm để xem danh sách bài đã làm của đề này"
+            >
+              <span>{historyCount} lượt đã làm</span>
+              <span className="text-[10px] opacity-70 group-hover/hist:translate-x-0.5 transition-transform">→</span>
+            </button>
+          ) : (
+            `${historyCount} lượt đã làm`
+          )
+        ) : (
+          'Chưa luyện tập'
+        )}
       </p>
     </div>
 

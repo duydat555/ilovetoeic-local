@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 from collections import OrderedDict
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
@@ -13,6 +13,11 @@ try:
 except ImportError:
     genai = None
     types = None
+
+try:
+    import lemminflect
+except ImportError:
+    lemminflect = None
 
 from app import config
 from app.db import db
@@ -74,6 +79,7 @@ DictionaryDetailSection = Literal["collocations", "examples", "synonyms", "wordF
 class GeminiTranslationService:
     def __init__(self):
         self.memory_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
+        self.passage_vocabulary_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
         self.max_ram_cache_size = config.RAM_CACHE_MAX_SIZE
         self.semaphore = asyncio.Semaphore(config.MAX_GEMINI_CONCURRENCY)
         self.client = (
@@ -86,6 +92,8 @@ class GeminiTranslationService:
             "memory_cache_hits": 0,
             "system_vocabulary_hits": 0,
             "mysql_cache_hits": 0,
+            "passage_cache_hits": 0,
+            "passage_prewarms": 0,
             "gemini_api_calls": 0,
             "dictionary_detail_calls": 0,
             "errors": 0,
@@ -113,77 +121,141 @@ class GeminiTranslationService:
             self.memory_cache.popitem(last=False)
         self.memory_cache[text_hash] = data
 
-    def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
-        clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
+    def _format_system_vocabulary_record(
+        self,
+        record: Dict[str, Any],
+        query_word: str,
+        lemma_word: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        raw_phonetic = record.get("ipa") or ""
+        phonetic_us = ""
+        phonetic_uk = ""
+        if "UK:" in raw_phonetic and "US:" in raw_phonetic:
+            uk_m = re.search(r"UK:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+            us_m = re.search(r"US:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
+            if uk_m:
+                phonetic_uk = uk_m.group(1)
+            if us_m:
+                phonetic_us = us_m.group(1)
+        if not phonetic_us:
+            phonetic_us = raw_phonetic
+        if not phonetic_uk:
+            phonetic_uk = raw_phonetic
+
+        examples = []
+        if record.get("example_en"):
+            examples.append({
+                "en": record["example_en"],
+                "vi": record.get("example_vi") or "",
+            })
+        elif record.get("example_toeic"):
+            toeic_ex = self._parse_json(record["example_toeic"], None)
+            if isinstance(toeic_ex, dict) and toeic_ex.get("en"):
+                examples.append({
+                    "en": toeic_ex["en"],
+                    "vi": toeic_ex.get("vi") or "",
+                })
+
+        synonyms = self._parse_json(record.get("synonyms"), [])
+        if isinstance(synonyms, list):
+            synonyms = [s for s in synonyms if isinstance(s, str)][:4]
+        else:
+            synonyms = []
+
+        formatted: Dict[str, Any] = {
+            "source_text": query_word,
+            "translated_text": record.get("meaning_vi", ""),
+            "phonetic": raw_phonetic,
+            "phonetic_us": phonetic_us,
+            "phonetic_uk": phonetic_uk,
+            "audio_us": record.get("audio_us") or "",
+            "audio_uk": record.get("audio_uk") or "",
+            "part_of_speech": record.get("part_of_speech", ""),
+            "definition_en": record.get("definition_en", ""),
+            "examples": examples,
+            "synonyms": synonyms,
+            "cached": True,
+            "cache_source": "system_vocabulary",
+        }
+        if lemma_word and lemma_word.lower() != query_word.lower():
+            formatted["lemma"] = lemma_word
+        return formatted
+
+    def _fetch_system_vocab_row(self, word: str) -> Optional[Dict[str, Any]]:
+        return db.fetch_one(
+            """
+            SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
+                   example_en, example_vi, example_toeic, audio_us, audio_uk, 
+                   synonyms, word_family, phrases
+            FROM system_vocabulary_words 
+            WHERE word = ? 
+            ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC 
+            LIMIT 1
+            """,
+            (word,),
+            use_cache=False,
+        )
+
+    def _find_system_vocabulary_record(self, word: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+        clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*").lower()
         if not clean_word or len(clean_word.split()) > 4:
-            return None
+            return None, None
+
+        # 1. Exact match in system_vocabulary_words
+        record = self._fetch_system_vocab_row(clean_word)
+        if record:
+            return record, clean_word
+
+        # 2. Inflection table match (precomputed via LemmInflect offline)
         try:
-            record = db.fetch_one(
-                """
-                SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
-                       example_en, example_vi, example_toeic, audio_us, audio_uk, 
-                       synonyms, word_family, phrases
-                FROM system_vocabulary_words 
-                WHERE word = ? 
-                ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC 
-                LIMIT 1
-                """,
+            inflection = db.fetch_one(
+                "SELECT lemma_word FROM word_inflections WHERE inflected_form = ? LIMIT 1",
                 (clean_word,),
                 use_cache=False,
             )
+            if inflection and inflection.get("lemma_word"):
+                lemma = inflection["lemma_word"].strip().lower()
+                record = self._fetch_system_vocab_row(lemma)
+                if record:
+                    return record, lemma
+        except Exception as err:
+            print(f"[!] word_inflections lookup error: {err}")
+
+        # 3. Dynamic NLP Lemmatization via lemminflect fallback
+        if lemminflect:
+            try:
+                lemmas_dict = lemminflect.getAllLemmas(clean_word)
+                candidate_lemmas = []
+                for pos, lemmas in lemmas_dict.items():
+                    for l in lemmas:
+                        l_clean = l.strip().lower()
+                        if l_clean not in candidate_lemmas and l_clean != clean_word:
+                            candidate_lemmas.append(l_clean)
+                for cand in candidate_lemmas:
+                    record = self._fetch_system_vocab_row(cand)
+                    if record:
+                        try:
+                            db.execute(
+                                "INSERT IGNORE INTO word_inflections (inflected_form, lemma_word, inflection_type) VALUES (?, ?, ?)",
+                                (clean_word, cand, "DYNAMIC"),
+                            )
+                        except Exception:
+                            pass
+                        return record, cand
+            except Exception as err:
+                print(f"[!] lemminflect runtime lookup error: {err}")
+
+        return None, None
+
+    def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
+        clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
+        if not clean_word:
+            return None
+        try:
+            record, lemma = self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
-
-            raw_phonetic = record.get("ipa") or ""
-            phonetic_us = ""
-            phonetic_uk = ""
-            if "UK:" in raw_phonetic and "US:" in raw_phonetic:
-                uk_m = re.search(r"UK:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
-                us_m = re.search(r"US:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
-                if uk_m:
-                    phonetic_uk = uk_m.group(1)
-                if us_m:
-                    phonetic_us = us_m.group(1)
-            if not phonetic_us:
-                phonetic_us = raw_phonetic
-            if not phonetic_uk:
-                phonetic_uk = raw_phonetic
-
-            examples = []
-            if record.get("example_en"):
-                examples.append({
-                    "en": record["example_en"],
-                    "vi": record.get("example_vi") or "",
-                })
-            elif record.get("example_toeic"):
-                toeic_ex = self._parse_json(record["example_toeic"], None)
-                if isinstance(toeic_ex, dict) and toeic_ex.get("en"):
-                    examples.append({
-                        "en": toeic_ex["en"],
-                        "vi": toeic_ex.get("vi") or "",
-                    })
-
-            synonyms = self._parse_json(record.get("synonyms"), [])
-            if isinstance(synonyms, list):
-                synonyms = [s for s in synonyms if isinstance(s, str)][:4]
-            else:
-                synonyms = []
-
-            return {
-                "source_text": record.get("word", word),
-                "translated_text": record.get("meaning_vi", ""),
-                "phonetic": raw_phonetic,
-                "phonetic_us": phonetic_us,
-                "phonetic_uk": phonetic_uk,
-                "audio_us": record.get("audio_us") or "",
-                "audio_uk": record.get("audio_uk") or "",
-                "part_of_speech": record.get("part_of_speech", ""),
-                "definition_en": record.get("definition_en", ""),
-                "examples": examples,
-                "synonyms": synonyms,
-                "cached": True,
-                "cache_source": "system_vocabulary",
-            }
+            return self._format_system_vocabulary_record(record, clean_word, lemma)
         except Exception as error:
             print(f"[!] System vocabulary lookup failed: {error}")
             return None
@@ -197,19 +269,7 @@ class GeminiTranslationService:
         if not clean_word or len(clean_word.split()) > 4:
             return None
         try:
-            record = db.fetch_one(
-                """
-                SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
-                       example_en, example_vi, example_toeic, 
-                       synonyms, word_family, phrases
-                FROM system_vocabulary_words 
-                WHERE word = ? 
-                ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC 
-                LIMIT 1
-                """,
-                (clean_word,),
-                use_cache=False,
-            )
+            record, lemma = self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
 
@@ -225,7 +285,8 @@ class GeminiTranslationService:
                             })
                     if items:
                         return {
-                            "source_text": record.get("word", word),
+                            "source_text": clean_word,
+                            "lemma": lemma,
                             "section": section,
                             "items": items,
                             "cached": True,
@@ -238,7 +299,8 @@ class GeminiTranslationService:
                     valid_synonyms = [s for s in synonyms_data if isinstance(s, str) and s.strip()]
                     if valid_synonyms:
                         return {
-                            "source_text": record.get("word", word),
+                            "source_text": clean_word,
+                            "lemma": lemma,
                             "section": section,
                             "items": valid_synonyms[:5],
                             "cached": True,
@@ -258,7 +320,8 @@ class GeminiTranslationService:
                             })
                     if items:
                         return {
-                            "source_text": record.get("word", word),
+                            "source_text": clean_word,
+                            "lemma": lemma,
                             "section": section,
                             "items": items,
                             "cached": True,
@@ -285,7 +348,8 @@ class GeminiTranslationService:
                     })
                 if examples_items:
                     return {
-                        "source_text": record.get("word", word),
+                        "source_text": clean_word,
+                        "lemma": lemma,
                         "section": section,
                         "items": examples_items,
                         "cached": True,
@@ -331,15 +395,18 @@ class GeminiTranslationService:
     ) -> Dict[str, Any]:
         self.stats["total_requests"] += 1
         clean_text = text.strip()
+        is_generic_context = not context or context.strip().lower() in ("toeic", "general", "default", "")
         context_hash = self._compute_hash(clean_text, src_lang, target_lang, context)
         word_only_hash = self._compute_hash(clean_text, src_lang, target_lang, "")
 
-        # Tier 1: In-Memory RAM Cache (check context hash, then word-only hash)
-        memory_result = self._get_from_memory_cache(context_hash) or self._get_from_memory_cache(word_only_hash)
+        # Tier 1: In-Memory RAM Cache (check context hash, then word-only hash if generic)
+        memory_result = self._get_from_memory_cache(context_hash)
+        if not memory_result and is_generic_context:
+            memory_result = self._get_from_memory_cache(word_only_hash)
         if memory_result:
             return memory_result
 
-        # Tier 2: Local MySQL System Vocabulary (20,159 indexed words - ultra fast 2ms lookup)
+        # Tier 2: Local MySQL System Vocabulary + Lemmatization (ultra-fast 2ms lookup)
         if src_lang == "en" and target_lang == "vi":
             system_result = await asyncio.to_thread(self._lookup_system_vocabulary, clean_text)
             if system_result:
@@ -348,16 +415,17 @@ class GeminiTranslationService:
                 self._save_to_memory_cache(word_only_hash, system_result)
                 return system_result
 
-        # Tier 3: MySQL translation_cache (check context hash, then word-only hash fallback)
+        # Tier 3: MySQL translation_cache (check context hash, then word-only hash fallback if generic)
         database_result = await asyncio.to_thread(self._get_database_cache, context_hash)
-        if not database_result and context_hash != word_only_hash:
+        if not database_result and is_generic_context and context_hash != word_only_hash:
             database_result = await asyncio.to_thread(self._get_database_cache, word_only_hash)
 
         if database_result:
             self.stats["mysql_cache_hits"] += 1
             result = self._format_database_cache_result(database_result, clean_text)
             self._save_to_memory_cache(context_hash, result)
-            self._save_to_memory_cache(word_only_hash, result)
+            if is_generic_context:
+                self._save_to_memory_cache(word_only_hash, result)
             return result
 
         # Tier 4: Gemini API fallback with Concurrency Semaphore
@@ -408,11 +476,134 @@ class GeminiTranslationService:
             "cache_source": "gemini_api",
         })
         self._save_to_memory_cache(context_hash, result)
-        self._save_to_memory_cache(word_only_hash, result)
         asyncio.create_task(asyncio.to_thread(self._save_database_cache, context_hash, result))
-        if context_hash != word_only_hash:
+        if is_generic_context and context_hash != word_only_hash:
+            self._save_to_memory_cache(word_only_hash, result)
             asyncio.create_task(asyncio.to_thread(self._save_database_cache, word_only_hash, result))
         return result
+
+    def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
+        """
+        Pre-warms and retrieves vocabulary for a passage by passage_id.
+        Extracts all English tokens, performs batch queries against system vocabulary
+        and word inflections, pre-populates memory cache, and returns a dict mapping
+        normalized words to formatted WordTranslation objects.
+        """
+        if not passage_id:
+            return {"passage_id": passage_id, "words": {}}
+
+        # Check in-memory passage cache first
+        if passage_id in self.passage_vocabulary_cache:
+            self.stats["passage_cache_hits"] += 1
+            self.passage_vocabulary_cache.move_to_end(passage_id)
+            return {
+                "passage_id": passage_id,
+                "words": self.passage_vocabulary_cache[passage_id],
+                "count": len(self.passage_vocabulary_cache[passage_id]),
+                "cached": True,
+            }
+
+        passage = db.fetch_one(
+            """
+            SELECT id, passage_text, passage_text_2, passage_text_3, transcript
+            FROM passages
+            WHERE id = ?
+            LIMIT 1
+            """,
+            (passage_id,),
+            use_cache=True,
+        )
+        if not passage:
+            return {"passage_id": passage_id, "words": {}}
+
+        # Extract full text
+        parts = [
+            passage.get("passage_text") or "",
+            passage.get("passage_text_2") or "",
+            passage.get("passage_text_3") or "",
+            passage.get("transcript") or "",
+        ]
+        full_text = " ".join(p for p in parts if p)
+        # Extract unique words with length >= 3
+        words = sorted(list(set(w.lower() for w in re.findall(r"\b[A-Za-z]+(?:['’-][A-Za-z]+)?\b", full_text) if len(w) >= 3)))
+
+        if not words:
+            return {"passage_id": passage_id, "words": {}}
+
+        self.stats["passage_prewarms"] += 1
+        word_map: Dict[str, Any] = {}
+
+        # 1. Batch query direct matches in system_vocabulary_words
+        format_strings = ",".join(["?"] * len(words))
+        direct_rows = db.fetch_all(
+            f"""
+            SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
+                   example_en, example_vi, example_toeic, audio_us, audio_uk, 
+                   synonyms, word_family, phrases
+            FROM system_vocabulary_words 
+            WHERE word IN ({format_strings})
+            ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
+            """,
+            tuple(words),
+            use_cache=True,
+        )
+
+        for row in direct_rows:
+            w = row["word"].lower()
+            if w not in word_map:
+                formatted = self._format_system_vocabulary_record(row, w)
+                word_map[w] = formatted
+                # Pre-warm general memory cache
+                w_hash = self._compute_hash(w, "en", "vi", "")
+                self._save_to_memory_cache(w_hash, formatted)
+
+        missing = [w for w in words if w not in word_map]
+
+        # 2. Batch query inflections for missing words
+        if missing:
+            inf_fmts = ",".join(["?"] * len(missing))
+            inf_rows = db.fetch_all(
+                f"SELECT inflected_form, lemma_word FROM word_inflections WHERE inflected_form IN ({inf_fmts})",
+                tuple(missing),
+                use_cache=True,
+            )
+            inf_dict = {r["inflected_form"].lower(): r["lemma_word"].lower() for r in inf_rows}
+            lemmas_to_fetch = sorted(list(set(inf_dict.values())))
+
+            if lemmas_to_fetch:
+                lem_fmts = ",".join(["?"] * len(lemmas_to_fetch))
+                lemma_rows = db.fetch_all(
+                    f"""
+                    SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
+                           example_en, example_vi, example_toeic, audio_us, audio_uk, 
+                           synonyms, word_family, phrases
+                    FROM system_vocabulary_words 
+                    WHERE word IN ({lem_fmts})
+                    ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
+                    """,
+                    tuple(lemmas_to_fetch),
+                    use_cache=True,
+                )
+                lemma_record_map = {r["word"].lower(): r for r in lemma_rows}
+
+                for inf_word, lemma in inf_dict.items():
+                    if lemma in lemma_record_map and inf_word not in word_map:
+                        formatted = self._format_system_vocabulary_record(lemma_record_map[lemma], inf_word, lemma)
+                        word_map[inf_word] = formatted
+                        # Pre-warm general memory cache
+                        w_hash = self._compute_hash(inf_word, "en", "vi", "")
+                        self._save_to_memory_cache(w_hash, formatted)
+
+        # Cache in LRU
+        if len(self.passage_vocabulary_cache) >= 200:
+            self.passage_vocabulary_cache.popitem(last=False)
+        self.passage_vocabulary_cache[passage_id] = word_map
+
+        return {
+            "passage_id": passage_id,
+            "words": word_map,
+            "count": len(word_map),
+        }
 
     async def get_dictionary_detail(
         self,

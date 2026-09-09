@@ -9,6 +9,9 @@ class TestSubmissionRequest(BaseModel):
     user_id: Optional[str] = "guest"
     time_spent_seconds: Optional[int] = 0
     answers: List[UserAnswer]
+    question_ids: Optional[List[str]] = None
+    selected_parts: Optional[List[int]] = None
+    mode: Optional[str] = "exam"
 
 class QuestionResult(BaseModel):
     question_id: str

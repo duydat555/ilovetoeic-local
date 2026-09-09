@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
+import { dictionaryService } from '../../services/dictionary';
 
 interface PassageContentProps {
   html: string;
   templateHtml?: string;
   className?: string;
+  passageId?: string;
 }
 
 const ALLOWED_TAGS = new Set([
@@ -413,7 +415,14 @@ export const PassageContent: React.FC<PassageContentProps> = ({
   html,
   templateHtml,
   className = '',
+  passageId,
 }) => {
+  useEffect(() => {
+    if (passageId) {
+      void dictionaryService.prewarmPassage(passageId);
+    }
+  }, [passageId]);
+
   const formattedHtml = useMemo(
     () => templateHtml ? formatTranslationLikeSource(html, templateHtml) : html,
     [html, templateHtml],
@@ -426,11 +435,19 @@ export const PassageContent: React.FC<PassageContentProps> = ({
 
   if (!containsMarkup) {
     const normalizedText = formattedHtml.replace(/\\r\\n|\\n|\\r/g, '\n');
-    return <div className={`toeic-passage whitespace-pre-line ${className}`}>{normalizedText}</div>;
+    return (
+      <div
+        data-passage-id={passageId}
+        className={`toeic-passage whitespace-pre-line ${className}`}
+      >
+        {normalizedText}
+      </div>
+    );
   }
 
   return (
     <div
+      data-passage-id={passageId}
       className={`toeic-passage ${className}`}
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />

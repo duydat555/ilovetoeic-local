@@ -156,6 +156,37 @@ export const apiService = {
     };
   },
 
+  async getPassageVocabulary(passageId: string, signal?: AbortSignal): Promise<Record<string, WordTranslation>> {
+    const res = await fetch(`${API_BASE_URL}/translate/passage/${encodeURIComponent(passageId)}`, {
+      signal,
+    });
+    if (!res.ok) {
+      return {};
+    }
+    const data = await res.json();
+    const result: Record<string, WordTranslation> = {};
+    if (data && data.words) {
+      for (const [key, item] of Object.entries(data.words as Record<string, any>)) {
+        result[key.toLowerCase()] = {
+          sourceText: item.source_text || key,
+          translatedText: item.translated_text || '',
+          phonetic: item.phonetic || '',
+          phoneticUs: item.phonetic_us || '',
+          phoneticUk: item.phonetic_uk || '',
+          audioUs: item.audio_us || '',
+          audioUk: item.audio_uk || '',
+          partOfSpeech: item.part_of_speech || '',
+          definitionEn: item.definition_en || '',
+          examples: Array.isArray(item.examples) ? item.examples : [],
+          synonyms: Array.isArray(item.synonyms) ? item.synonyms : [],
+          cached: true,
+          aiSource: 'gemini',
+        };
+      }
+    }
+    return result;
+  },
+
   // 1. Get Test Sets
   async getTestSets(): Promise<ApiTestSet[]> {
     try {
@@ -362,6 +393,9 @@ export const apiService = {
           user_id: userId,
           time_spent_seconds: timeSpentSeconds,
           answers: payloadAnswers,
+          question_ids: hasQuestionScope ? scopedQuestions.map((q) => q.id) : undefined,
+          selected_parts: hasQuestionScope ? selectedParts : undefined,
+          mode: 'exam',
         }),
       });
 

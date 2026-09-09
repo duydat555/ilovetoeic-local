@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import {
+  BookMarked,
   BookOpen,
-  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  BookMarked,
   Languages,
   Plus,
+  Volume2,
+  XCircle,
 } from 'lucide-react';
 import { Question } from '../../types';
-import { cleanExplanationText, cleanTranscriptSpacing, getUnifiedQuestionTranslationText } from '../../utils/practice';
+import { cleanExplanationText, getUnifiedQuestionTranslationText } from '../../utils/practice';
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 import { FormattedReadingExplanation } from '../common/FormattedReadingExplanation';
@@ -32,158 +33,262 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
   savedVocabWords = {},
 }) => {
   const [passageExpanded, setPassageExpanded] = useState(false);
+  const [savingWord, setSavingWord] = useState<string | null>(null);
 
   const explanationText = cleanExplanationText(question.explanation);
   const isReadingPart = question.partId >= 5;
+  const isSkipped = !userAnswer;
+
+  const hasChoiceText =
+    question.choices &&
+    question.choices.length > 0 &&
+    question.choices.some((c) => c.text && c.text.trim().length > 0);
+
+  const handleSaveWord = async (word: string, meaning: string) => {
+    if (!onSaveVocabulary) return;
+    setSavingWord(word);
+    try {
+      await onSaveVocabulary(word, meaning);
+    } finally {
+      setSavingWord(null);
+    }
+  };
 
   return (
-    <div className="space-y-3.5 rounded-2xl border border-line bg-surface p-5 shadow-xs transition hover:shadow-md dark:shadow-none">
-      {/* Header: Số câu + Part + Badge đáp án */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 text-xs">
-        <span className="font-extrabold text-content">
-          Câu {question.questionNumber} <span className="text-content-muted">(Part {question.partId})</span>
-        </span>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-full px-3 py-1 font-extrabold ${isCorrect
-              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-              }`}
-          >
-            Bạn chọn: {userAnswer || 'Bỏ qua'}
+    <article
+      id={`question-review-${question.questionNumber}`}
+      className="scroll-mt-24 space-y-4 rounded-3xl border border-line bg-surface p-5 sm:p-6 shadow-2xs transition-all hover:shadow-xs"
+    >
+      {/* Header: Số câu + Part + Badge kết quả của bạn & Đáp án đúng */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/60 pb-3.5">
+        <div className="flex items-center gap-2.5">
+          <span className="grid size-8 place-items-center rounded-xl bg-surface-elevated font-mono text-xs font-black text-content tabular-nums border border-line/70">
+            {question.questionNumber}
           </span>
-          <span className="rounded-full bg-emerald-500/10 px-3 py-1 font-extrabold text-emerald-600 dark:text-emerald-400">
-            Đáp án đúng: {question.correctAnswer}
+          <div>
+            <span className="text-xs font-extrabold text-content">
+              Câu hỏi {question.questionNumber}
+            </span>
+            <span className="ml-1.5 text-[11px] font-semibold text-content-muted">
+              (Part {question.partId})
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {/* Badge câu trả lời của thí sinh */}
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-bold ${
+              isCorrect
+                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                : isSkipped
+                ? 'border-slate-300 bg-slate-100 text-slate-600 dark:border-line dark:bg-surface-elevated dark:text-content-muted'
+                : 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+            }`}
+          >
+            {isCorrect ? (
+              <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+            ) : isSkipped ? (
+              <span className="text-xs font-bold">—</span>
+            ) : (
+              <XCircle className="size-3.5 text-rose-600 dark:text-rose-400" />
+            )}
+            <span>Bạn chọn: {userAnswer || 'Chưa trả lời'}</span>
+          </span>
+
+          {/* Badge đáp án chuẩn */}
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-extrabold text-emerald-700 dark:text-emerald-300">
+            <span>Đáp án: {question.correctAnswer}</span>
           </span>
         </div>
       </div>
 
-      {/* Trình phát Audio nếu là câu hỏi Listening */}
+      {/* Trình phát Audio nếu là câu hỏi Nghe hiểu (Listening) */}
       {question.audioUrl && (
-        <div className="py-1">
+        <div className="rounded-2xl border border-line bg-surface-elevated/40 p-3.5">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+            <Volume2 className="size-4 text-amber-500" />
+            <span>Âm thanh câu hỏi:</span>
+          </div>
           <AudioPlayer audioUrl={question.audioUrl} />
         </div>
       )}
 
-      {/* Bài đọc liên quan (Passage) cho câu Reading - Có thể thu gọn/mở rộng */}
+      {/* Bài đọc liên quan (Passage) cho câu Reading */}
       {isReadingPart && question.passageText && (
-        <div className="rounded-xl border border-line bg-surface-elevated/40 p-3.5 text-xs">
+        <div className="rounded-2xl border border-line bg-surface-elevated/40 p-4 text-xs">
           <button
             type="button"
             onClick={() => setPassageExpanded(!passageExpanded)}
-            className="flex w-full items-center justify-between font-bold text-brand-700 hover:underline dark:text-brand-300"
+            className="flex w-full items-center justify-between font-bold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition"
           >
-            <span className="flex items-center gap-1.5">
-              <BookOpen className="size-4 text-brand-600" />
+            <span className="flex items-center gap-2">
+              <BookOpen className="size-4 text-amber-500" />
               <span>Đoạn văn bài đọc (Passage)</span>
             </span>
-            <span className="inline-flex items-center gap-1 text-[11px]">
-              {passageExpanded ? 'Thu gọn' : 'Xem đoạn văn'}
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-content-muted">
+              {passageExpanded ? 'Thu gọn' : 'Xem toàn văn'}
               {passageExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
             </span>
           </button>
 
           {passageExpanded && (
-            <div className="mt-3 whitespace-pre-line border-t border-line pt-3 font-mono text-xs leading-relaxed text-content">
+            <div className="mt-3 whitespace-pre-line border-t border-line pt-3 text-xs leading-relaxed text-content font-sans">
               {question.passageText}
             </div>
           )}
         </div>
       )}
 
-      {/* Nội dung câu hỏi (Transcript / Question Prompt) */}
-      <div className="text-xs font-semibold text-content sm:text-sm">
-        {question.partId === 2 && question.promptText ? (
-          <span>
-            <strong className="text-brand-600 dark:text-brand-400">Câu hỏi (Transcript):</strong> {question.promptText}
-          </span>
-        ) : (
-          question.promptText || (question.partId <= 2 ? 'Nghe và chọn phương án phù hợp nhất.' : 'Chọn đáp án đúng.')
-        )}
-      </div>
-
-      {/* Ảnh minh họa nếu có */}
+      {/* Hình ảnh đề bài nếu có */}
       {question.imageUrl && (
         <QuestionImage
           src={question.imageUrl}
           alt={`Minh họa câu ${question.questionNumber}`}
-          className="max-h-72 w-full object-contain p-2"
+          className="max-h-80 w-full object-contain rounded-2xl border border-line p-2 bg-surface-elevated/30"
         />
       )}
 
-      {/* Khối bằng chứng (Evidence) nếu có */}
-      {question.evidence && (
-        <EvidencePanel evidence={question.evidence} questionNumber={question.questionNumber} explanationEn={question.explanationEn} />
+      {/* Nội dung câu hỏi (Transcript / Prompt Text) */}
+      <div className="text-sm font-semibold text-content leading-relaxed">
+        {question.partId === 2 && question.promptText ? (
+          <span>
+            <strong className="text-amber-600 dark:text-amber-400">Lời thoại câu hỏi:</strong> {question.promptText}
+          </span>
+        ) : (
+          question.promptText || (question.partId <= 2 ? 'Nghe và lựa chọn câu trả lời thích hợp nhất.' : 'Chọn đáp án chính xác.')
+        )}
+      </div>
+
+      {/* Danh sách các lựa chọn A, B, C, D (nếu có nội dung chữ) */}
+      {hasChoiceText && question.choices && (
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          {question.choices.map((choice) => {
+            const isChoiceCorrect = choice.id === question.correctAnswer;
+            const isChoiceSelected = choice.id === userAnswer;
+
+            let cardStyle = 'border-line bg-surface-elevated/25 text-content-muted';
+            if (isChoiceCorrect) {
+              cardStyle = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 font-semibold';
+            } else if (isChoiceSelected && !isCorrect) {
+              cardStyle = 'border-rose-500/40 bg-rose-500/10 text-rose-950 dark:text-rose-200 font-semibold';
+            }
+
+            return (
+              <div
+                key={choice.id}
+                className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed transition-colors ${cardStyle}`}
+              >
+                <span className="font-mono font-bold shrink-0">{choice.id}.</span>
+                <span className="flex-1">{choice.text}</span>
+
+                {isChoiceCorrect && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300 shrink-0">
+                    <CheckCircle2 className="size-3" />
+                    Đáp án đúng
+                  </span>
+                )}
+
+                {isChoiceSelected && !isCorrect && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-0.5 text-[10px] font-black text-rose-700 dark:text-rose-300 shrink-0">
+                    <XCircle className="size-3" />
+                    Bạn chọn
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
 
-      {/* Khối Giải thích chi tiết & Nghĩa đáp án */}
+      {/* Bằng chứng trong bài đọc (Evidence) */}
+      {question.evidence && (
+        <EvidencePanel
+          evidence={question.evidence}
+          questionNumber={question.questionNumber}
+          explanationEn={question.explanationEn}
+        />
+      )}
+
+      {/* Khối Giải thích chi tiết & Dịch nghĩa */}
       {isReadingPart ? (
         <FormattedReadingExplanation question={question} />
       ) : (
-        <>
-          {/* Khối Giải thích chi tiết cho Part 1, 2, 3, 4 */}
+        <div className="space-y-3 pt-1">
+          {/* Giải thích câu nghe */}
           {explanationText && (
-            <div className="whitespace-pre-line rounded-xl border border-line bg-surface-elevated/50 p-3.5 text-xs leading-relaxed text-content-muted">
-              <div className="mb-1 font-bold text-brand-600 dark:text-brand-400">Giải thích chi tiết</div>
-              <div>{explanationText}</div>
+            <div className="whitespace-pre-line rounded-2xl border border-line bg-surface-elevated/40 p-4 text-xs leading-relaxed text-content">
+              <div className="mb-1 font-bold text-amber-600 dark:text-amber-400">
+                Giải thích câu hỏi
+              </div>
+              <div className="text-content-muted">{explanationText}</div>
             </div>
           )}
 
-          {/* Khối Dịch nghĩa cho Part 1, 2, 3, 4 */}
+          {/* Dịch nghĩa câu nghe */}
           {getUnifiedQuestionTranslationText(question) && (
-            <div className="mt-3 rounded-xl border border-brand-200/80 bg-brand-50/40 p-3.5 text-xs leading-relaxed text-slate-700 dark:border-brand-900/60 dark:bg-brand-950/20 dark:text-content-muted">
-              <div className="mb-1 flex items-center gap-1.5 font-bold text-brand-700 dark:text-brand-300">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.04] p-4 text-xs leading-relaxed">
+              <div className="mb-1.5 flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-300">
                 <Languages className="size-3.5" />
-                <span>Dịch nghĩa:</span>
+                <span>Bản dịch nghĩa:</span>
               </div>
-              <div className="whitespace-pre-line text-sm leading-relaxed text-slate-800 dark:text-content">
+              <div className="whitespace-pre-line text-content leading-relaxed">
                 {getUnifiedQuestionTranslationText(question)}
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
 
-      {/* Khối Từ vựng cần học (dạng Chip với nút + lưu Flashcard) */}
+      {/* Khối Từ vựng quan trọng (Gợi ý học tập & Lưu Flashcard) */}
       {question.keyVocabulary && question.keyVocabulary.length > 0 && (
-        <div className="mt-3.5 border-t border-line pt-3">
-          <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-brand-700 dark:text-brand-200">
+        <div className="border-t border-line/60 pt-3.5">
+          <div className="mb-2.5 flex items-center justify-between text-xs font-bold text-content">
             <span className="flex items-center gap-1.5">
               <BookMarked className="size-3.5 text-amber-500" />
-              <span>Từ vựng cần học ({question.keyVocabulary.length}):</span>
+              <span>Từ vựng trọng tâm ({question.keyVocabulary.length}):</span>
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {question.keyVocabulary.map((item) => (
-              <div
-                key={item.word}
-                className="flex items-center gap-1.5 rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs text-content shadow-2xs"
-              >
-                <strong className="font-extrabold text-brand-700 dark:text-brand-300">{item.word}</strong>
-                {item.meaning && <span className="text-content-muted">: {item.meaning}</span>}
-                {onSaveVocabulary && (
-                  <button
-                    type="button"
-                    onClick={() => void onSaveVocabulary(item.word, item.meaning)}
-                    title={savedVocabWords[item.word] ? 'Đã lưu vào Flashcard' : `Lưu từ "${item.word}" vào Flashcard`}
-                    className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${savedVocabWords[item.word]
-                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'text-content-muted hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-500/20'
+            {question.keyVocabulary.map((item) => {
+              const isSaved = Boolean(savedVocabWords[item.word]);
+              return (
+                <div
+                  key={item.word}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface-elevated/60 px-2.5 py-1.5 text-xs text-content shadow-2xs transition hover:border-amber-400/40"
+                >
+                  <strong className="font-extrabold text-amber-700 dark:text-amber-300">
+                    {item.word}
+                  </strong>
+                  {item.meaning && (
+                    <span className="text-content-muted">: {item.meaning}</span>
+                  )}
+                  {onSaveVocabulary && (
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveWord(item.word, item.meaning)}
+                      title={isSaved ? 'Đã lưu vào sổ từ vựng' : `Lưu từ "${item.word}"`}
+                      disabled={savingWord === item.word}
+                      className={`ml-1 flex size-5 items-center justify-center rounded-md transition ${
+                        isSaved
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                          : 'text-content-muted hover:bg-amber-500/15 hover:text-amber-600'
                       }`}
-                  >
-                    {savedVocabWords[item.word] ? (
-                      <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                      <Plus className="size-3" />
-                    )}
-                  </button>
-                )}
-              </div>
-            ))}
+                    >
+                      {isSaved ? (
+                        <CheckCircle2 className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Plus className="size-3" />
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
-    </div>
+    </article>
   );
 };
+

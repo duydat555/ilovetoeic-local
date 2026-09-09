@@ -570,9 +570,12 @@ export const backendService = {
     }
   },
 
-  async getStudyHistory(_userId: string, testId?: string): Promise<StudyAttempt[] | null> {
+  async getStudyHistory(_userId: string, testId?: string, mode?: string): Promise<StudyAttempt[] | null> {
     try {
-      const query = testId ? `?test_id=${encodeURIComponent(testId)}` : '';
+      const params = new URLSearchParams();
+      if (testId) params.set('test_id', testId);
+      if (mode && mode !== 'all') params.set('mode', mode);
+      const query = params.toString() ? `?${params.toString()}` : '';
       const response = await authFetch<{ data: StudyAttempt[] }>(`/study-attempts${query}`);
       return response.data;
     } catch (error) {
@@ -606,6 +609,13 @@ export const backendService = {
     );
   },
 
+  async deleteSingleStudyAttempt(attemptId: string) {
+    return authFetch<{ success: boolean; message: string }>(
+      `/study-attempts/${encodeURIComponent(attemptId)}`,
+      { method: 'DELETE' },
+    );
+  },
+
   async deleteLevelStudyHistory(part: number, level: number) {
     const params = new URLSearchParams({
       source_type: 'level',
@@ -619,7 +629,7 @@ export const backendService = {
   },
 
   async getStudyAttemptReview(attemptId: string) {
-    return authFetch<{ success: boolean; questions: StudyAttemptReviewQuestion[] }>(
+    return authFetch<{ success: boolean; questions: StudyAttemptReviewQuestion[]; attempt?: StudyAttempt }>(
       `/study-attempts/${encodeURIComponent(attemptId)}`,
     );
   },

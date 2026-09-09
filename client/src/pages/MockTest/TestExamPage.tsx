@@ -19,6 +19,7 @@ import { ExamSubmitConfirmModal } from '../../components/mock-test/ExamSubmitCon
 import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { PassageContent } from '../../components/common/PassageContent';
+import { dictionaryService } from '../../services/dictionary';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
 import { useAuth } from '../../context/AuthContext';
@@ -189,7 +190,7 @@ export const TestExamPage: React.FC = () => {
       if (document.fullscreenElement && document.exitFullscreen) {
         await document.exitFullscreen().catch(() => undefined);
       }
-      navigate('/results');
+      navigate(`/results?attemptId=${encodeURIComponent(attemptId)}`);
     } catch (error) {
       console.error('Error submitting exam:', error);
       alert('Your test result has been saved.');
@@ -221,6 +222,18 @@ export const TestExamPage: React.FC = () => {
   );
   const currentGroup = groups[currentGroupIndex];
   usePrefetchImages(groups, currentGroupIndex);
+
+  useEffect(() => {
+    const currentPassageId = currentGroup?.passageId || currentGroup?.questions[0]?.passageId;
+    if (currentPassageId) {
+      void dictionaryService.prewarmPassage(currentPassageId);
+    }
+    const nextGroup = groups[currentGroupIndex + 1];
+    const nextPassageId = nextGroup?.passageId || nextGroup?.questions[0]?.passageId;
+    if (nextPassageId && nextPassageId !== currentPassageId) {
+      void dictionaryService.prewarmPassage(nextPassageId);
+    }
+  }, [currentGroup, groups, currentGroupIndex]);
   const answeredCount = Object.keys(userAnswers).length;
   const completionPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const isFullExam = selectedParts.length === 7;
@@ -449,7 +462,7 @@ export const TestExamPage: React.FC = () => {
                   )}
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
-                      <PassageContent html={currentGroup.passageText} />
+                      <PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />
                     </div>
                   )}
                 </div>
@@ -552,7 +565,7 @@ export const TestExamPage: React.FC = () => {
                   )}
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
-                      <PassageContent html={currentGroup.passageText} />
+                      <PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />
                     </div>
                   )}
                 </section>

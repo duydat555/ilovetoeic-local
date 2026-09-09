@@ -4,6 +4,7 @@ export interface PracticeGroup {
   id: string;
   partId: number;
   questions: Question[];
+  passageId?: string;
   audioUrl?: string;
   imageUrl?: string;
   passageText?: string;
@@ -65,6 +66,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
 
     if (previous && canJoinPrevious) {
       previous.questions.push(question);
+      previous.passageId ||= question.passageId;
       previous.audioUrl ||= question.audioUrl;
       previous.imageUrl ||= question.imageUrl;
       previous.passageText ||= question.passageText;
@@ -80,6 +82,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
       id: audioOnlyGroup && previous?.id === key ? `${key}:${groups.length}` : key,
       partId: question.partId,
       questions: [question],
+      passageId: question.passageId,
       audioUrl: question.audioUrl,
       imageUrl: question.imageUrl,
       passageText: question.passageText,

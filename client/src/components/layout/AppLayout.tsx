@@ -31,7 +31,7 @@ export const AppLayout: React.FC = () => {
     // Practice by Level or another long page.
     mainRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-  }, [location.key, location.pathname, location.search]);
+  }, [location.pathname]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -108,7 +108,7 @@ export const AppLayout: React.FC = () => {
           >
             <AnimatePresence initial={false} mode="sync">
               <motion.div
-                key={location.key}
+                key={location.pathname}
                 className={
                   isTestRunnerPage
                     ? 'col-start-1 row-start-1 min-w-0 h-full w-full overflow-hidden'

@@ -255,6 +255,7 @@ def save_study_attempt(
 @router.get("/study-attempts")
 def get_study_attempts(
     test_id: Optional[str] = Query(default=None),
+    mode: Optional[str] = Query(default=None),
     user=Depends(get_current_user),
 ):
     query = """
@@ -267,20 +268,25 @@ def get_study_attempts(
     if test_id:
         query += " AND a.test_id = ?"
         params.append(test_id)
+    if mode and mode != "all":
+        query += " AND a.mode = ?"
+        params.append(mode)
     query += " ORDER BY a.completed_at DESC"
     rows = db.fetch_all(query, tuple(params), use_cache=False)
     data = []
-    all_question_ids = []
+    missing_part_stats_qids = []
     parsed_rows = []
     for row in rows:
         metadata = parse_json(row.get("metadata"), {})
         question_ids = parse_json(row.get("question_ids"), [])
         answers = parse_json(row.get("answers"), {})
         parsed_rows.append((row, metadata, question_ids, answers))
-        all_question_ids.extend(str(question_id) for question_id in question_ids)
+        # If metadata already has partStats, skip expensive question table lookup
+        if not metadata.get("partStats"):
+            missing_part_stats_qids.extend(str(question_id) for question_id in question_ids)
 
     question_lookup = {}
-    unique_question_ids = list(dict.fromkeys(all_question_ids))
+    unique_question_ids = list(dict.fromkeys(missing_part_stats_qids))
     if unique_question_ids:
         placeholders = ", ".join("?" for _ in unique_question_ids)
         question_rows = db.fetch_all(
@@ -298,31 +304,45 @@ def get_study_attempts(
 
     for row, metadata, question_ids, answers in parsed_rows:
         completed_at = row.get("completed_at")
-        part_totals = defaultdict(lambda: {
-            "total": 0, "answered": 0, "correct": 0, "wrong": 0, "skipped": 0,
-        })
         test_years = set()
-        for question_id in question_ids:
-            question = question_lookup.get(str(question_id))
-            if not question:
-                continue
-            part = int(question.get("part") or 0)
-            if not 1 <= part <= 7:
-                continue
-            selected_answer = str(answers.get(str(question_id)) or "").upper()
-            correct_answer = str(question.get("correct_answer") or "").upper()
-            stats = part_totals[part]
-            stats["total"] += 1
-            if not selected_answer:
-                stats["skipped"] += 1
-            elif selected_answer == correct_answer:
-                stats["answered"] += 1
-                stats["correct"] += 1
-            else:
-                stats["answered"] += 1
-                stats["wrong"] += 1
-            if question.get("test_year") is not None:
-                test_years.add(int(question["test_year"]))
+        if row.get("test_year") is not None:
+            test_years.add(int(row["test_year"]))
+        elif metadata.get("test_year") is not None:
+            test_years.add(int(metadata["test_year"]))
+
+        # Check if pre-computed partStats exist in metadata
+        cached_part_stats = metadata.get("partStats")
+        if cached_part_stats and isinstance(cached_part_stats, list):
+            part_stats_list = cached_part_stats
+        else:
+            part_totals = defaultdict(lambda: {
+                "total": 0, "answered": 0, "correct": 0, "wrong": 0, "skipped": 0,
+            })
+            for question_id in question_ids:
+                question = question_lookup.get(str(question_id))
+                if not question:
+                    continue
+                part = int(question.get("part") or 0)
+                if not 1 <= part <= 7:
+                    continue
+                selected_answer = str(answers.get(str(question_id)) or "").upper()
+                correct_answer = str(question.get("correct_answer") or "").upper()
+                stats = part_totals[part]
+                stats["total"] += 1
+                if not selected_answer:
+                    stats["skipped"] += 1
+                elif selected_answer == correct_answer:
+                    stats["answered"] += 1
+                    stats["correct"] += 1
+                else:
+                    stats["answered"] += 1
+                    stats["wrong"] += 1
+                if question.get("test_year") is not None:
+                    test_years.add(int(question["test_year"]))
+            part_stats_list = [
+                {"part": part, **part_totals[part]}
+                for part in sorted(part_totals)
+            ]
 
         data.append({
             "id": row["id"],
@@ -344,10 +364,7 @@ def get_study_attempts(
             "totalScore": int(row.get("total_score") or 0),
             "answers": answers,
             "questionIds": question_ids,
-            "partStats": [
-                {"part": part, **part_totals[part]}
-                for part in sorted(part_totals)
-            ],
+            "partStats": part_stats_list,
             "testYears": sorted(test_years, reverse=True),
             "metadata": metadata,
             "completedAt": completed_at.isoformat() if completed_at else "",
@@ -529,7 +546,64 @@ def get_study_attempt_detail(
             "imageUrl": question.get("image_url") or question.get("passage_image_url"),
         })
 
-    return {"success": True, "questions": review_questions}
+    metadata = parse_json(attempt.get("metadata"), {})
+    completed_at = attempt.get("completed_at")
+    attempt_summary = {
+        "id": attempt["id"],
+        "userId": attempt["user_id"],
+        "testId": attempt.get("test_id"),
+        "testName": attempt.get("test_name") or metadata.get("test_name"),
+        "testYear": attempt.get("test_year") or metadata.get("test_year"),
+        "mode": attempt.get("mode") or "exam",
+        "part": attempt.get("part"),
+        "totalQuestions": int(attempt.get("total_questions") or 0),
+        "answeredQuestions": int(attempt.get("answered_questions") or 0),
+        "correctAnswers": int(attempt.get("correct_answers") or 0),
+        "accuracyRate": float(attempt.get("accuracy_rate") or 0),
+        "timeSpentSeconds": int(attempt.get("time_spent_seconds") or 0),
+        "listeningCorrect": int(attempt.get("listening_correct") or 0),
+        "readingCorrect": int(attempt.get("reading_correct") or 0),
+        "listeningScore": int(attempt.get("listening_score") or 0),
+        "readingScore": int(attempt.get("reading_score") or 0),
+        "totalScore": int(attempt.get("total_score") or 0),
+        "answers": answers,
+        "questionIds": question_ids,
+        "metadata": metadata,
+        "completedAt": completed_at.isoformat() if completed_at else "",
+    }
+
+    return {"success": True, "questions": review_questions, "attempt": attempt_summary}
+
+
+@router.delete("/study-attempts/{attempt_id}")
+def delete_single_study_attempt(
+    attempt_id: str,
+    user=Depends(get_current_user),
+):
+    user_id = user["id"]
+    attempt = db.fetch_one(
+        "SELECT id, test_id FROM test_attempts WHERE id = ? AND user_id = ?",
+        (attempt_id, user_id),
+        use_cache=False,
+    )
+    if not attempt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lượt làm bài này.")
+
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM user_question_activity WHERE attempt_id = %s AND user_id = %s",
+                (attempt_id, user_id),
+            )
+            cursor.execute(
+                "DELETE FROM user_notifications WHERE user_id = %s AND dedupe_key = %s",
+                (user_id, f"study-attempt:{attempt_id}"),
+            )
+            cursor.execute(
+                "DELETE FROM test_attempts WHERE id = %s AND user_id = %s",
+                (attempt_id, user_id),
+            )
+    return {"success": True, "message": "Đã xoá lượt làm bài thành công."}
 
 
 @router.delete("/study-attempts")

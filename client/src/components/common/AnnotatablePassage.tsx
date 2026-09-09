@@ -27,6 +27,7 @@ interface AnnotatablePassageProps {
   annotations: PracticeAnnotation[];
   enabled: boolean;
   onAdd: (annotation: PracticeAnnotation) => void;
+  passageId?: string;
 }
 
 const getTextNodes = (root: Node) => {
@@ -85,6 +86,7 @@ export const AnnotatablePassage: React.FC<AnnotatablePassageProps> = ({
   annotations,
   enabled,
   onAdd,
+  passageId,
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState<PendingSelection | null>(null);
@@ -141,11 +143,12 @@ export const AnnotatablePassage: React.FC<AnnotatablePassageProps> = ({
     <div
       ref={rootRef}
       className={`relative ${enabled ? 'cursor-text select-text rounded-lg ring-2 ring-brand-500/20' : ''}`}
+      data-passage-id={passageId}
       data-no-translate={enabled ? true : undefined}
       onMouseUp={captureSelection}
       onTouchEnd={() => window.setTimeout(captureSelection, 80)}
     >
-      <PassageContent html={annotatedHtml} />
+      <PassageContent html={annotatedHtml} passageId={passageId} />
       {enabled && annotations.length === 0 && !pending && (
         <div className="pointer-events-none absolute right-2 top-2 rounded-lg bg-brand px-2 py-1 text-[10px] font-bold text-brand-ink shadow-sm">
           Bôi đen để đánh dấu

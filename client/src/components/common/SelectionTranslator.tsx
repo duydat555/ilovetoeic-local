@@ -276,13 +276,19 @@ export const SelectionTranslator: React.FC = () => {
         .trim()
         .slice(0, 500);
 
+      const passageEl = container.closest('[data-passage-id]');
+      const passageId = passageEl?.getAttribute('data-passage-id');
+      if (passageId) {
+        void dictionaryService.prewarmPassage(passageId);
+      }
+
       setPosition({ left, top });
       void lookupWord(word, context);
     };
 
     const onMouseUp = () => {
       if (debounceTimer) window.clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(translateSelection, 150);
+      debounceTimer = window.setTimeout(translateSelection, 180);
     };
 
     const onTouchEnd = () => {
@@ -295,6 +301,8 @@ export const SelectionTranslator: React.FC = () => {
         window.clearTimeout(debounceTimer);
         debounceTimer = null;
       }
+      lookupAbortRef.current?.abort();
+      detailAbortRef.current?.abort();
       if (
         rootRef.current &&
         !rootRef.current.contains(event.target as Node)

@@ -77,6 +77,12 @@ async def translate_detail(req: TranslationDetailRequest):
         raise HTTPException(status_code=503, detail=result.get("error", "Không thể tải dữ liệu từ Gemini."))
     return result
 
+@router.get("/passage/{passage_id}", summary="Lấy trước từ vựng cho bài đọc (Passage Vocabulary Pre-warming)")
+async def get_passage_vocabulary(passage_id: str):
+    if not passage_id or not passage_id.strip():
+        raise HTTPException(status_code=400, detail="passage_id không được để trống.")
+    return await asyncio.to_thread(gemini_service.get_passage_vocabulary, passage_id.strip())
+
 @router.get("/cache-stats", summary="Thống kê hiệu quả bộ nhớ Cache & Tải hệ thống")
 def get_cache_stats():
     return gemini_service.get_cache_stats()

@@ -23,6 +23,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { vocabularyService } from '../../services/vocabulary';
+import { dictionaryService } from '../../services/dictionary';
 import {
   AnnotatablePassage, PracticeAnnotation,
 } from '../../components/common/AnnotatablePassage';
@@ -251,6 +252,18 @@ export const PracticeRunnerPage: React.FC = () => {
   const safeGroupIndex = Math.min(currentGroupIndex, Math.max(groups.length - 1, 0));
   const currentGroup = groups[safeGroupIndex];
   usePrefetchImages(groups, safeGroupIndex);
+
+  useEffect(() => {
+    const currentPassageId = currentGroup?.passageId || currentGroup?.questions[0]?.passageId;
+    if (currentPassageId) {
+      void dictionaryService.prewarmPassage(currentPassageId);
+    }
+    const nextGroup = groups[safeGroupIndex + 1];
+    const nextPassageId = nextGroup?.passageId || nextGroup?.questions[0]?.passageId;
+    if (nextPassageId && nextPassageId !== currentPassageId) {
+      void dictionaryService.prewarmPassage(nextPassageId);
+    }
+  }, [currentGroup, groups, safeGroupIndex]);
   const currentGroupChecked = currentGroup ? checkedGroupIds.has(currentGroup.id) : false;
   const allCurrentAnswered = currentGroup?.questions.every((question) => userAnswers[question.id]) ?? false;
   const annotationGroupKey = currentGroup?.questions.map((question) => question.id).join(':') || '';
@@ -746,6 +759,7 @@ export const PracticeRunnerPage: React.FC = () => {
                       {currentGroup.passageText && (
                         <div className="toeic-passage-panel">
                           <AnnotatablePassage
+                            passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
                             html={currentGroup.passageText}
                             annotations={currentAnnotations}
                             enabled={annotatorEnabled}
@@ -1024,6 +1038,7 @@ export const PracticeRunnerPage: React.FC = () => {
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
                       <AnnotatablePassage
+                        passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
                         html={currentGroup.passageText}
                         annotations={currentAnnotations}
                         enabled={annotatorEnabled}

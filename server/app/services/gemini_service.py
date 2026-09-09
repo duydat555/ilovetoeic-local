@@ -31,13 +31,13 @@ class TranslationExample(BaseModel):
 class GeminiWordResult(BaseModel):
     source_text: str
     translated_text: str = Field(description="Concise Vietnamese meanings, ordered by relevance")
-    phonetic: str = Field(description="General IPA pronunciation between slashes")
-    phonetic_us: Optional[str] = Field(None, description="American English (US) IPA pronunciation between slashes, e.g. /əˈkɑː.mə.deɪt/")
-    phonetic_uk: Optional[str] = Field(None, description="British English (UK) IPA pronunciation between slashes, e.g. /əˈkɒm.ə.deɪt/")
-    part_of_speech: str = Field(description="English part of speech, e.g. noun, verb")
-    definition_en: str = Field(description="Short, learner-friendly English definition")
-    examples: List[TranslationExample]
-    synonyms: List[str] = Field(description="Up to four common English synonyms")
+    phonetic: Optional[str] = Field(default="", description="General IPA pronunciation between slashes, or empty string for phrases")
+    phonetic_us: Optional[str] = Field(default="", description="American English (US) IPA pronunciation between slashes")
+    phonetic_uk: Optional[str] = Field(default="", description="British English (UK) IPA pronunciation between slashes")
+    part_of_speech: Optional[str] = Field(default="phrase", description="English part of speech, e.g. noun, verb, idiom, phrase, adjective")
+    definition_en: Optional[str] = Field(default="", description="Short, learner-friendly English definition")
+    examples: List[TranslationExample] = Field(default_factory=list, description="Bilingual contextual examples")
+    synonyms: List[str] = Field(default_factory=list, description="Up to four common English synonyms or related phrases")
 
 class CollocationItem(BaseModel):
     phrase: str
@@ -89,11 +89,12 @@ class GeminiTranslationService:
         )
         self.stats = {
             "total_requests": 0,
-            "memory_cache_hits": 0,
-            "system_vocabulary_hits": 0,
-            "mysql_cache_hits": 0,
             "passage_cache_hits": 0,
             "passage_prewarms": 0,
+            "memory_cache_hits": 0,
+            "direct_system_hits": 0,
+            "inflection_table_hits": 0,
+            "community_translation_hits": 0,
             "gemini_api_calls": 0,
             "dictionary_detail_calls": 0,
             "errors": 0,
@@ -196,15 +197,15 @@ class GeminiTranslationService:
             use_cache=False,
         )
 
-    def _find_system_vocabulary_record(self, word: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    def _find_system_vocabulary_record(self, word: str) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
         clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*").lower()
         if not clean_word or len(clean_word.split()) > 4:
-            return None, None
+            return None, None, None
 
-        # 1. Exact match in system_vocabulary_words
+        # 1. Exact match in system_vocabulary_words (direct hit)
         record = self._fetch_system_vocab_row(clean_word)
         if record:
-            return record, clean_word
+            return record, clean_word, "direct"
 
         # 2. Inflection table match (precomputed via LemmInflect offline)
         try:
@@ -217,7 +218,7 @@ class GeminiTranslationService:
                 lemma = inflection["lemma_word"].strip().lower()
                 record = self._fetch_system_vocab_row(lemma)
                 if record:
-                    return record, lemma
+                    return record, lemma, "inflection"
         except Exception as err:
             print(f"[!] word_inflections lookup error: {err}")
 
@@ -241,21 +242,23 @@ class GeminiTranslationService:
                             )
                         except Exception:
                             pass
-                        return record, cand
+                        return record, cand, "inflection"
             except Exception as err:
                 print(f"[!] lemminflect runtime lookup error: {err}")
 
-        return None, None
+        return None, None, None
 
     def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
         clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
         if not clean_word:
             return None
         try:
-            record, lemma = self._find_system_vocabulary_record(clean_word)
+            record, lemma, match_type = self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
-            return self._format_system_vocabulary_record(record, clean_word, lemma)
+            result = self._format_system_vocabulary_record(record, clean_word, lemma)
+            result["match_type"] = match_type
+            return result
         except Exception as error:
             print(f"[!] System vocabulary lookup failed: {error}")
             return None
@@ -269,7 +272,7 @@ class GeminiTranslationService:
         if not clean_word or len(clean_word.split()) > 4:
             return None
         try:
-            record, lemma = self._find_system_vocabulary_record(clean_word)
+            record, lemma, _ = self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
 
@@ -361,10 +364,10 @@ class GeminiTranslationService:
             print(f"[!] System vocabulary detail lookup failed: {error}")
             return None
 
-    def _format_database_cache_result(self, database_result: Dict[str, Any], text: str) -> Dict[str, Any]:
-        raw_phonetic = database_result.get("phonetic", "")
-        phonetic_us = ""
-        phonetic_uk = ""
+    def _format_community_translation_result(self, record: Dict[str, Any], text: str) -> Dict[str, Any]:
+        raw_phonetic = record.get("phonetic", "")
+        phonetic_us = record.get("phonetic_us") or ""
+        phonetic_uk = record.get("phonetic_uk") or ""
         if "UK:" in raw_phonetic and "US:" in raw_phonetic:
             uk_m = re.search(r"UK:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
             us_m = re.search(r"US:\s*(\/[^\/]+\/|[^\s|]+)", raw_phonetic)
@@ -373,18 +376,163 @@ class GeminiTranslationService:
             if us_m:
                 phonetic_us = us_m.group(1)
         return {
-            "source_text": database_result.get("source_text", text),
-            "translated_text": database_result.get("translated_text", ""),
+            "source_text": record.get("word") or record.get("source_text") or text,
+            "translated_text": record.get("translated_text", ""),
             "phonetic": raw_phonetic,
             "phonetic_us": phonetic_us or raw_phonetic,
             "phonetic_uk": phonetic_uk or raw_phonetic,
-            "part_of_speech": database_result.get("part_of_speech", ""),
-            "definition_en": database_result.get("definition_en", ""),
-            "examples": self._parse_json(database_result.get("examples"), []),
-            "synonyms": self._parse_json(database_result.get("synonyms"), []),
+            "audio_us": record.get("audio_us") or "",
+            "audio_uk": record.get("audio_uk") or "",
+            "part_of_speech": record.get("part_of_speech", ""),
+            "definition_en": record.get("definition_en", ""),
+            "examples": self._parse_json(record.get("examples"), []),
+            "synonyms": self._parse_json(record.get("synonyms"), []),
             "cached": True,
-            "cache_source": "mysql",
+            "cache_source": "community_translations",
         }
+
+    @staticmethod
+    def _get_community_translation(
+        word: str,
+        context_hash: str,
+        allow_phrase_fallback: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        clean_w = word.strip().lower()
+        try:
+            # 1. Exact match with context_hash
+            record = db.fetch_one(
+                "SELECT * FROM community_translations WHERE word = ? AND context_hash = ? LIMIT 1",
+                (clean_w, context_hash),
+                use_cache=False,
+            )
+            if not record:
+                record = db.fetch_one(
+                    "SELECT * FROM community_translations WHERE context_hash = ? LIMIT 1",
+                    (context_hash,),
+                    use_cache=False,
+                )
+            # 2. Multi-word phrase fallback: fixed expressions have consistent meaning across passages
+            if not record and allow_phrase_fallback and len(clean_w.split()) >= 2:
+                record = db.fetch_one(
+                    "SELECT * FROM community_translations WHERE word = ? ORDER BY hit_count DESC LIMIT 1",
+                    (clean_w,),
+                    use_cache=False,
+                )
+
+            if record:
+                try:
+                    db.execute(
+                        "UPDATE community_translations SET hit_count = hit_count + 1 WHERE id = ?",
+                        (record["id"],),
+                    )
+                except Exception:
+                    pass
+                return record
+        except Exception as error:
+            print(f"[!] MySQL community_translations read failed: {error}")
+
+        # Fallback to translation_cache for backward compatibility
+        try:
+            record = db.fetch_one(
+                "SELECT * FROM translation_cache WHERE hash = ? LIMIT 1",
+                (context_hash,),
+                use_cache=False,
+            )
+            return record
+        except Exception:
+            return None
+
+    @staticmethod
+    def _save_community_translation(
+        word: str,
+        context_hash: str,
+        data: Dict[str, Any],
+        context_text: str = "",
+    ) -> bool:
+        clean_w = word.strip().lower()[:100]
+        phonetic_to_save = (data.get("phonetic") or "")[:100]
+        phonetic_us = (data.get("phonetic_us") or "")[:100]
+        phonetic_uk = (data.get("phonetic_uk") or "")[:100]
+        if not phonetic_to_save and phonetic_us:
+            phonetic_to_save = phonetic_us
+        part_of_speech = (data.get("part_of_speech") or "")[:50]
+
+        # 1. Save to community_translations
+        try:
+            db.execute(
+                """
+                INSERT INTO community_translations (
+                    word, context_hash, context_text, translated_text, phonetic,
+                    phonetic_us, phonetic_uk, audio_us, audio_uk, part_of_speech,
+                    definition_en, examples, synonyms, source_lang, target_lang, hit_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ON DUPLICATE KEY UPDATE
+                    translated_text = VALUES(translated_text),
+                    phonetic = VALUES(phonetic),
+                    phonetic_us = VALUES(phonetic_us),
+                    phonetic_uk = VALUES(phonetic_uk),
+                    part_of_speech = VALUES(part_of_speech),
+                    definition_en = VALUES(definition_en),
+                    examples = VALUES(examples),
+                    synonyms = VALUES(synonyms),
+                    hit_count = hit_count + 1,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    clean_w,
+                    context_hash,
+                    context_text[:1000] if context_text else None,
+                    data.get("translated_text", ""),
+                    phonetic_to_save,
+                    phonetic_us,
+                    phonetic_uk,
+                    data.get("audio_us") or None,
+                    data.get("audio_uk") or None,
+                    part_of_speech,
+                    data.get("definition_en", ""),
+                    json.dumps(data.get("examples", []), ensure_ascii=False),
+                    json.dumps(data.get("synonyms", []), ensure_ascii=False),
+                    data.get("source_lang", "en"),
+                    data.get("target_lang", "vi"),
+                ),
+            )
+        except Exception as error:
+            print(f"[!] MySQL community_translations write failed: {error}")
+
+        # 2. Also keep translation_cache synchronized for legacy queries
+        try:
+            db.execute(
+                """
+                INSERT INTO translation_cache (
+                    hash, source_text, translated_text, phonetic, part_of_speech,
+                    definition_en, examples, synonyms, source_lang, target_lang
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE
+                    translated_text = VALUES(translated_text),
+                    phonetic = VALUES(phonetic),
+                    part_of_speech = VALUES(part_of_speech),
+                    definition_en = VALUES(definition_en),
+                    examples = VALUES(examples),
+                    synonyms = VALUES(synonyms),
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    context_hash,
+                    clean_w,
+                    data.get("translated_text", ""),
+                    phonetic_to_save,
+                    data.get("part_of_speech", ""),
+                    data.get("definition_en", ""),
+                    json.dumps(data.get("examples", []), ensure_ascii=False),
+                    json.dumps(data.get("synonyms", []), ensure_ascii=False),
+                    data.get("source_lang", "en"),
+                    data.get("target_lang", "vi"),
+                ),
+            )
+            return True
+        except Exception as error:
+            print(f"[!] MySQL translation_cache sync failed: {error}")
+            return False
 
     async def translate_text(
         self,
@@ -406,25 +554,33 @@ class GeminiTranslationService:
         if memory_result:
             return memory_result
 
-        # Tier 2: Local MySQL System Vocabulary + Lemmatization (ultra-fast 2ms lookup)
+        # Tier 2: Local MySQL System Vocabulary + Lemmatization (ultra-fast 2-4ms lookup)
         if src_lang == "en" and target_lang == "vi":
             system_result = await asyncio.to_thread(self._lookup_system_vocabulary, clean_text)
             if system_result:
-                self.stats["system_vocabulary_hits"] += 1
+                if system_result.get("match_type") == "inflection":
+                    self.stats["inflection_table_hits"] += 1
+                else:
+                    self.stats["direct_system_hits"] += 1
                 self._save_to_memory_cache(context_hash, system_result)
                 self._save_to_memory_cache(word_only_hash, system_result)
                 return system_result
 
-        # Tier 3: MySQL translation_cache (check context hash, then word-only hash fallback if generic)
-        database_result = await asyncio.to_thread(self._get_database_cache, context_hash)
-        if not database_result and is_generic_context and context_hash != word_only_hash:
-            database_result = await asyncio.to_thread(self._get_database_cache, word_only_hash)
+        # Tier 3: MySQL community_translations (Self-Healing Cache with strict context keying)
+        is_phrase = len(clean_text.split()) >= 2
+        community_result = await asyncio.to_thread(
+            self._get_community_translation, clean_text, context_hash, is_phrase
+        )
+        if not community_result and is_generic_context and context_hash != word_only_hash:
+            community_result = await asyncio.to_thread(
+                self._get_community_translation, clean_text, word_only_hash, is_phrase
+            )
 
-        if database_result:
-            self.stats["mysql_cache_hits"] += 1
-            result = self._format_database_cache_result(database_result, clean_text)
+        if community_result:
+            self.stats["community_translation_hits"] += 1
+            result = self._format_community_translation_result(community_result, clean_text)
             self._save_to_memory_cache(context_hash, result)
-            if is_generic_context:
+            if is_generic_context or is_phrase:
                 self._save_to_memory_cache(word_only_hash, result)
             return result
 
@@ -476,10 +632,11 @@ class GeminiTranslationService:
             "cache_source": "gemini_api",
         })
         self._save_to_memory_cache(context_hash, result)
-        asyncio.create_task(asyncio.to_thread(self._save_database_cache, context_hash, result))
-        if is_generic_context and context_hash != word_only_hash:
+        asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
+        # Phrases (collocations, idioms) or generic context safely cache the base word-only key
+        if (is_phrase or is_generic_context) and context_hash != word_only_hash:
             self._save_to_memory_cache(word_only_hash, result)
-            asyncio.create_task(asyncio.to_thread(self._save_database_cache, word_only_hash, result))
+            asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
         return result
 
     def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
@@ -702,12 +859,12 @@ class GeminiTranslationService:
             raise RuntimeError("google-genai is not installed")
         prompt = f"""
 You are an English-Vietnamese dictionary editor specializing in TOEIC.
-Analyze the selected English word "{text}" from this nearby context:
+Analyze the selected English word or phrase "{text}" from this nearby context:
 {context[:500]}
 
-Return its most contextually relevant Vietnamese meaning, US IPA and UK IPA pronunciations,
-part of speech, a short English definition, one natural bilingual example, and up to four
-common synonyms. Keep the explanation concise and suitable for a Vietnamese learner.
+Return its most contextually relevant Vietnamese meaning, US IPA and UK IPA pronunciations (if applicable, or empty string for multi-word phrases),
+part of speech (e.g. noun, verb, adjective, adverb, phrase, idiom, phrasal verb, preposition), a short English definition, one natural bilingual example, and up to four
+common synonyms or related expressions. Keep the explanation concise and suitable for a Vietnamese learner.
 Source language: {src_lang}. Target language: {target_lang}.
 """
         response = self.client.models.generate_content(
@@ -877,17 +1034,36 @@ Keep every item concise and accurate for a Vietnamese learner.
         return result
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        hits = (
-            self.stats["memory_cache_hits"]
-            + self.stats["mysql_cache_hits"]
-            + self.stats.get("system_vocabulary_hits", 0)
+        local_hits = (
+            self.stats.get("passage_cache_hits", 0)
+            + self.stats.get("memory_cache_hits", 0)
+            + self.stats.get("direct_system_hits", 0)
+            + self.stats.get("inflection_table_hits", 0)
+            + self.stats.get("community_translation_hits", 0)
         )
         total = self.stats["total_requests"]
+
+        inflections_count = 0
+        community_count = 0
+        try:
+            inf_row = db.fetch_one("SELECT COUNT(*) as c FROM word_inflections", use_cache=True)
+            if inf_row:
+                inflections_count = inf_row["c"]
+            comm_row = db.fetch_one("SELECT COUNT(*) as c FROM community_translations", use_cache=True)
+            if comm_row:
+                community_count = comm_row["c"]
+        except Exception:
+            pass
+
         return {
             "metrics": self.stats,
-            "hit_rate_percent": round((hits / total) * 100, 2) if total else 0.0,
+            "hit_rate_percent": round((local_hits / total) * 100, 2) if total else 0.0,
+            "gemini_offload_percent": round((local_hits / total) * 100, 2) if total else 0.0,
             "ram_cache_current_size": len(self.memory_cache),
             "ram_cache_max_capacity": self.max_ram_cache_size,
+            "passage_cache_current_size": len(self.passage_vocabulary_cache),
+            "word_inflections_count": inflections_count,
+            "community_translations_count": community_count,
             "mysql_connected": db.is_connected,
             "model": config.GEMINI_MODEL,
         }

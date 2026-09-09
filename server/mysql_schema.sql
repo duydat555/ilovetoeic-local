@@ -569,3 +569,28 @@ CREATE TABLE IF NOT EXISTS word_inflections (
     INDEX idx_inflected_form (inflected_form),
     INDEX idx_lemma_word (lemma_word)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS community_translations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    word VARCHAR(100) NOT NULL,
+    context_hash VARCHAR(64) NOT NULL,
+    context_text TEXT NULL,
+    translated_text TEXT NOT NULL,
+    phonetic VARCHAR(100) NULL,
+    phonetic_us VARCHAR(100) NULL,
+    phonetic_uk VARCHAR(100) NULL,
+    audio_us VARCHAR(500) NULL,
+    audio_uk VARCHAR(500) NULL,
+    part_of_speech VARCHAR(50) NULL,
+    definition_en TEXT NULL,
+    examples JSON NULL,
+    synonyms JSON NULL,
+    hit_count INT NOT NULL DEFAULT 1,
+    source_lang VARCHAR(10) NOT NULL DEFAULT 'en',
+    target_lang VARCHAR(10) NOT NULL DEFAULT 'vi',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_word_context_hash (word, context_hash),
+    INDEX idx_context_hash (context_hash),
+    INDEX idx_word (word)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

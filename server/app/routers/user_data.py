@@ -603,13 +603,34 @@ def delete_single_study_attempt(
                 "DELETE FROM test_attempts WHERE id = %s AND user_id = %s",
                 (attempt_id, user_id),
             )
+            # Recompute user current_score to ensure goal score is updated if the deleted attempt was their best
+            cursor.execute(
+                """
+                UPDATE users
+                SET current_score = COALESCE((
+                    SELECT MAX(total_score)
+                    FROM test_attempts
+                    WHERE user_id = %s
+                      AND mode = 'exam'
+                      AND total_questions = 200
+                      AND answered_questions = 200
+                      AND part IS NULL
+                      AND COALESCE(
+                          JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
+                          'false'
+                      ) <> 'true'
+                ), 0)
+                WHERE id = %s
+                """,
+                (user_id, user_id),
+            )
     return {"success": True, "message": "Đã xoá lượt làm bài thành công."}
 
 
 @router.delete("/study-attempts")
 def delete_study_attempts(
     test_id: Optional[str] = Query(default=None, min_length=1, max_length=100),
-    source_type: Literal["test", "level"] = Query(default="test"),
+    source_type: Literal["test", "level", "all"] = Query(default="test"),
     part: Optional[int] = Query(default=None, ge=1, le=7),
     level: Optional[int] = Query(default=None, ge=1, le=5),
     user=Depends(get_current_user),
@@ -622,9 +643,14 @@ def delete_study_attempts(
     user_id = user["id"]
     attempt_clauses = ["attempt.user_id = %s"]
     attempt_params: List[Any] = [user_id]
-    if source_type == "test":
-        attempt_clauses.append("attempt.test_id = %s")
-        attempt_params.append(test_id)
+    if source_type == "all":
+        pass  # Delete all attempts of this user
+    elif source_type == "test":
+        if test_id != "all":
+            attempt_clauses.append("attempt.test_id = %s")
+            attempt_params.append(test_id)
+        else:
+            attempt_clauses.append("attempt.test_id IS NOT NULL")
     else:
         attempt_clauses.extend([
             "JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.source')) = 'level_practice'",
@@ -665,7 +691,20 @@ def delete_study_attempts(
             deleted_count = cursor.rowcount
 
             # Clean up matching in-progress question activities, practice sessions, and wrong questions
-            if source_type == "level":
+            if source_type == "all":
+                cursor.execute(
+                    "DELETE FROM user_question_activity WHERE user_id = %s",
+                    (user_id,),
+                )
+                cursor.execute(
+                    "DELETE FROM user_practice_sessions WHERE user_id = %s",
+                    (user_id,),
+                )
+                cursor.execute(
+                    "DELETE FROM user_wrong_questions WHERE user_id = %s",
+                    (user_id,),
+                )
+            elif source_type == "level":
                 cursor.execute(
                     """
                     DELETE activity
@@ -705,40 +744,67 @@ def delete_study_attempts(
                     (user_id, part, level),
                 )
             elif source_type == "test":
-                cursor.execute(
-                    """
-                    DELETE activity
-                    FROM user_question_activity activity
-                    JOIN questions q ON q.id = activity.question_id
-                    WHERE activity.user_id = %s
-                      AND q.test_id = %s
-                    """,
-                    (user_id, test_id),
-                )
-                cursor.execute(
-                    """
-                    DELETE FROM user_practice_sessions
-                    WHERE user_id = %s
-                      AND (
-                          test_id = %s
-                          OR session_key = %s
-                          OR session_key LIKE %s
-                      )
-                    """,
-                    (
-                        user_id,
-                        test_id,
-                        test_id,
-                        f"toeic-practice:%{test_id}%",
-                    ),
-                )
-                cursor.execute(
-                    """
-                    DELETE FROM user_wrong_questions
-                    WHERE user_id = %s AND source_type = 'test' AND test_id = %s
-                    """,
-                    (user_id, test_id),
-                )
+                if test_id == "all":
+                    cursor.execute(
+                        """
+                        DELETE activity
+                        FROM user_question_activity activity
+                        JOIN questions q ON q.id = activity.question_id
+                        WHERE activity.user_id = %s
+                          AND q.test_id IS NOT NULL
+                        """,
+                        (user_id,),
+                    )
+                    cursor.execute(
+                        """
+                        DELETE FROM user_practice_sessions
+                        WHERE user_id = %s
+                          AND (test_id IS NOT NULL OR session_key LIKE 'toeic-practice:%')
+                        """,
+                        (user_id,),
+                    )
+                    cursor.execute(
+                        """
+                        DELETE FROM user_wrong_questions
+                        WHERE user_id = %s AND source_type = 'test'
+                        """,
+                        (user_id,),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        DELETE activity
+                        FROM user_question_activity activity
+                        JOIN questions q ON q.id = activity.question_id
+                        WHERE activity.user_id = %s
+                          AND q.test_id = %s
+                        """,
+                        (user_id, test_id),
+                    )
+                    cursor.execute(
+                        """
+                        DELETE FROM user_practice_sessions
+                        WHERE user_id = %s
+                          AND (
+                              test_id = %s
+                              OR session_key = %s
+                              OR session_key LIKE %s
+                          )
+                        """,
+                        (
+                            user_id,
+                            test_id,
+                            test_id,
+                            f"toeic-practice:%{test_id}%",
+                        ),
+                    )
+                    cursor.execute(
+                        """
+                        DELETE FROM user_wrong_questions
+                        WHERE user_id = %s AND source_type = 'test' AND test_id = %s
+                        """,
+                        (user_id, test_id),
+                    )
 
             # Keep the user's TOEIC goal score consistent when their best full
             # attempt belongs to the test whose history was removed.
@@ -980,7 +1046,7 @@ def get_wrong_questions(
 
 @router.delete("/wrong-questions")
 def delete_wrong_questions(
-    source_type: Literal["test", "level"] = Query(...),
+    source_type: Literal["test", "level", "all"] = Query(...),
     test_id: Optional[str] = Query(default=None, max_length=100),
     part: Optional[int] = Query(default=None, ge=1, le=7),
     level: Optional[int] = Query(default=None, ge=1, le=5),
@@ -991,13 +1057,17 @@ def delete_wrong_questions(
     if source_type == "level" and (part is None or level is None):
         raise HTTPException(status_code=400, detail="Thiếu Part hoặc Level cần xoá câu sai.")
 
-    clauses = ["user_id = %s", "source_type = %s"]
-    params: List[Any] = [user["id"], source_type]
-    if source_type == "test":
-        clauses.append("test_id = %s")
-        params.append(test_id)
+    clauses = ["user_id = %s"]
+    params: List[Any] = [user["id"]]
+    if source_type == "all":
+        pass
+    elif source_type == "test":
+        clauses.append("source_type = 'test'")
+        if test_id != "all":
+            clauses.append("test_id = %s")
+            params.append(test_id)
     else:
-        clauses.extend(["part = %s", "level = %s"])
+        clauses.extend(["source_type = 'level'", "part = %s", "level = %s"])
         params.extend([part, level])
 
     with db.transaction() as conn:

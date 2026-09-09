@@ -609,6 +609,13 @@ export const backendService = {
     );
   },
 
+  async deleteAllStudyHistory(scope: 'all' | 'test' = 'all') {
+    return authFetch<{ success: boolean; deletedCount: number }>(
+      `/study-attempts?source_type=${encodeURIComponent(scope)}`,
+      { method: 'DELETE' },
+    );
+  },
+
   async deleteSingleStudyAttempt(attemptId: string) {
     return authFetch<{ success: boolean; message: string }>(
       `/study-attempts/${encodeURIComponent(attemptId)}`,
@@ -695,13 +702,13 @@ export const backendService = {
   },
 
   async deleteWrongQuestions(
-    sourceType: 'test' | 'level',
-    filters: { testId?: string; part?: number; level?: number },
+    sourceType: 'test' | 'level' | 'all',
+    filters?: { testId?: string; part?: number; level?: number },
   ) {
     const params = new URLSearchParams({ source_type: sourceType });
-    if (filters.testId) params.set('test_id', filters.testId);
-    if (filters.part !== undefined) params.set('part', String(filters.part));
-    if (filters.level !== undefined) params.set('level', String(filters.level));
+    if (filters?.testId) params.set('test_id', filters.testId);
+    if (filters?.part !== undefined) params.set('part', String(filters.part));
+    if (filters?.level !== undefined) params.set('level', String(filters.level));
     return authFetch<{ success: boolean; deletedCount: number }>(
       `/wrong-questions?${params.toString()}`,
       { method: 'DELETE' },

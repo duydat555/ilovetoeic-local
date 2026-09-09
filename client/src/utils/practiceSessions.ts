@@ -49,6 +49,10 @@ export const deleteLevelPracticeSessions = (part: number, level: number) => {
   return deleteMatchingPracticeSessions(levelSessionMatcher(part, level));
 };
 
+export const deleteAllPracticeSessions = () => {
+  return deleteMatchingPracticeSessions(() => true);
+};
+
 export const countTestPracticeSessions = (testId: string) => (
   matchingPracticeSessionKeys(testSessionMatcher(testId)).length
 );

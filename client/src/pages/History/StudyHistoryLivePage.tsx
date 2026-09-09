@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BookOpenCheck, CalendarDays, CheckCircle2, ChevronDown, Clock3, Database, History, Layers3, RefreshCcw, RotateCcw, Target, Trophy, XCircle } from 'lucide-react';
+import { ArrowLeft, BookOpenCheck, CalendarDays, CheckCircle2, ChevronDown, Clock3, Database, History, Layers3, Loader2, RefreshCcw, RotateCcw, Target, Trash2, Trophy, X, XCircle } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
+import { getModalMotion } from '../../components/common/modalMotion';
 import { useAuth } from '../../context/AuthContext';
 import { backendService } from '../../services/backend';
 import { StudyAttempt, StudyAttemptMode, StudyAttemptQuestionStatus, StudyAttemptReviewQuestion } from '../../types';
 import { getBestToeicGoalScore } from '../../utils/toeicGoal';
 import { ALL_TEST_PARTS, getTestPartScopeLabel, normalizeTestParts, serializeTestPartScope } from '../../utils/testScope';
+import { storage } from '../../utils/storage';
 
 type HistoryFilter = 'all' | StudyAttemptMode;
 type ReviewFilter = 'all' | StudyAttemptQuestionStatus;
@@ -102,6 +106,47 @@ export const StudyHistoryLivePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const reduceMotion = useReducedMotion();
+  const modalMotion = getModalMotion(reduceMotion);
+  const [deleteTarget, setDeleteTarget] = useState<StudyAttempt | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  useEffect(() => {
+    if (!deleteTarget) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleting) setDeleteTarget(null);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deleteTarget, deleting]);
+
+  const handleDeleteAttempt = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await backendService.deleteSingleStudyAttempt(deleteTarget.id);
+      if (res.success) {
+        storage.deleteSingleAttempt(deleteTarget.id);
+        setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+        setDeleteTarget(null);
+        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      } else {
+        setDeleteError('Không thể xoá lượt làm bài này.');
+      }
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const loadHistory = async () => {
     if (!user) return;
     setLoading(true); setError('');
@@ -151,11 +196,93 @@ export const StudyHistoryLivePage: React.FC = () => {
             <div><div className="flex gap-3"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${attempt.mode === 'exam' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'}`}><BookOpenCheck className="size-5" /></span><div className="min-w-0"><h2 className="truncate text-base font-extrabold">{attempt.testName || (attempt.testId ? `Đề thi ${attempt.testId}` : source)}</h2><p className="mt-1 text-xs font-semibold text-content-muted">{getYearLabel(attempt)} · {source} · {getTestPartScopeLabel(parts)}</p></div></div><div className="mt-3 flex flex-wrap gap-4 text-[11px] font-semibold text-content-muted"><span className="inline-flex gap-1"><CalendarDays className="size-3.5" />{formatCompletedAt(attempt.completedAt)}</span><span className="inline-flex gap-1"><Clock3 className="size-3.5" />{formatDuration(attempt.timeSpentSeconds)}</span></div></div>
             <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 lg:grid-cols-7">{partStats.length ? partStats.map((part) => <div key={part.part} className="rounded-xl bg-surface-elevated px-2 py-2 text-center"><div className="text-[10px] font-extrabold text-content-muted">Part {part.part}</div><div className="mt-1 font-mono text-sm font-black"><span className="text-emerald-600">{part.correct}</span><span className="text-content-muted"> / </span><span className="text-rose-600">{part.wrong}</span></div><div className="text-[9px] text-content-muted">đúng / sai</div></div>) : <p className="col-span-full text-xs text-content-muted">Lượt làm cũ chưa đủ dữ liệu Part.</p>}</div>
             <div className="flex justify-between gap-4 xl:justify-end"><div className="text-right"><div className="font-mono text-2xl font-black">{attempt.correctAnswers}<span className="text-sm text-content-muted">/{attempt.totalQuestions}</span></div><div className="text-[10px] font-bold text-content-muted">{attempt.accuracyRate}% chính xác</div></div>{attempt.mode === 'exam' && <div className="border-l border-line pl-4 text-right"><div className="font-mono text-2xl font-black text-amber-600">{attempt.totalScore || '—'}</div><div className="text-[10px] font-bold text-content-muted">điểm TOEIC</div></div>}</div>
-          </div><div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-3"><button type="button" onClick={() => void toggleReview(attempt.id)} className="btn-secondary text-xs" aria-expanded={expanded}>Xem từng câu <ChevronDown className={`size-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} /></button><button type="button" disabled={!wrongPath || !wrongCount} onClick={() => wrongPath && navigate(wrongPath)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-bold text-rose-700 disabled:opacity-40 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><RotateCcw className="size-3.5" />Làm lại {wrongCount} câu sai</button><button type="button" disabled={!correctPath || !correctCount} onClick={() => correctPath && navigate(correctPath)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 disabled:opacity-40 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"><RotateCcw className="size-3.5" />Làm lại {correctCount} câu đúng</button></div></div>
+          </div><div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3"><button type="button" onClick={() => void toggleReview(attempt.id)} className="btn-secondary text-xs" aria-expanded={expanded}>Xem từng câu <ChevronDown className={`size-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} /></button><button type="button" disabled={!wrongPath || !wrongCount} onClick={() => wrongPath && navigate(wrongPath)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 text-xs font-bold text-rose-700 disabled:opacity-40 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"><RotateCcw className="size-3.5" />Làm lại {wrongCount} câu sai</button><button type="button" disabled={!correctPath || !correctCount} onClick={() => correctPath && navigate(correctPath)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-700 disabled:opacity-40 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300"><RotateCcw className="size-3.5" />Làm lại {correctCount} câu đúng</button><button type="button" onClick={() => setDeleteTarget(attempt)} className="ml-auto grid size-9 place-items-center rounded-xl border border-line text-content-muted transition-colors hover:border-negative/30 hover:bg-negative/10 hover:text-negative active:scale-95" title="Xoá lượt làm bài này" aria-label="Xoá lượt làm bài này"><Trash2 className="size-3.5" /></button></div></div>
           {expanded && <div className="border-t border-line bg-canvas/40 p-4 sm:p-5">{review?.loading ? <BoneyardSkeleton name={`review-${attempt.id}`} height={240} /> : review?.error ? <p className="rounded-xl bg-negative/10 p-4 text-sm font-semibold text-negative">{review.error}</p> : <><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="text-sm font-extrabold">Chi tiết đáp án</h3><p className="text-xs text-content-muted">Đáp án và giải thích lấy trực tiếp từ database.</p></div><div className="flex gap-1 rounded-xl bg-surface-elevated p-1">{([['all', 'Tất cả'], ['wrong', 'Sai'], ['correct', 'Đúng'], ['skipped', 'Bỏ qua']] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setReviewFilter(value)} className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${reviewFilter === value ? 'bg-surface shadow-sm' : 'text-content-muted'}`}>{label}</button>)}</div></div>{questions.length ? questions.map((question) => <QuestionReview key={question.id} question={question} />) : <p className="py-8 text-center text-sm text-content-muted">Không có câu hỏi trong bộ lọc này.</p>}</>}</div>}
         </article>;
       })}
     </section>}
+
+    <AnimatePresence>
+      {deleteTarget &&
+        createPortal(
+          <motion.div
+            {...modalMotion.backdrop}
+            className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget && !deleting) setDeleteTarget(null);
+            }}
+          >
+            <motion.div
+              {...modalMotion.panel}
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="delete-attempt-title"
+              aria-describedby="delete-attempt-desc"
+              className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-surface p-6 text-content shadow-2xl"
+            >
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                aria-label="Đóng xác nhận xoá lượt làm bài"
+                className="absolute right-4 top-4 rounded-full p-2 text-content-muted transition-colors duration-200 hover:bg-surface-hover hover:text-content disabled:opacity-40"
+              >
+                <X className="size-5" />
+              </button>
+
+              <div className="grid size-11 place-items-center rounded-2xl bg-negative/10 text-negative">
+                <Trash2 className="size-5" />
+              </div>
+
+              <h2 id="delete-attempt-title" className="mt-4 pr-8 text-lg font-extrabold text-content">
+                Xoá lượt làm bài này?
+              </h2>
+
+              <p id="delete-attempt-desc" className="mt-2 text-xs leading-relaxed text-content-muted">
+                Kết quả bài làm của{' '}
+                <strong className="text-content">
+                  {deleteTarget.testName ||
+                    (deleteTarget.metadata?.test_name as string) ||
+                    'đề thi'}
+                </strong>{' '}
+                ngày{' '}
+                <strong className="text-content">
+                  {formatCompletedAt(deleteTarget.completedAt)}
+                </strong>{' '}
+                (điểm số: <strong>{deleteTarget.totalScore || 0}/990</strong>, đúng{' '}
+                <strong>{deleteTarget.correctAnswers} câu</strong>) sẽ bị xoá vĩnh viễn khỏi cơ sở dữ liệu.
+              </p>
+
+              {deleteError && (
+                <p className="mt-3 rounded-xl border border-negative/30 bg-negative/10 px-3 py-2 text-xs font-semibold text-negative">
+                  {deleteError}
+                </p>
+              )}
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="btn-secondary justify-center text-xs disabled:opacity-40"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDeleteAttempt()}
+                  disabled={deleting}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-negative bg-negative px-4 py-2 text-xs font-bold text-white transition hover:bg-negative/90 active:scale-95 disabled:opacity-40"
+                >
+                  {deleting && <Loader2 className="size-3.5 animate-spin" />}
+                  <span>{deleting ? 'Đang xoá...' : 'Xác nhận xoá'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>,
+          document.body,
+        )}
+    </AnimatePresence>
   </div>;
 };
 

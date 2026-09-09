@@ -7,6 +7,7 @@ import {
   Clock,
   History,
   RotateCcw,
+  Trash2,
   Trophy,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +18,7 @@ export interface ResultsHeaderProps {
   testName?: string;
   testYear?: number;
   testId?: string;
+  attemptId?: string;
   selectedParts?: number[];
   isPartial?: boolean;
   completedAt?: string;
@@ -31,6 +33,7 @@ export interface ResultsHeaderProps {
   totalQuestions: number;
   onRetake?: () => void;
   onViewHistory?: () => void;
+  onDeleteAttempt?: () => void;
 }
 
 /**
@@ -289,6 +292,7 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   totalQuestions,
   onRetake,
   onViewHistory,
+  onDeleteAttempt,
 }) => {
   const navigate = useNavigate();
   const displayName = formatTestDisplayName(testTitle, testName, testYear);
@@ -359,8 +363,20 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
             </span>
           </div>
 
-          {/* Cụm nút hành động: Làm lại đề này / Xem các lần làm bài */}
+          {/* Cụm nút hành động: Làm lại đề này / Xem các lần làm bài / Xoá lượt làm này */}
           <div className="flex items-center gap-2">
+            {onDeleteAttempt && (
+              <button
+                type="button"
+                onClick={onDeleteAttempt}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-negative/20 bg-negative/5 px-3 py-2 text-xs font-bold text-negative transition hover:bg-negative/15 hover:border-negative/40 shadow-2xs"
+                title="Xoá kết quả lượt làm bài này"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Xoá kết quả này</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleViewHistoryClick}

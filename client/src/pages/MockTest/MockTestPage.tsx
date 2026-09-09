@@ -216,6 +216,7 @@ export const MockTestPage: React.FC = () => {
       setHistoryCounts((current) => ({ ...current, [deleteTest.id]: 0 }));
       setToastMessage(`Đã xoá ${historyResult.deletedCount + localHistoryDeleted} lượt làm và ${wrongResult.deletedCount} câu sai của ${deleteTest.title}.`);
       setDeleteTest(null);
+      window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (requestError) {
       setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
     } finally {

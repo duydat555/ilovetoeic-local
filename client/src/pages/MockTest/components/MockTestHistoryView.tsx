@@ -11,17 +11,22 @@ import {
   TrendingUp,
   Trophy,
   AlertCircle,
+  AlertTriangle,
   BookOpen,
   Headphones,
+  Loader2,
   X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { BoneyardSkeleton } from '../../../components/common/BoneyardSkeleton';
+import { TopToast } from '../../../components/common/TopToast';
 import { getModalMotion } from '../../../components/common/modalMotion';
 import { backendService } from '../../../services/backend';
 import { MockTestItem, StudyAttempt } from '../../../types';
+import { storage } from '../../../utils/storage';
+import { deleteTestPracticeSessions, deleteAllPracticeSessions } from '../../../utils/practiceSessions';
 
 interface MockTestHistoryViewProps {
   userId?: string;
@@ -87,6 +92,41 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<StudyAttempt | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // Bulk delete state
+  const [bulkDeleteTarget, setBulkDeleteTarget] = useState<{
+    type: 'test' | 'all';
+    testId?: string;
+    testTitle?: string;
+    count: number;
+  } | null>(null);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Lock scroll & handle Escape key for modals (modal motion contract)
+  useEffect(() => {
+    if (!deleteTarget && !bulkDeleteTarget) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (deleteTarget && !deleting) setDeleteTarget(null);
+        if (bulkDeleteTarget && !bulkDeleting) setBulkDeleteTarget(null);
+      }
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [deleteTarget, bulkDeleteTarget, deleting, bulkDeleting]);
+
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(''), 3200);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   // Available unique years sorted descending
   const availableYears = useMemo(() => {
@@ -167,7 +207,9 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     try {
       const res = await backendService.deleteSingleStudyAttempt(deleteTarget.id);
       if (res.success) {
+        storage.deleteSingleAttempt(deleteTarget.id);
         setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+        setToastMessage('Đã xoá lượt làm bài thành công.');
         setDeleteTarget(null);
         window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       } else {
@@ -177,6 +219,44 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
       setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  // Handle bulk deleting history for a specific test or all tests
+  const handleConfirmBulkDelete = async () => {
+    if (!bulkDeleteTarget || bulkDeleting) return;
+    setBulkDeleting(true);
+    setBulkDeleteError('');
+    try {
+      if (bulkDeleteTarget.type === 'test' && bulkDeleteTarget.testId) {
+        const tId = bulkDeleteTarget.testId;
+        const res = await backendService.deleteTestStudyHistory(tId);
+        await backendService.deleteWrongQuestions('test', { testId: tId });
+        await backendService.deletePracticeSessionsForTest(tId);
+        const localDeleted = storage.deleteTestHistory(tId);
+        storage.clearExamDraft(tId);
+        deleteTestPracticeSessions(tId);
+
+        setAttempts((prev) => prev.filter((a) => a.testId !== tId));
+        setToastMessage(`Đã xoá ${res.deletedCount + localDeleted} lượt làm và dữ liệu liên quan của ${bulkDeleteTarget.testTitle || 'đề thi'}.`);
+        setBulkDeleteTarget(null);
+        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      } else {
+        // Delete all history
+        const res = await backendService.deleteAllStudyHistory('all');
+        await backendService.deleteWrongQuestions('all');
+        deleteAllPracticeSessions();
+        storage.clearAllTestHistory();
+
+        setAttempts([]);
+        setToastMessage(`Đã dọn sạch toàn bộ ${res.deletedCount || bulkDeleteTarget.count} lượt làm bài thi.`);
+        setBulkDeleteTarget(null);
+        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+      }
+    } catch (err) {
+      setBulkDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lịch sử làm bài.');
+    } finally {
+      setBulkDeleting(false);
     }
   };
 
@@ -492,6 +572,50 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
               >
                 <RotateCcw className="size-3" />
                 <span>Đặt lại</span>
+              </button>
+            )}
+
+            {/* Bulk Delete for selected test */}
+            {selectedTestId !== 'all' && (
+              <button
+                type="button"
+                onClick={() => {
+                  const curTest = allTests.find((t) => t.id === selectedTestId);
+                  const count = attempts.filter((a) => a.testId === selectedTestId).length;
+                  setBulkDeleteError('');
+                  setBulkDeleteTarget({
+                    type: 'test',
+                    testId: selectedTestId,
+                    testTitle: curTest?.title || selectedTestId,
+                    count,
+                  });
+                }}
+                disabled={attempts.filter((a) => a.testId === selectedTestId).length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-negative/30 bg-negative/10 px-2.5 py-1.5 text-xs font-bold text-negative transition hover:bg-negative/20 hover:border-negative/50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                title="Xoá toàn bộ lượt làm bài của đề thi này"
+              >
+                <Trash2 className="size-3.5" />
+                <span>Xoá lịch sử đề này</span>
+              </button>
+            )}
+
+            {/* Bulk Delete all history */}
+            {selectedTestId === 'all' && attempts.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBulkDeleteError('');
+                  setBulkDeleteTarget({
+                    type: 'all',
+                    count: attempts.length,
+                  });
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-negative/20 bg-negative/5 px-2.5 py-1.5 text-xs font-bold text-negative transition hover:bg-negative/15 hover:border-negative/40 active:scale-95"
+                title="Xoá toàn bộ lịch sử làm bài thi"
+              >
+                <Trash2 className="size-3.5" />
+                <span className="hidden sm:inline">Xoá tất cả lịch sử ({attempts.length})</span>
+                <span className="sm:hidden">Xoá tất cả</span>
               </button>
             )}
           </div>
@@ -875,11 +999,21 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                 aria-describedby="delete-attempt-desc"
                 className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-surface p-6 text-content shadow-2xl"
               >
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deleting}
+                  aria-label="Đóng xác nhận xoá lượt làm bài"
+                  className="absolute right-4 top-4 rounded-full p-2 text-content-muted transition-colors duration-200 hover:bg-surface-hover hover:text-content disabled:opacity-40"
+                >
+                  <X className="size-5" />
+                </button>
+
                 <div className="grid size-11 place-items-center rounded-2xl bg-negative/10 text-negative">
                   <Trash2 className="size-5" />
                 </div>
 
-                <h2 id="delete-attempt-title" className="mt-4 text-lg font-extrabold text-content">
+                <h2 id="delete-attempt-title" className="mt-4 pr-8 text-lg font-extrabold text-content">
                   Xoá lượt làm bài này?
                 </h2>
 
@@ -917,9 +1051,10 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                     type="button"
                     onClick={() => void handleDeleteAttempt()}
                     disabled={deleting}
-                    className="rounded-xl border border-negative bg-negative px-4 py-2 text-xs font-bold text-white transition hover:bg-negative/90 active:scale-95 disabled:opacity-40"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-negative bg-negative px-4 py-2 text-xs font-bold text-white transition hover:bg-negative/90 active:scale-95 disabled:opacity-40"
                   >
-                    {deleting ? 'Đang xoá...' : 'Xác nhận xoá'}
+                    {deleting && <Loader2 className="size-3.5 animate-spin" />}
+                    <span>{deleting ? 'Đang xoá...' : 'Xác nhận xoá'}</span>
                   </button>
                 </div>
               </motion.div>
@@ -927,6 +1062,97 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
             document.body,
           )}
       </AnimatePresence>
+
+      {/* 6. Confirmation Modal for Bulk Delete (Test History or All History) */}
+      <AnimatePresence>
+        {bulkDeleteTarget &&
+          createPortal(
+            <motion.div
+              {...modalMotion.backdrop}
+              className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget && !bulkDeleting) setBulkDeleteTarget(null);
+              }}
+            >
+              <motion.div
+                {...modalMotion.panel}
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="bulk-delete-title"
+                aria-describedby="bulk-delete-desc"
+                className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-surface p-6 text-content shadow-2xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => setBulkDeleteTarget(null)}
+                  disabled={bulkDeleting}
+                  aria-label="Đóng xác nhận xoá lịch sử"
+                  className="absolute right-4 top-4 rounded-full p-2 text-content-muted transition-colors duration-200 hover:bg-surface-hover hover:text-content disabled:opacity-40"
+                >
+                  <X className="size-5" />
+                </button>
+
+                <div className="grid size-11 place-items-center rounded-2xl bg-negative/10 text-negative">
+                  <AlertTriangle className="size-5" />
+                </div>
+
+                <h2 id="bulk-delete-title" className="mt-4 pr-8 text-lg font-extrabold text-content">
+                  {bulkDeleteTarget.type === 'test'
+                    ? 'Xoá lịch sử làm bài đề này?'
+                    : 'Xoá tất cả lịch sử làm bài?'}
+                </h2>
+
+                <p id="bulk-delete-desc" className="mt-2 text-xs leading-relaxed text-content-muted">
+                  {bulkDeleteTarget.type === 'test' ? (
+                    <>
+                      Toàn bộ <strong className="text-content">{bulkDeleteTarget.count} lượt làm bài</strong>, kết quả câu đúng/sai và phiên làm dở của đề{' '}
+                      <strong className="text-content">{bulkDeleteTarget.testTitle}</strong> sẽ bị xoá vĩnh viễn khỏi database và trình duyệt. Thao tác này không thể hoàn tác.
+                    </>
+                  ) : (
+                    <>
+                      Toàn bộ <strong className="text-content">{bulkDeleteTarget.count} lượt làm bài thi</strong> của tất cả các đề đã lưu trong tài khoản của bạn sẽ bị xoá vĩnh viễn khỏi cơ sở dữ liệu. Thao tác này không thể hoàn tác.
+                    </>
+                  )}
+                </p>
+
+                {bulkDeleteError && (
+                  <p className="mt-3 rounded-xl border border-negative/30 bg-negative/10 px-3 py-2 text-xs font-semibold text-negative" role="alert">
+                    {bulkDeleteError}
+                  </p>
+                )}
+
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setBulkDeleteTarget(null)}
+                    disabled={bulkDeleting}
+                    className="btn-secondary justify-center text-xs disabled:opacity-40"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleConfirmBulkDelete()}
+                    disabled={bulkDeleting}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-negative bg-negative px-4 py-2 text-xs font-bold text-white transition hover:bg-negative/90 active:scale-95 disabled:opacity-40"
+                  >
+                    {bulkDeleting && <Loader2 className="size-3.5 animate-spin" />}
+                    <span>
+                      {bulkDeleting
+                        ? 'Đang xoá...'
+                        : bulkDeleteTarget.type === 'test'
+                          ? 'Xác nhận xoá đề này'
+                          : 'Xoá toàn bộ lịch sử'}
+                    </span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>,
+            document.body,
+          )}
+      </AnimatePresence>
+
+      {toastMessage && <TopToast message={toastMessage} />}
     </div>
   );
 };

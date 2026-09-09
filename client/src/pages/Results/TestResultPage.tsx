@@ -1,18 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronUp,
   History,
   LayoutGrid,
   Loader2,
   SlidersHorizontal,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { LazyAnswerReviewList } from '../../components/results/LazyAnswerReviewList';
 import { PartBreakdownList } from '../../components/results/PartBreakdownList';
 import { formatScopeDescription, ResultsHeader } from '../../components/results/ResultsHeader';
 import { ResultsSummaryCards } from '../../components/results/ResultsSummaryCards';
+import { getModalMotion } from '../../components/common/modalMotion';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
@@ -41,6 +47,50 @@ export const TestResultPage: React.FC = () => {
   const [testMeta, setTestMeta] = useState<{ name?: string; year?: number }>({});
   const [jumpTarget, setJumpTarget] = useState<number | null>(null);
   const [showMatrix, setShowMatrix] = useState(true);
+
+  // Modal motion & delete attempt state
+  const reduceMotion = useReducedMotion();
+  const modalMotion = getModalMotion(reduceMotion);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Lock scroll & handle Escape key for delete modal
+  useEffect(() => {
+    if (!showDeleteModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleting) setShowDeleteModal(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showDeleteModal, deleting]);
+
+  const handleDeleteAttempt = async () => {
+    const targetAttemptId = result?.attemptId || attemptIdParam;
+    if (!targetAttemptId || deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      const res = await backendService.deleteSingleStudyAttempt(targetAttemptId);
+      if (res.success) {
+        storage.deleteSingleAttempt(targetAttemptId);
+        window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
+        setShowDeleteModal(false);
+        navigate('/mock-test?tab=history', { replace: true });
+      } else {
+        setDeleteError('Không thể xoá lượt làm bài này.');
+      }
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi xoá lượt làm bài.');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Tải chi tiết lượt làm bài nếu có attemptId trên URL
   useEffect(() => {
@@ -350,6 +400,15 @@ export const TestResultPage: React.FC = () => {
         testName={testMeta.name || result.testName}
         testYear={testMeta.year || result.testYear}
         testId={result.testId}
+        attemptId={result.attemptId || attemptIdParam || undefined}
+        onDeleteAttempt={
+          (result.attemptId || attemptIdParam)
+            ? () => {
+                setDeleteError('');
+                setShowDeleteModal(true);
+              }
+            : undefined
+        }
         selectedParts={result.selectedParts}
         isPartial={result.isPartial}
         completedAt={result.completedAt}
@@ -551,6 +610,83 @@ export const TestResultPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Modal xác nhận xoá kết quả bài thi này */}
+      <AnimatePresence>
+        {showDeleteModal &&
+          createPortal(
+            <motion.div
+              {...modalMotion.backdrop}
+              className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget && !deleting) setShowDeleteModal(false);
+              }}
+            >
+              <motion.div
+                {...modalMotion.panel}
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="delete-result-title"
+                aria-describedby="delete-result-desc"
+                className="relative my-auto w-full max-w-md rounded-3xl border border-line bg-surface p-6 text-content shadow-2xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  disabled={deleting}
+                  aria-label="Đóng xác nhận xoá kết quả"
+                  className="absolute right-4 top-4 rounded-full p-2 text-content-muted transition-colors duration-200 hover:bg-surface-hover hover:text-content disabled:opacity-40"
+                >
+                  <X className="size-5" />
+                </button>
+
+                <div className="grid size-11 place-items-center rounded-2xl bg-negative/10 text-negative">
+                  <Trash2 className="size-5" />
+                </div>
+
+                <h2 id="delete-result-title" className="mt-4 pr-8 text-lg font-extrabold text-content">
+                  Xoá kết quả bài làm này?
+                </h2>
+
+                <p id="delete-result-desc" className="mt-2 text-xs leading-relaxed text-content-muted">
+                  Kết quả bài thi{' '}
+                  <strong className="text-content">
+                    {result.testTitle || testMeta.name || 'này'}
+                  </strong>{' '}
+                  (điểm số: <strong>{result.isPartial ? `${result.accuracyRate}%` : `${result.totalScore}/990`}</strong>, đúng{' '}
+                  <strong>{result.correctAnswers} câu</strong>) sẽ bị xoá vĩnh viễn khỏi lịch sử bài làm và cơ sở dữ liệu. Thao tác này không thể hoàn tác.
+                </p>
+
+                {deleteError && (
+                  <p className="mt-3 rounded-xl border border-negative/30 bg-negative/10 px-3 py-2 text-xs font-semibold text-negative" role="alert">
+                    {deleteError}
+                  </p>
+                )}
+
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={deleting}
+                    className="btn-secondary justify-center text-xs disabled:opacity-40"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeleteAttempt()}
+                    disabled={deleting}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-negative bg-negative px-4 py-2 text-xs font-bold text-white transition hover:bg-negative/90 active:scale-95 disabled:opacity-40"
+                  >
+                    {deleting && <Loader2 className="size-3.5 animate-spin" />}
+                    <span>{deleting ? 'Đang xoá...' : 'Xác nhận xoá'}</span>
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>,
+            document.body,
+          )}
+      </AnimatePresence>
     </div>
   );
 };

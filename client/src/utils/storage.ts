@@ -122,6 +122,26 @@ export const storage = {
     }
   },
 
+  deleteSingleAttempt(attemptId: string) {
+    try {
+      const history = this.getTestHistory();
+      const remaining = history.filter((result) => result.attemptId !== attemptId);
+      localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));
+      return history.length - remaining.length;
+    } catch (e) {
+      console.warn('[!] Failed to delete single attempt', e);
+      return 0;
+    }
+  },
+
+  clearAllTestHistory() {
+    try {
+      localStorage.removeItem(KEYS.EXAM_HISTORY);
+    } catch (e) {
+      console.warn('[!] Failed to clear all test history', e);
+    }
+  },
+
   getStudyStreak(
     userId: string,
     fallbackStreak = 0,

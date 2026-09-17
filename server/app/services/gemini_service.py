@@ -296,8 +296,8 @@ class GeminiTranslationService:
             formatted["lemma"] = lemma_word
         return formatted
 
-    def _fetch_system_vocab_row(self, word: str) -> Optional[Dict[str, Any]]:
-        return db.fetch_one(
+    async def _fetch_system_vocab_row(self, word: str) -> Optional[Dict[str, Any]]:
+        return await db.async_fetch_one(
             """
             SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
                    example_en, example_vi, example_toeic, audio_us, audio_uk, 
@@ -311,26 +311,26 @@ class GeminiTranslationService:
             use_cache=False,
         )
 
-    def _find_system_vocabulary_record(self, word: str) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
+    async def _find_system_vocabulary_record(self, word: str) -> Tuple[Optional[Dict[str, Any]], Optional[str], Optional[str]]:
         clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*").lower()
         if not clean_word or len(clean_word.split()) > 4:
             return None, None, None
 
         # 1. Exact match in system_vocabulary_words (direct hit)
-        record = self._fetch_system_vocab_row(clean_word)
+        record = await self._fetch_system_vocab_row(clean_word)
         if record:
             return record, clean_word, "direct"
 
         # 2. Inflection table match (precomputed via LemmInflect offline)
         try:
-            inflection = db.fetch_one(
+            inflection = await db.async_fetch_one(
                 "SELECT lemma_word FROM word_inflections WHERE inflected_form = ? LIMIT 1",
                 (clean_word,),
                 use_cache=False,
             )
             if inflection and inflection.get("lemma_word"):
                 lemma = inflection["lemma_word"].strip().lower()
-                record = self._fetch_system_vocab_row(lemma)
+                record = await self._fetch_system_vocab_row(lemma)
                 if record:
                     return record, lemma, "inflection"
         except Exception as err:
@@ -347,12 +347,13 @@ class GeminiTranslationService:
                         if l_clean not in candidate_lemmas and l_clean != clean_word:
                             candidate_lemmas.append(l_clean)
                 for cand in candidate_lemmas:
-                    record = self._fetch_system_vocab_row(cand)
+                    record = await self._fetch_system_vocab_row(cand)
                     if record:
                         try:
-                            db.execute(
+                            await db.async_execute(
                                 "INSERT IGNORE INTO word_inflections (inflected_form, lemma_word, inflection_type) VALUES (?, ?, ?)",
                                 (clean_word, cand, "DYNAMIC"),
+                                invalidate_cache=False,
                             )
                         except Exception:
                             pass
@@ -362,12 +363,12 @@ class GeminiTranslationService:
 
         return None, None, None
 
-    def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
+    async def _lookup_system_vocabulary(self, word: str) -> Optional[Dict[str, Any]]:
         clean_word = word.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*")
         if not clean_word:
             return None
         try:
-            record, lemma, match_type = self._find_system_vocabulary_record(clean_word)
+            record, lemma, match_type = await self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
             result = self._format_system_vocabulary_record(record, clean_word, lemma)
@@ -377,7 +378,7 @@ class GeminiTranslationService:
             print(f"[!] System vocabulary lookup failed: {error}")
             return None
 
-    def _lookup_system_vocabulary_detail(
+    async def _lookup_system_vocabulary_detail(
         self,
         word: str,
         section: DictionaryDetailSection,
@@ -386,7 +387,7 @@ class GeminiTranslationService:
         if not clean_word or len(clean_word.split()) > 4:
             return None
         try:
-            record, lemma, _ = self._find_system_vocabulary_record(clean_word)
+            record, lemma, _ = await self._find_system_vocabulary_record(clean_word)
             if not record:
                 return None
 
@@ -506,7 +507,7 @@ class GeminiTranslationService:
         }
 
     @staticmethod
-    def _get_community_translation(
+    async def _get_community_translation(
         word: str,
         context_hash: str,
         allow_phrase_fallback: bool = False,
@@ -514,20 +515,20 @@ class GeminiTranslationService:
         clean_w = word.strip().lower()
         try:
             # 1. Exact match with context_hash
-            record = db.fetch_one(
+            record = await db.async_fetch_one(
                 "SELECT * FROM community_translations WHERE word = ? AND context_hash = ? LIMIT 1",
                 (clean_w, context_hash),
                 use_cache=False,
             )
             if not record:
-                record = db.fetch_one(
+                record = await db.async_fetch_one(
                     "SELECT * FROM community_translations WHERE context_hash = ? LIMIT 1",
                     (context_hash,),
                     use_cache=False,
                 )
             # 2. Multi-word phrase fallback: fixed expressions have consistent meaning across passages
             if not record and allow_phrase_fallback and len(clean_w.split()) >= 2:
-                record = db.fetch_one(
+                record = await db.async_fetch_one(
                     "SELECT * FROM community_translations WHERE word = ? ORDER BY hit_count DESC LIMIT 1",
                     (clean_w,),
                     use_cache=False,
@@ -535,9 +536,10 @@ class GeminiTranslationService:
 
             if record:
                 try:
-                    db.execute(
+                    await db.async_execute(
                         "UPDATE community_translations SET hit_count = hit_count + 1 WHERE id = ?",
                         (record["id"],),
+                        invalidate_cache=False,
                     )
                 except Exception:
                     pass
@@ -547,7 +549,7 @@ class GeminiTranslationService:
 
         # Fallback to translation_cache for backward compatibility
         try:
-            record = db.fetch_one(
+            record = await db.async_fetch_one(
                 "SELECT * FROM translation_cache WHERE hash = ? LIMIT 1",
                 (context_hash,),
                 use_cache=False,
@@ -557,7 +559,7 @@ class GeminiTranslationService:
             return None
 
     @staticmethod
-    def _save_community_translation(
+    async def _save_community_translation(
         word: str,
         context_hash: str,
         data: Dict[str, Any],
@@ -573,7 +575,7 @@ class GeminiTranslationService:
 
         # 1. Save to community_translations
         try:
-            db.execute(
+            await db.async_execute(
                 """
                 INSERT INTO community_translations (
                     word, context_hash, context_text, translated_text, phonetic,
@@ -609,13 +611,14 @@ class GeminiTranslationService:
                     data.get("source_lang", "en"),
                     data.get("target_lang", "vi"),
                 ),
+                invalidate_cache=False,
             )
         except Exception as error:
             print(f"[!] MySQL community_translations write failed: {error}")
 
         # 2. Also keep translation_cache synchronized for legacy queries
         try:
-            db.execute(
+            await db.async_execute(
                 """
                 INSERT INTO translation_cache (
                     hash, source_text, translated_text, phonetic, part_of_speech,
@@ -642,6 +645,7 @@ class GeminiTranslationService:
                     data.get("source_lang", "en"),
                     data.get("target_lang", "vi"),
                 ),
+                invalidate_cache=False,
             )
             return True
         except Exception as error:
@@ -649,19 +653,20 @@ class GeminiTranslationService:
             return False
 
     @staticmethod
-    def _get_invalid_selection(word: str) -> Optional[Dict[str, Any]]:
+    async def _get_invalid_selection(word: str) -> Optional[Dict[str, Any]]:
         clean_w = word.strip().lower()[:100]
         try:
-            record = db.fetch_one(
+            record = await db.async_fetch_one(
                 "SELECT * FROM invalid_selections WHERE word = ? LIMIT 1",
                 (clean_w,),
                 use_cache=False,
             )
             if record:
                 try:
-                    db.execute(
+                    await db.async_execute(
                         "UPDATE invalid_selections SET hit_count = hit_count + 1 WHERE id = ?",
                         (record["id"],),
+                        invalidate_cache=False,
                     )
                 except Exception:
                     pass
@@ -671,10 +676,10 @@ class GeminiTranslationService:
         return None
 
     @staticmethod
-    def _save_invalid_selection(word: str, word_type: str, translated_text: str = "") -> bool:
+    async def _save_invalid_selection(word: str, word_type: str, translated_text: str = "") -> bool:
         clean_w = word.strip().lower()[:100]
         try:
-            db.execute(
+            await db.async_execute(
                 """
                 INSERT INTO invalid_selections (word, word_type, translated_text, hit_count)
                 VALUES (?, ?, ?, 1)
@@ -685,6 +690,7 @@ class GeminiTranslationService:
                     updated_at = CURRENT_TIMESTAMP
                 """,
                 (clean_w, word_type, (translated_text or "")[:500]),
+                invalidate_cache=False,
             )
             return True
         except Exception as error:
@@ -728,7 +734,7 @@ class GeminiTranslationService:
 
         # Tier 2: Local MySQL System Vocabulary + Lemmatization (ultra-fast 2-4ms lookup)
         if src_lang == "en" and target_lang == "vi":
-            system_result = await asyncio.to_thread(self._lookup_system_vocabulary, clean_text)
+            system_result = await self._lookup_system_vocabulary(clean_text)
             if system_result:
                 if system_result.get("match_type") == "inflection":
                     self.stats["inflection_table_hits"] += 1
@@ -742,13 +748,9 @@ class GeminiTranslationService:
 
         # Tier 3: MySQL community_translations (Self-Healing Cache with strict context keying)
         is_phrase = len(clean_text.split()) >= 2
-        community_result = await asyncio.to_thread(
-            self._get_community_translation, clean_text, context_hash, is_phrase
-        )
+        community_result = await self._get_community_translation(clean_text, context_hash, is_phrase)
         if not community_result and is_generic_context and context_hash != word_only_hash:
-            community_result = await asyncio.to_thread(
-                self._get_community_translation, clean_text, word_only_hash, is_phrase
-            )
+            community_result = await self._get_community_translation(clean_text, word_only_hash, is_phrase)
 
         if community_result:
             self.stats["community_translation_hits"] += 1
@@ -761,7 +763,7 @@ class GeminiTranslationService:
             return result
 
         # Tier 3.5: MySQL invalid_selections (chuỗi đã biết là rác/tên riêng đã được ghi nhớ)
-        invalid_record = await asyncio.to_thread(self._get_invalid_selection, clean_text)
+        invalid_record = await self._get_invalid_selection(clean_text)
         if invalid_record:
             self.stats["memory_cache_hits"] += 1
             self.stats["l0_local_hits"] += 1
@@ -836,15 +838,15 @@ class GeminiTranslationService:
 
         # CHỈ lưu vào community_translations khi là từ vựng học tập hợp lệ ("vocabulary")
         if word_type == "vocabulary":
-            asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
+            asyncio.create_task(self._save_community_translation(clean_text, context_hash, result, context))
             # Phrases (collocations, idioms) or generic context safely cache the base word-only key
             if (is_phrase or is_generic_context) and context_hash != word_only_hash:
                 self._save_to_memory_cache(word_only_hash, result)
                 asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
-                asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
+                asyncio.create_task(self._save_community_translation(clean_text, word_only_hash, result, ""))
         else:
             # Ghi nhớ vào bảng invalid_selections để nhận diện chuỗi này là tên riêng/chuỗi rác mà không ô nhiễm từ điển
-            asyncio.create_task(asyncio.to_thread(self._save_invalid_selection, clean_text, word_type, result.get("translated_text", "")))
+            asyncio.create_task(self._save_invalid_selection(clean_text, word_type, result.get("translated_text", "")))
 
         return result
 
@@ -889,8 +891,7 @@ class GeminiTranslationService:
             }
 
         # 3. Fallback: Query MySQL database
-        passage = await asyncio.to_thread(
-            db.fetch_one,
+        passage = await db.async_fetch_one(
             """
             SELECT id, passage_text, passage_text_2, passage_text_3, transcript
             FROM passages
@@ -898,7 +899,7 @@ class GeminiTranslationService:
             LIMIT 1
             """,
             (passage_id,),
-            True,
+            use_cache=True,
         )
         if not passage:
             return {"passage_id": passage_id, "words": {}}
@@ -922,8 +923,7 @@ class GeminiTranslationService:
 
         # 1. Batch query direct matches in system_vocabulary_words
         format_strings = ",".join(["?"] * len(words))
-        direct_rows = await asyncio.to_thread(
-            db.fetch_all,
+        direct_rows = await db.async_fetch_all(
             f"""
             SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
                    example_en, example_vi, example_toeic, audio_us, audio_uk, 
@@ -933,7 +933,7 @@ class GeminiTranslationService:
             ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
             """,
             tuple(words),
-            True,
+            use_cache=True,
         )
 
         for row in direct_rows:
@@ -950,19 +950,17 @@ class GeminiTranslationService:
         # 2. Batch query inflections for missing words
         if missing:
             inf_fmts = ",".join(["?"] * len(missing))
-            inf_rows = await asyncio.to_thread(
-                db.fetch_all,
+            inf_rows = await db.async_fetch_all(
                 f"SELECT inflected_form, lemma_word FROM word_inflections WHERE inflected_form IN ({inf_fmts})",
                 tuple(missing),
-                True,
+                use_cache=True,
             )
             inf_dict = {r["inflected_form"].lower(): r["lemma_word"].lower() for r in inf_rows}
             lemmas_to_fetch = sorted(list(set(inf_dict.values())))
 
             if lemmas_to_fetch:
                 lem_fmts = ",".join(["?"] * len(lemmas_to_fetch))
-                lemma_rows = await asyncio.to_thread(
-                    db.fetch_all,
+                lemma_rows = await db.async_fetch_all(
                     f"""
                     SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
                            example_en, example_vi, example_toeic, audio_us, audio_uk, 
@@ -972,7 +970,7 @@ class GeminiTranslationService:
                     ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
                     """,
                     tuple(lemmas_to_fetch),
-                    True,
+                    use_cache=True,
                 )
                 lemma_record_map = {r["word"].lower(): r for r in lemma_rows}
 
@@ -1026,7 +1024,7 @@ class GeminiTranslationService:
             }
 
         # System vocabulary detail lookup
-        system_detail = await asyncio.to_thread(self._lookup_system_vocabulary_detail, clean_text, section)
+        system_detail = await self._lookup_system_vocabulary_detail(clean_text, section)
         if system_detail:
             self.stats["direct_system_hits"] += 1
             self.stats["system_vocabulary_hits"] += 1

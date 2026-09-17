@@ -7,10 +7,70 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import quote, unquote
 
+import asyncio
 import pymysql
+
+try:
+    import asyncmy
+except ImportError:
+    asyncmy = None
 
 from app import config
 from app.utils.html_cleaner import clean_html_text
+
+
+class AsyncMySQLConnectionPool:
+    """Native asynchronous connection pool for MySQL using asyncmy.
+    
+    Eliminates asyncio.to_thread context-switching overhead and scales to
+    thousands of concurrent requests. Handles per-loop pools to avoid loop mismatch.
+    """
+
+    def __init__(self, min_size=4, max_size=20):
+        self.min_size = min_size
+        self.max_size = max_size
+        self._pools = {}
+        self._locks = {}
+
+    async def get_pool(self):
+        loop = asyncio.get_running_loop()
+        lock = self._locks.get(loop)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[loop] = lock
+
+        pool = self._pools.get(loop)
+        if pool is None or pool._closed:
+            async with lock:
+                pool = self._pools.get(loop)
+                if pool is None or pool._closed:
+                    if asyncmy is None:
+                        raise RuntimeError("asyncmy is not installed")
+                    pool = await asyncmy.create_pool(
+                        host=config.DB_HOST,
+                        port=config.DB_PORT,
+                        user=config.DB_USER,
+                        password=config.DB_PASSWORD,
+                        db=config.DB_NAME,
+                        charset="utf8mb4",
+                        autocommit=True,
+                        minsize=self.min_size,
+                        maxsize=self.max_size,
+                        connect_timeout=5.0,
+                    )
+                    self._pools[loop] = pool
+        return pool
+
+    async def close(self):
+        for loop, pool in list(self._pools.items()):
+            try:
+                if not pool._closed:
+                    pool.close()
+                    await pool.wait_closed()
+            except Exception:
+                pass
+        self._pools.clear()
+        self._locks.clear()
 
 
 class MySQLConnectionPool:
@@ -114,6 +174,7 @@ class Database:
         self.is_connected = False
         self.last_error = None
         self._pool = None
+        self._async_pool = None
         self.load_gdrive_mapping()
         self.initialize()
 
@@ -436,6 +497,78 @@ class Database:
         with self.connection() as conn:
             with conn.cursor() as cursor:
                 return cursor.executemany(mysql_query, params)
+
+    async def get_async_pool(self):
+        if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
+            return None
+        if self._async_pool is None:
+            self._async_pool = AsyncMySQLConnectionPool(
+                min_size=getattr(config, "DB_ASYNC_POOL_MIN_SIZE", 4),
+                max_size=getattr(config, "DB_ASYNC_POOL_MAX_SIZE", 20),
+            )
+        return await self._async_pool.get_pool()
+
+    async def async_fetch_all(self, query, params=(), use_cache=True):
+        cache_key = f"{query}:{params}"
+        if use_cache and cache_key in self.query_ram_cache:
+            return self.query_ram_cache[cache_key]
+
+        if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
+            return await asyncio.to_thread(self.fetch_all, query, params, use_cache)
+
+        try:
+            pool = await self.get_async_pool()
+            mysql_query = query.replace("?", "%s")
+            async with pool.acquire() as conn:
+                async with conn.cursor(cursor=asyncmy.cursors.DictCursor) as cursor:
+                    await cursor.execute(mysql_query, params)
+                    rows = await cursor.fetchall()
+            cleaned_rows = [self.clean_and_resolve_row(dict(r)) for r in rows]
+            if use_cache and len(self.query_ram_cache) < config.RAM_CACHE_MAX_SIZE:
+                self.query_ram_cache[cache_key] = cleaned_rows
+            return cleaned_rows
+        except Exception as err:
+            print(f"[!] async_fetch_all fallback to sync pool due to: {err}")
+            return await asyncio.to_thread(self.fetch_all, query, params, use_cache)
+
+    async def async_fetch_one(self, query, params=(), use_cache=True):
+        results = await self.async_fetch_all(query, params, use_cache=use_cache)
+        return results[0] if results else None
+
+    async def async_execute(self, query, params=(), invalidate_cache=True):
+        if invalidate_cache:
+            self.query_ram_cache.clear()
+
+        if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
+            return await asyncio.to_thread(self.execute, query, params, invalidate_cache)
+
+        try:
+            pool = await self.get_async_pool()
+            mysql_query = query.replace("?", "%s")
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    await cursor.execute(mysql_query, params)
+                    return cursor.lastrowid
+        except Exception as err:
+            print(f"[!] async_execute fallback to sync pool due to: {err}")
+            return await asyncio.to_thread(self.execute, query, params, invalidate_cache)
+
+    async def async_executemany(self, query, params, invalidate_cache=True):
+        if invalidate_cache:
+            self.query_ram_cache.clear()
+
+        if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
+            return await asyncio.to_thread(self.executemany, query, params, invalidate_cache)
+
+        try:
+            pool = await self.get_async_pool()
+            mysql_query = query.replace("?", "%s")
+            async with pool.acquire() as conn:
+                async with conn.cursor() as cursor:
+                    return await cursor.executemany(mysql_query, params)
+        except Exception as err:
+            print(f"[!] async_executemany fallback to sync pool due to: {err}")
+            return await asyncio.to_thread(self.executemany, query, params, invalidate_cache)
 
     def load_gdrive_mapping(self):
         mapping_path = config.BASE_DIR.parent / "dautoeic" / "gdrive_mapping.json"

@@ -16,6 +16,9 @@ DB_PORT = int(os.getenv("DB_PORT", "3306"))
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "toeic_db")
+USE_ASYNC_MYSQL_DRIVER = os.getenv("USE_ASYNC_MYSQL_DRIVER", "true").lower() in ("true", "1", "yes")
+DB_ASYNC_POOL_MIN_SIZE = int(os.getenv("DB_ASYNC_POOL_MIN_SIZE", "4"))
+DB_ASYNC_POOL_MAX_SIZE = int(os.getenv("DB_ASYNC_POOL_MAX_SIZE", "20"))
 
 # Point MEDIA_DIR to local downloads folder containing all 4,050 MP3 audio files
 LOCAL_DOWNLOADS = Path("c:/android-server/dautoeic/mock_test_data/downloads")

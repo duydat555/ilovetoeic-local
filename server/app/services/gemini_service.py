@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import re
+import time
 import uuid
 from collections import OrderedDict
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -91,6 +92,73 @@ class WordFamilyResult(BaseModel):
 DictionaryDetailSection = Literal["collocations", "examples", "synonyms", "wordFamily"]
 
 
+class GeminiCircuitBreaker:
+    """Circuit Breaker for external Gemini API calls.
+    CLOSED -> normal operation.
+    OPEN -> fast-fail and gracefully degrade (cooldown period).
+    HALF_OPEN -> single canary request to test recovery.
+    """
+
+    def __init__(self, fail_threshold: int = 5, cooldown_seconds: int = 30):
+        self.fail_threshold = fail_threshold
+        self.cooldown_seconds = cooldown_seconds
+        self.state = "CLOSED"
+        self.consecutive_failures = 0
+        self.last_failure_time = 0.0
+        self.cooldown_until = 0.0
+        self.canary_in_flight = False
+        self._locks: Dict[Any, asyncio.Lock] = {}
+
+    def _get_lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        lock = self._locks.get(loop)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._locks[loop] = lock
+        return lock
+
+    async def can_attempt(self) -> Tuple[bool, str]:
+        now = time.time()
+        lock = self._get_lock()
+        async with lock:
+            if self.state == "CLOSED":
+                return True, "CLOSED"
+
+            if self.state == "OPEN":
+                if now >= self.cooldown_until:
+                    self.state = "HALF_OPEN"
+                    self.canary_in_flight = True
+                    return True, "HALF_OPEN"
+                return False, "OPEN"
+
+            if self.state == "HALF_OPEN":
+                if not self.canary_in_flight:
+                    self.canary_in_flight = True
+                    return True, "HALF_OPEN"
+                return False, "HALF_OPEN"
+
+        return False, self.state
+
+    async def record_success(self):
+        lock = self._get_lock()
+        async with lock:
+            self.consecutive_failures = 0
+            self.state = "CLOSED"
+            self.canary_in_flight = False
+
+    async def record_failure(self, error: Optional[Exception] = None):
+        now = time.time()
+        lock = self._get_lock()
+        async with lock:
+            self.consecutive_failures += 1
+            self.last_failure_time = now
+            self.canary_in_flight = False
+
+            if self.state == "HALF_OPEN" or self.consecutive_failures >= self.fail_threshold:
+                self.state = "OPEN"
+                self.cooldown_until = now + self.cooldown_seconds
+
+
 class GeminiTranslationService:
     def __init__(self):
         self.memory_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
@@ -110,6 +178,11 @@ class GeminiTranslationService:
         self._local_pending_inflections: set = set()
         self._in_flight: Dict[str, asyncio.Future] = {}
         self._single_flight_locks: Dict[Any, asyncio.Lock] = {}
+        self.circuit_breaker = GeminiCircuitBreaker(
+            fail_threshold=getattr(config, "CIRCUIT_BREAKER_FAIL_THRESHOLD", 5),
+            cooldown_seconds=getattr(config, "CIRCUIT_BREAKER_COOLDOWN_SECONDS", 30),
+        )
+        self._local_rate_limits: Dict[str, List[float]] = {}
         self.stats = {
             "total_requests": 0,
             "passage_cache_hits": 0,
@@ -124,6 +197,8 @@ class GeminiTranslationService:
             "community_translation_hits": 0,
             "gemini_api_calls": 0,
             "dictionary_detail_calls": 0,
+            "circuit_breaker_rejections": 0,
+            "rate_limit_rejections": 0,
             "errors": 0,
             "last_error": None,
         }
@@ -478,6 +553,120 @@ class GeminiTranslationService:
                         await redis_client.delete(lock_key)
                 except Exception:
                     pass
+
+    async def check_user_rate_limit(self, client_id: str) -> Tuple[bool, int]:
+        """Sliding window rate limit: max 30 requests/minute per client_id on Tier 4 calls.
+        Returns (is_allowed, retry_after_seconds).
+        """
+        limit = getattr(config, "GEMINI_RATE_LIMIT_PER_MINUTE", 30)
+        now = time.time()
+        window = 60.0
+
+        redis_client = await self.get_redis()
+        if redis_client:
+            key = f"ratelimit:gemini:{client_id}"
+            try:
+                pipe = redis_client.pipeline()
+                pipe.zremrangebyscore(key, 0, now - window)
+                pipe.zcard(key)
+                pipe.zadd(key, {f"{now}_{uuid.uuid4().hex[:4]}": now})
+                pipe.expire(key, int(window + 10))
+                res = await pipe.execute()
+                current_count = res[1]
+                if current_count >= limit:
+                    oldest_items = await redis_client.zrange(key, 0, 0, withscores=True)
+                    retry_after = int(window - (now - oldest_items[0][1])) if oldest_items else 60
+                    return False, max(1, retry_after)
+                return True, 0
+            except Exception:
+                pass
+
+        # In-memory sliding window fallback
+        ts_list = self._local_rate_limits.setdefault(client_id, [])
+        cutoff = now - window
+        self._local_rate_limits[client_id] = [ts for ts in ts_list if ts > cutoff]
+        if len(self._local_rate_limits[client_id]) >= limit:
+            oldest = self._local_rate_limits[client_id][0]
+            retry_after = int(window - (now - oldest))
+            return False, max(1, retry_after)
+        self._local_rate_limits[client_id].append(now)
+        return True, 0
+
+    async def _degraded_fallback(self, clean_text: str) -> Dict[str, Any]:
+        """Graceful degradation when Circuit Breaker is OPEN.
+        Performs ultra-fast Tier 2.5 prefix / partial match (<5ms) without calling Gemini.
+        """
+        clean_w = clean_text.strip(" \t\n\r\"'.,;:!?()[]{}<>`~*").lower()
+        if not clean_w:
+            return {
+                "source_text": clean_text,
+                "translated_text": "",
+                "degraded": True,
+                "cached": False,
+                "cache_source": "circuit_breaker_degraded",
+            }
+
+        # 1. Prefix match in system_vocabulary_words
+        try:
+            row = await db.async_fetch_one(
+                """
+                SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en,
+                       example_en, example_vi, audio_us, audio_uk, synonyms
+                FROM system_vocabulary_words
+                WHERE word LIKE ?
+                ORDER BY LENGTH(word) ASC
+                LIMIT 1
+                """,
+                (f"{clean_w}%",),
+                use_cache=True,
+            )
+            if row:
+                formatted = self._format_system_vocabulary_record(row, clean_w, row["word"])
+                formatted.update({
+                    "degraded": True,
+                    "cached": True,
+                    "cache_source": "degraded_system_prefix",
+                    "note": f"Dịch vụ AI đang quá tải. Đang hiển thị kết quả từ vựng gần nhất: '{row['word']}'",
+                })
+                return formatted
+        except Exception:
+            pass
+
+        # 2. Inflection fallback
+        try:
+            inf = await db.async_fetch_one(
+                "SELECT lemma_word FROM word_inflections WHERE inflected_form LIKE ? LIMIT 1",
+                (f"{clean_w}%",),
+                use_cache=True,
+            )
+            if inf and inf.get("lemma_word"):
+                row = await self._fetch_system_vocab_row(inf["lemma_word"])
+                if row:
+                    formatted = self._format_system_vocabulary_record(row, clean_w, inf["lemma_word"])
+                    formatted.update({
+                        "degraded": True,
+                        "cached": True,
+                        "cache_source": "degraded_inflection",
+                        "note": f"Dịch vụ AI đang quá tải. Đang hiển thị từ gốc: '{inf['lemma_word']}'",
+                    })
+                    return formatted
+        except Exception:
+            pass
+
+        # 3. Minimal fallback dictionary item (< 2ms)
+        return {
+            "source_text": clean_w,
+            "translated_text": f"[{clean_w}]",
+            "phonetic": "",
+            "part_of_speech": "unknown",
+            "definition_en": "Definition temporarily unavailable during AI service cooldown.",
+            "examples": [],
+            "synonyms": [],
+            "degraded": True,
+            "cached": False,
+            "cache_source": "circuit_breaker_degraded",
+            "note": "Hệ thống AI đang tạm thời bảo vệ để tự phục hồi. Vui lòng thử lại sau ít phút.",
+        }
 
 
     @staticmethod
@@ -952,6 +1141,7 @@ class GeminiTranslationService:
         src_lang: str = "en",
         target_lang: str = "vi",
         context: str = "TOEIC",
+        client_id: str = "default",
     ) -> Dict[str, Any]:
         self.stats["total_requests"] += 1
         clean_text = text.strip()
@@ -1034,8 +1224,28 @@ class GeminiTranslationService:
             asyncio.create_task(self._save_to_redis_cache(context_hash, res, ttl=7 * 86400))
             return res
 
-        # Tier 4: Gemini API fallback with Request Coalescing (Single-Flight)
+        # Tier 4: Gemini API fallback with Circuit Breaker, Rate Limiting & Request Coalescing
+        # 1. Circuit Breaker Fast-Fail Check (<0.01ms)
+        can_call, cb_state = await self.circuit_breaker.can_attempt()
+        if not can_call:
+            self.stats["circuit_breaker_rejections"] += 1
+            return await self._degraded_fallback(clean_text)
+
         async def _execute_gemini_call():
+            # 2. Rate Limiting Check (Only on actual Tier 4 Gemini execution!)
+            allowed, retry_after = await self.check_user_rate_limit(client_id)
+            if not allowed:
+                self.stats["rate_limit_rejections"] += 1
+                return {
+                    "source_text": clean_text,
+                    "error": f"Bạn đã vượt quá giới hạn tra từ mới (tối đa {getattr(config, 'GEMINI_RATE_LIMIT_PER_MINUTE', 30)} từ/phút). Vui lòng thử lại sau {retry_after}s.",
+                    "status_code": 429,
+                    "rate_limited": True,
+                    "retry_after": retry_after,
+                    "cached": False,
+                    "cache_source": "rate_limit",
+                }
+
             if not self.client:
                 self.stats["errors"] += 1
                 error = (
@@ -1060,8 +1270,10 @@ class GeminiTranslationService:
                         target_lang,
                         context,
                     )
+                    await self.circuit_breaker.record_success()
                 except Exception as error:
                     self.stats["errors"] += 1
+                    await self.circuit_breaker.record_failure(error)
                     error_type = type(error).__name__
                     error_message = str(error)
                     self.stats["last_error"] = {
@@ -1249,6 +1461,7 @@ class GeminiTranslationService:
         text: str,
         section: DictionaryDetailSection,
         context: str = "TOEIC",
+        client_id: str = "default",
     ) -> Dict[str, Any]:
         self.stats["total_requests"] += 1
         clean_text = text.strip()
@@ -1284,7 +1497,36 @@ class GeminiTranslationService:
             asyncio.create_task(self._save_to_redis_cache(word_only_hash, system_detail, ttl=7 * 86400))
             return system_detail
 
+        # Circuit Breaker check
+        can_call, cb_state = await self.circuit_breaker.can_attempt()
+        if not can_call:
+            self.stats["circuit_breaker_rejections"] += 1
+            return {
+                "source_text": clean_text,
+                "section": section,
+                "items": [],
+                "degraded": True,
+                "cached": False,
+                "cache_source": "circuit_breaker_degraded",
+                "note": "Dịch vụ AI đang tạm thời ngắt mạch để bảo vệ hệ thống.",
+            }
+
         async def _execute_gemini_detail_call():
+            # Rate Limiting check (Only on actual Tier 4 detail call!)
+            allowed, retry_after = await self.check_user_rate_limit(client_id)
+            if not allowed:
+                self.stats["rate_limit_rejections"] += 1
+                return {
+                    "source_text": clean_text,
+                    "section": section,
+                    "error": f"Bạn đã vượt quá giới hạn tra cứu (tối đa {getattr(config, 'GEMINI_RATE_LIMIT_PER_MINUTE', 30)} lần/phút). Vui lòng thử lại sau {retry_after}s.",
+                    "status_code": 429,
+                    "rate_limited": True,
+                    "retry_after": retry_after,
+                    "cached": False,
+                    "cache_source": "rate_limit",
+                }
+
             if not self.client:
                 self.stats["errors"] += 1
                 return {
@@ -1304,8 +1546,10 @@ class GeminiTranslationService:
                         section,
                         context,
                     )
+                    await self.circuit_breaker.record_success()
                 except Exception as error:
                     self.stats["errors"] += 1
+                    await self.circuit_breaker.record_failure(error)
                     self.stats["last_error"] = {
                         "type": type(error).__name__,
                         "message": str(error)[:500],
@@ -1609,6 +1853,12 @@ Keep every item concise and accurate for a Vietnamese learner.
             "redis_connected": self.is_redis_ready,
             "redis_hit_count": self.stats.get("redis_hit_count", 0),
             "l0_local_hits": self.stats.get("l0_local_hits", 0),
+            "circuit_breaker": {
+                "state": self.circuit_breaker.state,
+                "consecutive_failures": self.circuit_breaker.consecutive_failures,
+                "cooldown_until": self.circuit_breaker.cooldown_until,
+            },
+            "rate_limit_per_minute": getattr(config, "GEMINI_RATE_LIMIT_PER_MINUTE", 30),
             "word_inflections_count": inflections_count,
             "community_translations_count": community_count,
             "invalid_selections_count": invalid_count,

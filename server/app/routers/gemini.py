@@ -1,5 +1,5 @@
 import asyncio
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Request
 from pydantic import BaseModel, Field
 from typing import List, Literal, Optional, Dict, Any
 
@@ -27,35 +27,51 @@ class TranslationDetailRequest(BaseModel):
     target_lang: Optional[str] = "vi"
     context: Optional[str] = "toeic"
 
+def _get_client_id(request: Request) -> str:
+    xfwd = request.headers.get("X-Forwarded-For")
+    if xfwd:
+        return xfwd.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
 @router.post("", summary="Dịch từ vựng / câu (Tối ưu hóa Cache 2 lớp & Concurrency)")
-async def translate_single(req: TranslationRequest):
+async def translate_single(req: TranslationRequest, request: Request):
     if not req.text or not req.text.strip():
         raise HTTPException(status_code=400, detail="Nội dung 'text' không được để trống.")
     
+    client_id = _get_client_id(request)
     result = await gemini_service.translate_text(
         text=req.text.strip(),
         src_lang=req.source_lang,
         target_lang=req.target_lang,
-        context=req.context
+        context=req.context,
+        client_id=client_id,
     )
+    if result.get("rate_limited") or result.get("status_code") == 429:
+        raise HTTPException(
+            status_code=429,
+            detail=result.get("error", "Quá giới hạn tra từ mới. Vui lòng thử lại sau."),
+            headers={"Retry-After": str(result.get("retry_after", 60))},
+        )
     if result.get("cache_source") == "error":
         raise HTTPException(status_code=503, detail=result.get("error", "Dịch vụ Gemini tạm thời không khả dụng."))
     return result
 
 @router.post("/batch", summary="Dịch theo lô (Batch translation cho danh sách từ vựng)")
-async def translate_batch(req: BatchTranslationRequest):
+async def translate_batch(req: BatchTranslationRequest, request: Request):
     if not req.items:
         raise HTTPException(status_code=400, detail="Danh sách 'items' không được để trống.")
     
     if len(req.items) > 50:
         raise HTTPException(status_code=400, detail="Một batch tối đa chỉ hỗ trợ 50 từ/câu.")
 
+    client_id = _get_client_id(request)
     tasks = [
         gemini_service.translate_text(
             text=item.strip(),
             src_lang=req.source_lang,
             target_lang=req.target_lang,
-            context=req.context
+            context=req.context,
+            client_id=client_id,
         )
         for item in req.items if item and item.strip()
     ]
@@ -67,12 +83,20 @@ async def translate_batch(req: BatchTranslationRequest):
     }
 
 @router.post("/details", summary="Tải chi tiết từ điển theo từng tab")
-async def translate_detail(req: TranslationDetailRequest):
+async def translate_detail(req: TranslationDetailRequest, request: Request):
+    client_id = _get_client_id(request)
     result = await gemini_service.get_dictionary_detail(
         text=req.text.strip(),
         section=req.section,
         context=req.context or "TOEIC",
+        client_id=client_id,
     )
+    if result.get("rate_limited") or result.get("status_code") == 429:
+        raise HTTPException(
+            status_code=429,
+            detail=result.get("error", "Quá giới hạn tra cứu. Vui lòng thử lại sau."),
+            headers={"Retry-After": str(result.get("retry_after", 60))},
+        )
     if result.get("cache_source") == "error":
         raise HTTPException(status_code=503, detail=result.get("error", "Không thể tải dữ liệu từ Gemini."))
     return result

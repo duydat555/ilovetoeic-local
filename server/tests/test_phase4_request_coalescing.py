@@ -2,6 +2,7 @@ import asyncio
 import os
 import sys
 import time
+import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # Ensure UTF-8 output on Windows
@@ -23,7 +24,7 @@ async def test_single_flight_coalescing():
 
     # 1. 50 Concurrent Requests for an unseen word
     print("\n[+] 1. Simulating 50 concurrent requests for an unseen word...")
-    unseen_word = "coalesce_probe_word_xyz"
+    unseen_word = f"coalesce_probe_{uuid.uuid4().hex[:8]}"
     unseen_context = "This is an unseen sentence for coalescing test."
 
     # Record baseline stats

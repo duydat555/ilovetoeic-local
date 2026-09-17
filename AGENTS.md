@@ -10,6 +10,7 @@ Chi tiết theo từng mảng được tách trong `docs/agents/`. Dựa vào lo
 | Deploy, CI/CD, VPS, secrets, tài nguyên server | `docs/agents/deployment.md` |
 | Modal, dialog, animation, motion | `docs/agents/ui-motion.md` |
 | API endpoint, cache logic, performance backend | `docs/agents/backend-api.md` |
+| Bôi đen dịch AI, từ điển ngữ cảnh, lemmatization | `docs/agents/highlight-to-translate/README.md` |
 
 ## Production safety (áp dụng chung, luôn đọc trước khi sửa gì)
 

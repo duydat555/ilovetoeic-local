@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   BookOpen, Check, Cpu, FolderOpen, Loader2, Plus, StickyNote, Volume2, X,
 } from 'lucide-react';
@@ -19,6 +19,7 @@ import {
 interface Position {
   left: number;
   top: number;
+  maxHeight?: number;
 }
 
 type TabId = 'meaning' | DictionaryDetailSection;
@@ -63,7 +64,7 @@ export const isValidSelection = (text: string): boolean => {
 };
 
 const CARD_WIDTH = 450;
-const CARD_HEIGHT = 560;
+const CARD_MAX_HEIGHT = 540;
 const DEFAULT_VOCABULARY_TOPIC: VocabularyTopicSelection = {
   id: 'ai',
   name: 'Từ đã tra bằng AI',
@@ -120,9 +121,23 @@ const parseDualPhonetic = (
   };
 };
 
-const TabSkeleton = () => (
+const TabSkeleton: React.FC = () => (
   <div className="space-y-3 py-1" role="status" aria-label="Đang tải nội dung">
-    <BoneyardSkeleton name="translator-skeleton" variant="card" count={3} height={64} />
+    <BoneyardSkeleton name="translator-detail-skeleton" variant="card" count={2} height={64} />
+  </div>
+);
+
+const MeaningSkeleton: React.FC = () => (
+  <div className="space-y-3 py-1" role="status" aria-label="Đang tải nghĩa từ vựng">
+    <div className="rounded-xl bg-brand-50/50 p-3.5 dark:bg-brand-500/10 space-y-2">
+      <div className="h-2.5 w-24 rounded bg-brand-200/70 dark:bg-brand-400/20 animate-pulse" />
+      <div className="mt-2.5 h-5 w-3/4 rounded-lg bg-brand-200/80 dark:bg-brand-400/30 animate-pulse" />
+    </div>
+    <div className="rounded-xl border border-slate-100 p-3.5 dark:border-line space-y-2">
+      <div className="h-2.5 w-32 rounded bg-slate-200 dark:bg-surface-elevated animate-pulse" />
+      <div className="h-3.5 w-full rounded bg-slate-200 dark:bg-surface-elevated animate-pulse" />
+      <div className="h-3.5 w-4/5 rounded bg-slate-200 dark:bg-surface-elevated animate-pulse" />
+    </div>
   </div>
 );
 
@@ -138,11 +153,16 @@ const SourceBadge = ({ source }: { source: AiSource }) => {
 
 export const SelectionTranslator: React.FC = () => {
   const { user } = useAuth();
+  const shouldReduceMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement>(null);
+  const positionRef = useRef<Position | null>(null);
   const requestId = useRef(0);
   const contextRef = useRef('');
   const lookupAbortRef = useRef<AbortController | null>(null);
   const detailAbortRef = useRef<AbortController | null>(null);
+  const mouseDownCoordsRef = useRef({ x: 0, y: 0 });
+  const isMouseDownInsideRef = useRef(false);
+
   const [position, setPosition] = useState<Position | null>(null);
   const [selectedWord, setSelectedWord] = useState('');
   const [translation, setTranslation] = useState<WordTranslation | null>(null);
@@ -164,6 +184,7 @@ export const SelectionTranslator: React.FC = () => {
       setPlayingAccent((curr) => (curr === accent ? null : curr));
     }
   }, [selectedWord, translation]);
+
   const [details, setDetails] = useState<Partial<Record<DictionaryDetailSection, DictionaryDetailResult>>>({});
   const [loadingTabs, setLoadingTabs] = useState<Partial<Record<DictionaryDetailSection, boolean>>>({});
   const [tabErrors, setTabErrors] = useState<Partial<Record<DictionaryDetailSection, string>>>({});
@@ -230,6 +251,7 @@ export const SelectionTranslator: React.FC = () => {
     lookupAbortRef.current = null;
     detailAbortRef.current = null;
     requestId.current += 1;
+    positionRef.current = null;
     setPosition(null);
     setSelectedWord('');
     setTranslation(null);
@@ -246,7 +268,11 @@ export const SelectionTranslator: React.FC = () => {
     setSelectedTopicId(DEFAULT_VOCABULARY_TOPIC.id);
   }, []);
 
-  const lookupWord = useCallback(async (word: string, context = contextRef.current) => {
+  const lookupWord = useCallback(async (
+    word: string,
+    context = contextRef.current,
+    initialTranslation?: WordTranslation,
+  ) => {
     lookupAbortRef.current?.abort();
     detailAbortRef.current?.abort();
     const controller = new AbortController();
@@ -255,7 +281,6 @@ export const SelectionTranslator: React.FC = () => {
     const id = ++requestId.current;
     contextRef.current = context;
     setSelectedWord(word);
-    setTranslation(null);
     setActiveTab('meaning');
     setDetails({});
     setLoadingTabs({});
@@ -265,6 +290,14 @@ export const SelectionTranslator: React.FC = () => {
     setSelectedTopicId(DEFAULT_VOCABULARY_TOPIC.id);
     setPersonalNote('');
     setError('');
+
+    if (initialTranslation) {
+      setTranslation(initialTranslation);
+      setLoading(false);
+      return;
+    }
+
+    setTranslation(null);
     setLoading(true);
 
     try {
@@ -299,16 +332,28 @@ export const SelectionTranslator: React.FC = () => {
       if (!container || container.closest('input, textarea, [contenteditable="true"], [data-no-translate]')) return;
 
       const rect = range.getBoundingClientRect();
-      const visibleWidth = Math.min(CARD_WIDTH, window.innerWidth - 24);
-      const left = Math.min(
-        Math.max(12, rect.left + rect.width / 2 - visibleWidth / 2),
-        window.innerWidth - visibleWidth - 12,
-      );
-      const preferredTop = rect.top < CARD_HEIGHT + 36 ? rect.bottom + 10 : rect.top - CARD_HEIGHT - 10;
-      const top = Math.min(
-        Math.max(12, preferredTop),
-        Math.max(12, window.innerHeight - Math.min(CARD_HEIGHT, window.innerHeight - 24) - 12),
-      );
+      const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      const cardWidth = Math.min(CARD_WIDTH, viewportWidth - 24);
+      let left = rect.left + rect.width / 2 - cardWidth / 2;
+      left = Math.max(12, Math.min(left, viewportWidth - cardWidth - 12));
+
+      const spaceBelow = viewportHeight - rect.bottom - 16;
+      const spaceAbove = rect.top - 16;
+
+      let top: number;
+      let maxHeight: number;
+
+      if (spaceBelow >= 340 || spaceBelow >= spaceAbove) {
+        top = rect.bottom + 8;
+        maxHeight = Math.min(CARD_MAX_HEIGHT, Math.max(220, spaceBelow));
+      } else {
+        const calculatedHeight = Math.min(CARD_MAX_HEIGHT, Math.max(220, spaceAbove));
+        top = Math.max(12, rect.top - calculatedHeight - 8);
+        maxHeight = calculatedHeight;
+      }
+
       const context = (container.closest('.toeic-passage')?.textContent || container.textContent || '')
         .replace(/\s+/g, ' ')
         .trim()
@@ -320,32 +365,66 @@ export const SelectionTranslator: React.FC = () => {
         void dictionaryService.prewarmPassage(passageId);
       }
 
-      setPosition({ left, top });
-      void lookupWord(word, context);
-    };
+      const newPos: Position = { left, top, maxHeight };
+      positionRef.current = newPos;
+      setPosition(newPos);
 
-    const onMouseUp = () => {
-      if (debounceTimer) window.clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(translateSelection, 180);
-    };
-
-    const onTouchEnd = () => {
-      if (debounceTimer) window.clearTimeout(debounceTimer);
-      debounceTimer = window.setTimeout(translateSelection, 180);
+      const cached = dictionaryService.getCachedWord(word);
+      void lookupWord(word, context, cached);
     };
 
     const onMouseDown = (event: MouseEvent | TouchEvent) => {
+      const clientX = 'touches' in event ? event.touches[0]?.clientX ?? 0 : event.clientX;
+      const clientY = 'touches' in event ? event.touches[0]?.clientY ?? 0 : event.clientY;
+      mouseDownCoordsRef.current = { x: clientX, y: clientY };
+
+      const target = event.target as Node | null;
+      const isInside = Boolean(rootRef.current && target && rootRef.current.contains(target));
+      isMouseDownInsideRef.current = isInside;
+
       if (debounceTimer) {
         window.clearTimeout(debounceTimer);
         debounceTimer = null;
       }
-      lookupAbortRef.current?.abort();
-      detailAbortRef.current?.abort();
-      if (
-        rootRef.current &&
-        !rootRef.current.contains(event.target as Node)
-      ) {
-        close();
+    };
+
+    const onMouseUp = (event: MouseEvent | TouchEvent) => {
+      if (debounceTimer) {
+        window.clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+
+      if (isMouseDownInsideRef.current) {
+        return;
+      }
+
+      const clientX = 'changedTouches' in event ? event.changedTouches[0]?.clientX ?? 0 : event.clientX;
+      const clientY = 'changedTouches' in event ? event.changedTouches[0]?.clientY ?? 0 : event.clientY;
+      const dx = clientX - mouseDownCoordsRef.current.x;
+      const dy = clientY - mouseDownCoordsRef.current.y;
+      const distance = Math.hypot(dx, dy);
+
+      const selection = window.getSelection();
+      const hasValidSelection = Boolean(
+        selection &&
+        !selection.isCollapsed &&
+        isValidSelection(extractTextFromSelection(selection))
+      );
+
+      // Simple click outside (no drag, collapsed selection) -> Dismiss popover
+      if (distance < 6 && (!selection || selection.isCollapsed || !selection.toString().trim())) {
+        if (positionRef.current) {
+          close();
+        }
+        return;
+      }
+
+      if (hasValidSelection) {
+        debounceTimer = window.setTimeout(translateSelection, 140);
+      } else if (positionRef.current && distance >= 6) {
+        if (!selection || selection.isCollapsed || !isValidSelection(extractTextFromSelection(selection))) {
+          close();
+        }
       }
     };
 
@@ -360,7 +439,7 @@ export const SelectionTranslator: React.FC = () => {
     };
 
     document.addEventListener('mouseup', onMouseUp);
-    document.addEventListener('touchend', onTouchEnd);
+    document.addEventListener('touchend', onMouseUp);
     document.addEventListener('mousedown', onMouseDown);
     document.addEventListener('touchstart', onMouseDown);
     window.addEventListener('keydown', onKeyDown);
@@ -368,7 +447,7 @@ export const SelectionTranslator: React.FC = () => {
     return () => {
       if (debounceTimer) window.clearTimeout(debounceTimer);
       document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('touchend', onTouchEnd);
+      document.removeEventListener('touchend', onMouseUp);
       document.removeEventListener('mousedown', onMouseDown);
       document.removeEventListener('touchstart', onMouseDown);
       window.removeEventListener('keydown', onKeyDown);
@@ -523,7 +602,10 @@ export const SelectionTranslator: React.FC = () => {
             {(activeDetail.items as string[]).map((synonym) => (
               <button
                 key={synonym}
-                onClick={() => void lookupWord(synonym)}
+                onClick={() => {
+                  const cached = dictionaryService.getCachedWord(synonym);
+                  void lookupWord(synonym, contextRef.current, cached);
+                }}
                 className="rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 transition hover:-translate-y-0.5 hover:bg-brand-100 dark:border-brand-900 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
               >
                 {synonym}
@@ -539,7 +621,10 @@ export const SelectionTranslator: React.FC = () => {
         {(activeDetail.items as DictionaryWordFamily[]).map((item) => (
           <button
             key={`${item.word}-${item.partOfSpeech}`}
-            onClick={() => void lookupWord(item.word)}
+            onClick={() => {
+              const cached = dictionaryService.getCachedWord(item.word);
+              void lookupWord(item.word, contextRef.current, cached);
+            }}
             className="grid w-full grid-cols-[1fr_auto] items-center gap-3 px-3.5 py-2.5 text-left transition hover:bg-brand-50 dark:hover:bg-brand-500/10"
           >
             <span>
@@ -562,23 +647,30 @@ export const SelectionTranslator: React.FC = () => {
           ref={rootRef}
           data-no-translate
           role="dialog"
-          aria-label={`AI Dictionary: ${selectedWord}`}
-          initial={{ opacity: 0, y: 8, scale: 0.97 }}
+          aria-label={`Từ điển ngữ cảnh: ${selectedWord}`}
+          initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 5, scale: 0.97 }}
-          transition={{ type: 'spring', stiffness: 430, damping: 32 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 6, scale: 0.98 }}
+          transition={{
+            duration: shouldReduceMotion ? 0.08 : 0.16,
+            ease: [0.22, 1, 0.36, 1],
+          }}
           style={{
             left: position.left,
             top: position.top,
             width: `min(${CARD_WIDTH}px, calc(100vw - 24px))`,
+            maxHeight: position.maxHeight ? `${position.maxHeight}px` : undefined,
           }}
-          className="fixed z-[100] flex max-h-[min(560px,calc(100vh-24px))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/95 text-slate-800 shadow-[0_24px_70px_-20px_rgba(15,23,42,.3)] backdrop-blur-xl dark:border-line dark:bg-surface/95 dark:text-content"
+          className="fixed z-[100] flex max-h-[min(540px,calc(100vh-24px))] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-800 shadow-[0_20px_60px_-15px_rgba(15,23,42,.22)] will-change-transform dark:border-line dark:bg-surface dark:text-content dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,.6)]"
+          onMouseDown={(event) => event.stopPropagation()}
           onMouseUp={(event) => event.stopPropagation()}
         >
-          <header className="shrink-0 border-b border-slate-200 bg-white/95 px-4 pt-3 dark:border-line dark:bg-surface/95">
+          <header className="shrink-0 border-b border-slate-100 bg-white px-4 pt-3 dark:border-line dark:bg-surface">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-slate-500 dark:text-content-muted">AI Dictionary</span>
+                <span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-slate-500 dark:text-content-muted">
+                  Từ điển ngữ cảnh
+                </span>
                 {translation && <SourceBadge source={activeSource} />}
               </div>
               <button
@@ -590,19 +682,21 @@ export const SelectionTranslator: React.FC = () => {
               </button>
             </div>
 
-            <div className="mt-3.5 space-y-2.5">
+            <div className="mt-3 space-y-2.5">
               <div className="flex flex-wrap items-baseline gap-2.5">
                 <h3 className="truncate text-[26px] font-black tracking-tight text-slate-950 dark:text-content">
                   {selectedWord}
                 </h3>
-                {translation?.partOfSpeech && (
+                {translation?.partOfSpeech ? (
                   <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:bg-surface-elevated dark:text-content-muted">
                     {translation.partOfSpeech}
                   </span>
-                )}
+                ) : loading ? (
+                  <div className="h-5 w-14 rounded-full bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                ) : null}
               </div>
 
-              {translation && (
+              {translation ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {/* UK Pronunciation */}
                   <button
@@ -658,7 +752,12 @@ export const SelectionTranslator: React.FC = () => {
                     </span>
                   </button>
                 </div>
-              )}
+              ) : loading ? (
+                <div className="flex items-center gap-2 h-[34px]">
+                  <div className="h-8 w-24 rounded-xl bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                  <div className="h-8 w-24 rounded-xl bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                </div>
+              ) : null}
             </div>
 
             <div className="-mx-1 mt-3 flex gap-0.5 overflow-x-auto pb-2" role="tablist" aria-label="Nội dung từ điển">
@@ -682,13 +781,13 @@ export const SelectionTranslator: React.FC = () => {
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {loading && (
-              <div className="space-y-3 py-2" role="status">
-                <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                  <Loader2 className="size-4 animate-spin text-brand-600" />
+            {loading && !translation && (
+              <div className="space-y-3" role="status">
+                <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-content-muted">
+                  <Loader2 className="size-3.5 animate-spin text-brand-600 dark:text-brand-400" />
                   Đang phân tích theo ngữ cảnh...
                 </div>
-                <TabSkeleton />
+                <MeaningSkeleton />
               </div>
             )}
             {translation && renderTabContent()}
@@ -699,8 +798,8 @@ export const SelectionTranslator: React.FC = () => {
             )}
           </div>
 
-          {translation && (
-            <footer className="shrink-0 border-t border-slate-200 bg-white/95 p-3 dark:border-line dark:bg-surface/95">
+          {(translation || (loading && !error)) && (
+            <footer className="shrink-0 border-t border-slate-100 bg-white p-3 dark:border-line dark:bg-surface">
               <label className="mb-2 block">
                 <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
                   <FolderOpen className="size-3.5" />
@@ -713,7 +812,7 @@ export const SelectionTranslator: React.FC = () => {
                     setSaved(false);
                     setError('');
                   }}
-                  disabled={saving}
+                  disabled={saving || loading}
                   className="block min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
                   aria-label="Chọn chủ đề lưu từ vựng"
                 >
@@ -733,13 +832,14 @@ export const SelectionTranslator: React.FC = () => {
                   }}
                   rows={2}
                   maxLength={500}
+                  disabled={loading}
                   placeholder="Thêm nghĩa hoặc ghi chú theo cách hiểu của bạn..."
-                  className="block max-h-20 min-h-14 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs leading-relaxed text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
+                  className="block max-h-20 min-h-14 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs leading-relaxed text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
                 />
               </label>
               <button
                 onClick={addToVocabulary}
-                disabled={saved || saving || !user}
+                disabled={saved || saving || !user || loading}
                 className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-brand-ink transition hover:bg-brand-hover active:scale-[.99] disabled:bg-brand-500 disabled:opacity-70"
               >
                 {saving
@@ -747,7 +847,13 @@ export const SelectionTranslator: React.FC = () => {
                   : saved
                     ? <Check className="size-4" />
                     : <Plus className="size-4" />}
-                {saving ? 'Đang đồng bộ...' : saved ? 'Đã có trong kho từ vựng' : 'Thêm vào kho từ vựng'}
+                {loading
+                  ? 'Đang chuẩn bị...'
+                  : saving
+                    ? 'Đang đồng bộ...'
+                    : saved
+                      ? 'Đã có trong kho từ vựng'
+                      : 'Thêm vào kho từ vựng'}
               </button>
             </footer>
           )}

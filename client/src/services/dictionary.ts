@@ -61,6 +61,11 @@ export const dictionaryService = {
     return promise;
   },
 
+  getCachedWord(word: string): WordTranslation | undefined {
+    const cacheKey = word.trim().toLowerCase();
+    return cacheKey ? translationClientCache.get(cacheKey) : undefined;
+  },
+
   async translateWord(word: string, context = '', signal?: AbortSignal): Promise<WordTranslation> {
     const cacheKey = word.trim().toLowerCase();
     if (cacheKey && translationClientCache.has(cacheKey)) {

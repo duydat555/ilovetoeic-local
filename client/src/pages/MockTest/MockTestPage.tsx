@@ -15,8 +15,10 @@ import { backendService } from '../../services/backend';
 import { useAuth } from '../../context/AuthContext';
 import { storage } from '../../utils/storage';
 import { countTestPracticeSessions, deleteTestPracticeSessions } from '../../utils/practiceSessions';
+import { useLanguage } from '../../context/LanguageContext';
 
 export const MockTestPage: React.FC = () => {
+  const { language, t } = useLanguage();
   const [allTests, setAllTests] = useState<MockTestItem[]>([]);
   const [tests, setTests] = useState<MockTestItem[]>([]);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -263,13 +265,17 @@ export const MockTestPage: React.FC = () => {
       const totalDeleted = Math.max(serverDeleted, localHistoryDeleted);
       setToastMessage(
         totalDeleted > 0 || wrongDeleted > 0
-          ? `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteTest.title}.`
-          : `Đã dọn sạch dữ liệu bài làm của ${deleteTest.title}.`,
+          ? (language === 'en'
+              ? `Deleted ${totalDeleted} attempt(s) and ${wrongDeleted} wrong question(s) for ${deleteTest.title}.`
+              : `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteTest.title}.`)
+          : (language === 'en'
+              ? `Cleared test data for ${deleteTest.title}.`
+              : `Đã dọn sạch dữ liệu bài làm của ${deleteTest.title}.`),
       );
       setDeleteTest(null);
       window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (requestError) {
-      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
+      setDeleteError(requestError instanceof Error ? requestError.message : (language === 'en' ? 'Unable to delete practice history.' : 'Không thể xoá lịch sử làm bài.'));
     } finally {
       setDeletingWrong(false);
     }
@@ -277,8 +283,9 @@ export const MockTestPage: React.FC = () => {
   const deleteTestHistoryCount = deleteTest
     ? Math.max(
         historyCounts[deleteTest.id] || 0,
-        storage.getTestHistory().filter((h) => String(h.testId) === String(deleteTest.id)).length,
+        storage.getTestHistory().filter((h) => String(h.testId || '').trim().toLowerCase() === String(deleteTest.id).trim().toLowerCase()).length,
         countTestPracticeSessions(deleteTest.id),
+        wrongCounts[deleteTest.id] || 0,
       )
     : 0;
 
@@ -288,26 +295,26 @@ export const MockTestPage: React.FC = () => {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="eyebrow mb-2">
-            <ClipboardCheck className="size-3.5" /> Phòng thi mô phỏng
+            <ClipboardCheck className="size-3.5" /> {t('mockTest.simulationLab')}
           </div>
           <h1 className="text-2xl font-black tracking-tight text-content sm:text-3xl">
-            {currentTab === 'library' ? 'Kho đề thi TOEIC' : 'Lịch sử & Kết quả làm bài'}
+            {currentTab === 'library' ? t('mockTest.libraryTitle') : t('mockTest.historyTitle')}
           </h1>
           <p className="mt-1 text-sm text-content-muted">
             {currentTab === 'library'
-              ? 'Luyện theo từng Part hoặc mô phỏng trọn vẹn kỳ thi TOEIC 120 phút với bảng điểm quy đổi chuẩn.'
-              : 'Theo dõi tiến trình rèn luyện, xem lại bài thi chi tiết và phân tích điểm số từng phần.'}
+              ? t('mockTest.libraryDesc')
+              : t('mockTest.historyDesc')}
           </p>
         </div>
 
         <div className="surface flex items-center gap-2.5 rounded-2xl border border-line px-3.5 py-2 text-xs font-semibold text-content-muted shrink-0">
           <CheckCircle2 className="size-4 text-emerald-500" />
-          <span>Tiến độ được tự động lưu vào database</span>
+          <span>{t('mockTest.autoSaved')}</span>
         </div>
       </div>
 
       {/* 2. Primary Tab Navigation (Kho đề thi vs Lịch sử làm bài - chuyển tức thì không hiệu ứng giật) */}
-      <div className="flex items-center gap-1.5 rounded-2xl border border-line bg-surface p-1 shadow-xs w-fit">
+      <div id="tour-mt-tabs" className="flex items-center gap-1.5 rounded-2xl border border-line bg-surface p-1 shadow-xs w-fit">
         <button
           type="button"
           onClick={() => handleTabChange('library')}
@@ -318,7 +325,7 @@ export const MockTestPage: React.FC = () => {
           }`}
         >
           <LayoutGrid className="size-4" />
-          <span>Kho đề thi</span>
+          <span>{t('mockTest.libraryTab')}</span>
         </button>
 
         <button
@@ -331,7 +338,7 @@ export const MockTestPage: React.FC = () => {
           }`}
         >
           <History className="size-4" />
-          <span>Lịch sử làm bài</span>
+          <span>{t('mockTest.historyTab')}</span>
           {totalHistoryCount > 0 && (
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
@@ -349,7 +356,7 @@ export const MockTestPage: React.FC = () => {
       {/* 3. Tab Content (Giữ sẵn DOM, chuyển tab tức thì 0ms, không nháy skeleton) */}
       <div className={currentTab === 'library' ? 'space-y-6' : 'hidden'}>
         {/* Top Filter Pill Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto py-1 px-0.5 no-scrollbar min-h-[44px]">
+        <div id="tour-mt-years" className="flex items-center gap-2 overflow-x-auto py-1 px-0.5 no-scrollbar min-h-[44px]">
           {loading ? (
             [1, 2, 3, 4].map((id) => (
               <BoneyardSkeleton key={id} name={`year-skeleton-${id}`} variant="button" width={80} height={32} />
@@ -381,7 +388,7 @@ export const MockTestPage: React.FC = () => {
             ))}
           </div>
         ) : tests.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div id="tour-mt-grid" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {tests.map((test) => (
               <TestCard
                 key={test.id}
@@ -418,8 +425,8 @@ export const MockTestPage: React.FC = () => {
         ) : (
           <div className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center">
             <ClipboardCheck className="mx-auto size-8 text-content-muted" aria-hidden="true" />
-            <h2 className="mt-3 text-base font-extrabold text-content">Chưa có đề thi thật</h2>
-            <p className="mt-1 text-sm text-content-muted">Kho đề sẽ hiển thị khi máy chủ có dữ liệu phù hợp.</p>
+            <h2 className="mt-3 text-base font-extrabold text-content">{t('mockTest.noTests')}</h2>
+            <p className="mt-1 text-sm text-content-muted">{t('mockTest.noTestsDesc')}</p>
           </div>
         )}
       </div>
@@ -470,9 +477,15 @@ export const MockTestPage: React.FC = () => {
             wrongCount={deleteTestHistoryCount}
             deleting={deletingWrong}
             error={deleteError}
-            title="Xoá lịch sử làm bài?"
-            description={<>Toàn bộ <strong className="text-content">{deleteTestHistoryCount} lượt hoặc phiên làm bài đã lưu</strong>, gồm kết quả câu đúng và câu sai của <strong className="text-content">{deleteTest.title}</strong>, sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>}
-            confirmLabel="Xoá toàn bộ lịch sử"
+            title={deleteTestHistoryCount > 0 ? 'Xoá lịch sử làm bài?' : 'Dọn sạch dữ liệu bài thi?'}
+            description={
+              deleteTestHistoryCount > 0 ? (
+                <>Toàn bộ <strong className="text-content">{deleteTestHistoryCount} lượt làm bài, câu sai hoặc phiên làm dở</strong> của <strong className="text-content">{deleteTest.title}</strong> sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>
+              ) : (
+                <>Đề thi <strong className="text-content">{deleteTest.title}</strong> hiện chưa có lượt hoàn thành nào trong danh sách. Thao tác này sẽ dọn sạch toàn bộ bài thi nháp, câu sai và dữ liệu tạm của đề này khỏi thiết bị và cơ sở dữ liệu.</>
+              )
+            }
+            confirmLabel={deleteTestHistoryCount > 0 ? 'Xoá toàn bộ lịch sử' : 'Dọn sạch dữ liệu'}
             closeLabel="Đóng xác nhận xoá lịch sử làm bài"
             onConfirm={() => void handleDeleteHistory()}
             onClose={closeDeleteModal}

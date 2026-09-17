@@ -19,6 +19,7 @@ import {
   YAxis,
 } from 'recharts';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { backendService, RecentActiveStudent } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
@@ -26,16 +27,16 @@ import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivi
 import { CommunityChatWidget } from '../../components/dashboard/CommunityChatWidget';
 import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
 
-const formatRelativeTimeVi = (dateString?: string) => {
-  if (!dateString) return 'Vừa xong';
+const formatRelativeTime = (dateString?: string, lang: 'vi' | 'en' = 'vi') => {
+  if (!dateString) return lang === 'en' ? 'Just now' : 'Vừa xong';
   const date = new Date(dateString);
   const now = new Date();
   const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffSec < 60) return 'Vừa truy cập';
-  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
-  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} giờ trước`;
-  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+  if (diffSec < 60) return lang === 'en' ? 'Just now' : 'Vừa truy cập';
+  if (diffSec < 3600) return lang === 'en' ? `${Math.floor(diffSec / 60)}m ago` : `${Math.floor(diffSec / 60)} phút trước`;
+  if (diffSec < 86400) return lang === 'en' ? `${Math.floor(diffSec / 3600)}h ago` : `${Math.floor(diffSec / 3600)} giờ trước`;
+  return new Intl.DateTimeFormat(lang === 'en' ? 'en-US' : 'vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(date);
 };
 
 const DashboardLoadingState: React.FC = () => (
@@ -91,6 +92,7 @@ const DashboardLoadingState: React.FC = () => (
 
 export const DashboardLivePage: React.FC = () => {
   const { user } = useAuth();
+  const { language, t } = useLanguage();
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
   const [studySummary, setStudySummary] = useState({ totalQuestions: 0, correctQuestions: 0, accuracyRate: 0 });
   const [activeStudents, setActiveStudents] = useState<RecentActiveStudent[]>([]);
@@ -109,14 +111,14 @@ export const DashboardLivePage: React.FC = () => {
         backendService.getRecentActiveStudents(),
       ]);
       if (data === null) {
-        setError('Không thể tải lịch sử học tập từ hệ thống.');
+        setError(language === 'en' ? 'Could not load study history from server.' : 'Không thể tải lịch sử học tập từ hệ thống.');
       } else {
         setAttempts(data);
         setStudySummary(summary);
         setActiveStudents(activeList);
       }
     } catch {
-      setError('Đã xảy ra lỗi khi kết nối dữ liệu.');
+      setError(language === 'en' ? 'Failed to connect to data server.' : 'Đã xảy ra lỗi khi kết nối dữ liệu.');
     } finally {
       setLoading(false);
     }
@@ -179,17 +181,17 @@ export const DashboardLivePage: React.FC = () => {
       .slice(-8)
       .map((item) => {
         const dateStr = item.completedAt
-          ? new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(item.completedAt))
-          : 'Gần đây';
+          ? new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'vi-VN', { day: '2-digit', month: '2-digit' }).format(new Date(item.completedAt))
+          : (language === 'en' ? 'Recent' : 'Gần đây');
         return {
           label: dateStr,
           score: item.totalScore || 0,
           accuracy: item.accuracyRate,
           correct: `${item.correctAnswers}/${item.totalQuestions}`,
-          name: item.testName || (item.part ? `Luyện Part ${item.part}` : 'Bài tập TOEIC'),
+          name: item.testName || (item.part ? (language === 'en' ? `Practice Part ${item.part}` : `Luyện Part ${item.part}`) : (language === 'en' ? 'TOEIC Exercise' : 'Bài tập TOEIC')),
         };
       });
-  }, [attempts]);
+  }, [attempts, language]);
 
   if (!user) return null;
   if (loading) return <DashboardLoadingState />;
@@ -204,25 +206,25 @@ export const DashboardLivePage: React.FC = () => {
 
   const metricCards = [
     {
-      label: 'Điểm cao nhất',
-      value: hasToeicScore ? `${currentScore} điểm` : 'Chưa có điểm',
+      label: t('dashboard.bestScore'),
+      value: hasToeicScore ? `${currentScore} ${t('common.points')}` : t('dashboard.noScore'),
       subtext: hasToeicScore
-        ? (currentScore >= targetScore ? 'Đã đạt mục tiêu 🎉' : `Còn thiếu ${pointsRemaining} điểm`)
-        : 'Cần hoàn thành đề thi đủ 200 câu',
+        ? (currentScore >= targetScore ? t('dashboard.goalAchieved') : t('dashboard.scoreNeeded', { points: pointsRemaining }))
+        : t('dashboard.fullTestHint'),
       icon: Target,
       color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40',
     },
     {
-      label: 'Mục tiêu TOEIC',
-      value: `${targetScore} điểm`,
-      subtext: `${progress}% tiến độ hoàn thành`,
+      label: t('dashboard.targetScore'),
+      value: `${targetScore} ${t('common.points')}`,
+      subtext: `${progress}% ${t('common.completed')}`,
       icon: TrendingUp,
       color: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10 dark:text-sky-300 border-sky-200/60 dark:border-sky-900/40',
     },
     {
-      label: 'Độ chính xác trung bình',
+      label: t('dashboard.accuracy'),
       value: `${metrics.averageAccuracy}%`,
-      subtext: metrics.totalQuestions > 0 ? `Đúng ${metrics.totalCorrect}/${metrics.totalQuestions} câu` : 'Chưa có câu trả lời được ghi nhận',
+      subtext: metrics.totalQuestions > 0 ? t('dashboard.questionsCorrect', { correct: metrics.totalCorrect, total: metrics.totalQuestions }) : t('dashboard.noAnswersYet'),
       icon: BookOpenCheck,
       color: 'text-brand-700 bg-brand-50 dark:bg-brand-500/10 dark:text-brand-300 border-brand-200/60 dark:border-brand-900/40',
     },
@@ -231,12 +233,14 @@ export const DashboardLivePage: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Welcome Back Card with Three.js Mascot */}
-      <WelcomeBackCard
-        userName={user.name}
-        xp={user.questionsAnswered || 0}
-        streakDays={user.streakDays}
-        longestStreak={user.longestStreak ?? user.streakDays}
-      />
+      <div id="tour-db-welcome">
+        <WelcomeBackCard
+          userName={user.name}
+          xp={user.questionsAnswered || 0}
+          streakDays={user.streakDays}
+          longestStreak={user.longestStreak ?? user.streakDays}
+        />
+      </div>
 
       {/* Alert Lỗi nếu có */}
       {error && (
@@ -253,7 +257,7 @@ export const DashboardLivePage: React.FC = () => {
       )}
 
       {/* Metric Cards (Điểm cao nhất, Mục tiêu, Độ chính xác) */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <section id="tour-db-metrics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           [1, 2, 3].map((id) => (
             <BoneyardSkeleton key={id} name={`dashboard-metric-${id}`} variant="card" height={124} />
@@ -279,14 +283,18 @@ export const DashboardLivePage: React.FC = () => {
         )}
       </section>
 
-      <PracticeActivityPanel />
+      <div id="tour-db-activity">
+        <PracticeActivityPanel />
+      </div>
 
       {/* Community Chat & Recent Activities Grid */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_.9fr]">
-        <CommunityChatWidget />
+        <div id="tour-db-chat">
+          <CommunityChatWidget />
+        </div>
 
         {/* Học viên vừa truy cập trang web */}
-        <article className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none flex flex-col justify-between">
+        <article id="tour-db-active-students" className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between border-b border-line pb-4">
               <div className="flex items-center gap-2">
@@ -294,9 +302,9 @@ export const DashboardLivePage: React.FC = () => {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500"></span>
                 </span>
-                <h2 className="text-base font-extrabold text-content">Học viên vừa truy cập</h2>
+                <h2 className="text-base font-extrabold text-content">{t('dashboard.activeStudents')}</h2>
               </div>
-              <span className="text-[11px] font-bold text-content-muted">Truy cập mới nhất</span>
+              <span className="text-[11px] font-bold text-content-muted">{t('dashboard.latestAccess')}</span>
             </div>
 
             <div className="mt-4 space-y-2.5">
@@ -326,20 +334,20 @@ export const DashboardLivePage: React.FC = () => {
                         <p className="truncate text-xs font-extrabold text-content">{student.name}</p>
                         <p className="mt-0.5 truncate text-[11px] font-medium text-content-muted">
                           {student.isOnline ? (
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400">Đang online</span>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{t('dashboard.onlineNow')}</span>
                           ) : (
-                            formatRelativeTimeVi(student.lastActiveAt)
+                            formatRelativeTime(student.lastActiveAt, language)
                           )}
                         </p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <span className="inline-flex items-center gap-1 rounded-lg bg-brand-500/10 px-2 py-0.5 text-xs font-black text-brand-600 dark:text-brand-400">
-                        {student.currentScore > 0 ? `${student.currentScore} điểm` : 'Học viên'}
+                        {student.currentScore > 0 ? `${student.currentScore} ${language === 'en' ? 'pts' : 'điểm'}` : (language === 'en' ? 'Student' : 'Học viên')}
                       </span>
                       {student.streakDays > 0 && (
                         <p className="mt-1 text-[10px] font-bold text-amber-500">
-                          🔥 {student.streakDays} ngày
+                          🔥 {student.streakDays} {language === 'en' ? 'days' : 'ngày'}
                         </p>
                       )}
                     </div>
@@ -347,7 +355,7 @@ export const DashboardLivePage: React.FC = () => {
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-line p-6 text-center text-xs text-content-muted">
-                  Chưa có học viên nào vừa truy cập.
+                  {t('dashboard.noActiveStudents')}
                 </div>
               )}
             </div>
@@ -356,15 +364,15 @@ export const DashboardLivePage: React.FC = () => {
       </section>
 
       {/* Biểu đồ Tiến trình điểm số */}
-      <article className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none">
+      <article id="tour-db-chart" className="rounded-3xl border border-line bg-surface p-5 shadow-xs dark:shadow-none">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
           <div>
-            <h2 className="text-base font-extrabold text-content">Tiến trình điểm số</h2>
-            <p className="mt-0.5 text-xs text-content-muted">Theo dõi 8 đề thi đầy đủ 200 câu gần nhất</p>
+            <h2 className="text-base font-extrabold text-content">{t('dashboard.scoreProgress')}</h2>
+            <p className="mt-0.5 text-xs text-content-muted">{t('dashboard.scoreProgressDesc')}</p>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-            <CheckCircle2 className="size-3.5" /> {progress}% mục tiêu
-            ({hasToeicScore ? `${currentScore}/${targetScore}` : 'Chưa có điểm'})
+            <CheckCircle2 className="size-3.5" /> {progress}% {language === 'en' ? 'of goal' : 'mục tiêu'}
+            ({hasToeicScore ? `${currentScore}/${targetScore}` : (language === 'en' ? 'No score yet' : 'Chưa có điểm')})
           </span>
         </div>
 
@@ -404,10 +412,10 @@ export const DashboardLivePage: React.FC = () => {
                         <div className="rounded-xl border border-line bg-surface p-3 shadow-lg text-xs space-y-1.5">
                           <p className="font-extrabold text-content">{data.name}</p>
                           <p className="text-amber-600 dark:text-amber-400 font-black text-sm">
-                            Điểm: {data.score} / 990
+                            {language === 'en' ? 'Score' : 'Điểm'}: {data.score} / 990
                           </p>
                           <div className="flex items-center gap-2 text-content-muted font-medium">
-                            <span>Chính xác: {data.accuracy}%</span>
+                            <span>{language === 'en' ? 'Accuracy' : 'Chính xác'}: {data.accuracy}%</span>
                             <span>•</span>
                             <span>{data.correct}</span>
                           </div>
@@ -433,13 +441,13 @@ export const DashboardLivePage: React.FC = () => {
         ) : (
           <div className="mt-4 grid h-64 place-items-center rounded-2xl border border-dashed border-line p-6 text-center">
             <div>
-              <p className="text-sm font-bold text-content">Chưa có kết quả thi để vẽ biểu đồ</p>
-              <p className="mt-1 text-xs text-content-muted">Hoàn thành bài thi thử đầu tiên để bắt đầu theo dõi tiến trình điểm số.</p>
+              <p className="text-sm font-bold text-content">{t('dashboard.scoreProgressEmpty')}</p>
+              <p className="mt-1 text-xs text-content-muted">{language === 'en' ? 'Complete your first mock test to track score progression.' : 'Hoàn thành bài thi thử đầu tiên để bắt đầu theo dõi tiến trình điểm số.'}</p>
               <Link
                 to="/mock-test"
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-brand-600"
               >
-                Làm bài thi thử ngay
+                {t('dashboard.takeTestNow')}
               </Link>
             </div>
           </div>

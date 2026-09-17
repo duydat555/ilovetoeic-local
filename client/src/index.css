@@ -530,3 +530,192 @@ kbd {
     column-count: 1 !important;
   }
 }
+
+@keyframes karaoke-sweep {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Driver.js Onboarding Tour Styling (TOEICMaster Theme)
+   ========================================================================== */
+.toeic-tour-popover.driver-popover {
+  border-radius: 1.25rem !important;
+  padding: 1.25rem 1.35rem 1.15rem !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+  font-family: var(--app-font-family, 'Inter', 'Be Vietnam Pro', system-ui, sans-serif) !important;
+  max-width: 340px !important;
+  min-width: 280px !important;
+  z-index: 1000000000 !important;
+}
+
+.dark .toeic-tour-popover.driver-popover {
+  background-color: #1a1d23 !important;
+  border-color: #2d323c !important;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+.toeic-tour-popover .driver-popover-title {
+  font-size: 0.975rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  letter-spacing: -0.01em !important;
+  margin-bottom: 0.35rem !important;
+  padding-right: 1.5rem !important;
+  line-height: 1.4 !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-title {
+  color: #f8fafc !important;
+}
+
+.toeic-tour-popover .driver-popover-description {
+  font-size: 0.825rem !important;
+  line-height: 1.55 !important;
+  color: #475569 !important;
+  font-weight: 400 !important;
+  margin-top: 0.35rem !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-description {
+  color: #94a3b8 !important;
+}
+
+.toeic-tour-popover .driver-popover-close-btn {
+  color: #94a3b8 !important;
+  top: 0.95rem !important;
+  right: 0.95rem !important;
+  font-size: 1.2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 0.5rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.toeic-tour-popover .driver-popover-close-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-close-btn:hover {
+  background-color: #262a34 !important;
+  color: #ffffff !important;
+}
+
+.toeic-tour-popover .driver-popover-footer {
+  margin-top: 1rem !important;
+  padding-top: 0.75rem !important;
+  border-top: 1px solid #f1f5f9 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-footer {
+  border-top-color: #262a34 !important;
+}
+
+.toeic-tour-popover .driver-popover-progress-text {
+  font-size: 0.725rem !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-progress-text {
+  color: #94a3b8 !important;
+}
+
+.toeic-tour-popover .driver-popover-navigation-btns {
+  display: flex !important;
+  gap: 0.4rem !important;
+}
+
+.toeic-tour-popover .driver-popover-prev-btn {
+  background-color: transparent !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 0.35rem 0.75rem !important;
+  border-radius: 0.625rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.toeic-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-prev-btn {
+  border-color: #333a48 !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-prev-btn:hover {
+  background-color: #262a34 !important;
+  color: #ffffff !important;
+}
+
+.toeic-tour-popover .driver-popover-next-btn {
+  background-color: #ffc72c !important;
+  color: #1b2a4a !important;
+  border: none !important;
+  padding: 0.35rem 0.85rem !important;
+  border-radius: 0.625rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 5px rgba(255, 199, 44, 0.28) !important;
+  transition: all 0.15s ease !important;
+}
+
+.toeic-tour-popover .driver-popover-next-btn:hover {
+  background-color: #e5ad00 !important;
+}
+
+.toeic-tour-popover .driver-popover-arrow-side-top {
+  border-bottom-color: #ffffff !important;
+}
+.toeic-tour-popover .driver-popover-arrow-side-bottom {
+  border-top-color: #ffffff !important;
+}
+.toeic-tour-popover .driver-popover-arrow-side-left {
+  border-right-color: #ffffff !important;
+}
+.toeic-tour-popover .driver-popover-arrow-side-right {
+  border-left-color: #ffffff !important;
+}
+
+.dark .toeic-tour-popover .driver-popover-arrow-side-top {
+  border-bottom-color: #1a1d23 !important;
+}
+.dark .toeic-tour-popover .driver-popover-arrow-side-bottom {
+  border-top-color: #1a1d23 !important;
+}
+.dark .toeic-tour-popover .driver-popover-arrow-side-left {
+  border-right-color: #1a1d23 !important;
+}
+.dark .toeic-tour-popover .driver-popover-arrow-side-right {
+  border-left-color: #1a1d23 !important;
+}
+
+.driver-stage {
+  border-radius: 0.875rem !important;
+  outline: 2px solid rgba(255, 199, 44, 0.5) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toeic-tour-popover.driver-popover {
+    transition: none !important;
+  }
+}

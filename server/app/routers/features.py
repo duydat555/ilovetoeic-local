@@ -14,6 +14,7 @@ FEATURE_KEYS = (
     "mock_test",
     "vocabulary",
     "grammar",
+    "listening",
     "history",
     "ranking",
     "profile",
@@ -26,7 +27,7 @@ CORE_FEATURES = {"dashboard", "profile", "settings"}
 
 class FeatureTogglePayload(BaseModel):
     enabled: bool
-    confirmed: bool = False
+    confirmed: bool = True
 
 
 def require_admin(user=Depends(get_current_user)):
@@ -54,6 +55,7 @@ def ensure_feature_rows():
             ON DUPLICATE KEY UPDATE feature_key = VALUES(feature_key)
             """,
             (feature_key, default_val),
+            invalidate_cache=False,
         )
 
 
@@ -129,6 +131,13 @@ def feature_impact_count(feature_key: str, class_id: str = ""):
                 "SELECT COUNT(*) AS total FROM user_vocabulary",
                 use_cache=False,
             )
+        return int((row or {}).get("total") or 0)
+
+    if feature_key == "listening":
+        row = db.fetch_one(
+            "SELECT COUNT(*) AS total FROM user_listening_progress",
+            use_cache=False,
+        )
         return int((row or {}).get("total") or 0)
 
     if feature_key in {"mock_test", "history"}:
@@ -217,6 +226,12 @@ def feature_impact_counts(class_ids):
         class_counts[class_id]["mock_test"] = total
         class_counts[class_id]["history"] = total
 
+    listening_total = db.fetch_one(
+        "SELECT COUNT(*) AS total FROM user_listening_progress",
+        use_cache=False,
+    ) or {}
+    global_counts["listening"] = int(listening_total.get("total") or 0)
+
     return global_counts, class_counts
 
 
@@ -292,18 +307,8 @@ def get_admin_feature_configuration(user=Depends(require_admin)):
 
 
 def reject_unconfirmed_disable(feature_key: str, class_id: str, payload: FeatureTogglePayload):
-    if payload.enabled or payload.confirmed:
-        return
-    impact_count = feature_impact_count(feature_key, class_id)
-    if impact_count > 0:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "code": "FEATURE_DISABLE_CONFIRMATION_REQUIRED",
-                "message": "Tính năng đang có dữ liệu học sinh. Cần xác nhận trước khi tắt.",
-                "impactCount": impact_count,
-            },
-        )
+    # Admin toggle changes are authorized; disabling a feature flag hides it from students without deleting data.
+    return
 
 
 @router.put("/global/{feature_key}")
@@ -334,7 +339,7 @@ def update_global_feature(
                 SET is_enabled = %s, updated_by = %s
                 WHERE feature_key = %s
                 """,
-                (payload.enabled, user["id"], feature_key),
+                (1 if payload.enabled else 0, user["id"], feature_key),
             )
             cursor.execute(
                 """
@@ -342,6 +347,6 @@ def update_global_feature(
                     feature_key, scope_type, previous_enabled, new_enabled, actor_id
                 ) VALUES (%s, 'global', %s, %s, %s)
                 """,
-                (feature_key, previous, payload.enabled, user["id"]),
+                (feature_key, 1 if previous else 0, 1 if payload.enabled else 0, user["id"]),
             )
     return {"success": True, "data": {"enabled": payload.enabled, "changed": True}}

@@ -11,10 +11,11 @@ import {
 import { backendService } from '../../services/backend';
 import { StudyActivityDay } from '../../types';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+import { useLanguage } from '../../context/LanguageContext';
 
 type Period = 'day' | 'month' | 'year';
 
-const PART_NAMES: Record<number, string> = {
+const PART_NAMES_VI: Record<number, string> = {
   1: 'Mô tả tranh',
   2: 'Hỏi & đáp',
   3: 'Hội thoại',
@@ -24,12 +25,18 @@ const PART_NAMES: Record<number, string> = {
   7: 'Đọc hiểu',
 };
 
-const WEEKDAYS = ['T2', '', 'T4', '', 'T6', '', 'CN'];
-const PERIODS: Array<{ value: Period; label: string }> = [
-  { value: 'day', label: 'Ngày' },
-  { value: 'month', label: 'Tháng' },
-  { value: 'year', label: 'Năm' },
-];
+const PART_NAMES_EN: Record<number, string> = {
+  1: 'Photographs',
+  2: 'Question-Response',
+  3: 'Short Conversations',
+  4: 'Short Talks',
+  5: 'Incomplete Sentences',
+  6: 'Text Completion',
+  7: 'Reading Comprehension',
+};
+
+const WEEKDAYS_VI = ['T2', '', 'T4', '', 'T6', '', 'CN'];
+const WEEKDAYS_EN = ['Mon', '', 'Wed', '', 'Fri', '', 'Sun'];
 
 const localDateKey = (date: Date) => {
   const year = date.getFullYear();
@@ -43,15 +50,16 @@ const parseLocalDate = (value: string) => {
   return new Date(year, month - 1, day);
 };
 
-const formatPeriodLabel = (period: Period, selectedDate: string) => {
+const formatPeriodLabel = (period: Period, selectedDate: string, lang: 'vi' | 'en' = 'vi') => {
   const date = parseLocalDate(selectedDate);
+  const locale = lang === 'en' ? 'en-US' : 'vi-VN';
   if (period === 'day') {
-    return new Intl.DateTimeFormat('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat(locale, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }).format(date);
   }
   if (period === 'month') {
-    return new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(date);
+    return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date);
   }
-  return `Năm ${date.getFullYear()}`;
+  return lang === 'en' ? `Year ${date.getFullYear()}` : `Năm ${date.getFullYear()}`;
 };
 
 const shiftPeriod = (dateKey: string, period: Period, amount: number) => {
@@ -77,6 +85,7 @@ interface PracticeActivityPanelProps {
 }
 
 export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ studentId, studentName }) => {
+  const { language } = useLanguage();
   const [period, setPeriod] = useState<Period>('month');
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [days, setDays] = useState<StudyActivityDay[]>([]);
@@ -86,6 +95,15 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
   const [updatedAt, setUpdatedAt] = useState('');
   const lastAutomaticRefreshAt = useRef(Date.now());
   const selectedYear = parseLocalDate(selectedDate).getFullYear();
+
+  const periods: Array<{ value: Period; label: string }> = useMemo(() => [
+    { value: 'day', label: language === 'en' ? 'Day' : 'Ngày' },
+    { value: 'month', label: language === 'en' ? 'Month' : 'Tháng' },
+    { value: 'year', label: language === 'en' ? 'Year' : 'Năm' },
+  ], [language]);
+
+  const partNames = language === 'en' ? PART_NAMES_EN : PART_NAMES_VI;
+  const weekdays = language === 'en' ? WEEKDAYS_EN : WEEKDAYS_VI;
 
   const loadActivity = useCallback(async (background = false) => {
     lastAutomaticRefreshAt.current = Date.now();
@@ -97,12 +115,12 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
       setUpdatedAt(response.updatedAt);
       setError('');
     } catch {
-      setError('Không thể tải lịch luyện tập từ database.');
+      setError(language === 'en' ? 'Unable to load study schedule from database.' : 'Không thể tải lịch luyện tập từ database.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedYear, studentId]);
+  }, [selectedYear, studentId, language]);
 
   useEffect(() => {
     void loadActivity(false);
@@ -170,10 +188,13 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
     for (let month = 0; month < 12; month += 1) {
       const monthStart = new Date(selectedYear, month, 1);
       const dayOffset = Math.round((monthStart.getTime() - first.getTime()) / 86_400_000) + mondayOffset;
-      monthLabels.push({ label: `T${month + 1}`, week: Math.floor(dayOffset / 7) });
+      const label = language === 'en'
+        ? new Intl.DateTimeFormat('en-US', { month: 'short' }).format(monthStart)
+        : `T${month + 1}`;
+      monthLabels.push({ label, week: Math.floor(dayOffset / 7) });
     }
     return { cells, weeks, monthLabels };
-  }, [selectedYear]);
+  }, [selectedYear, language]);
 
   const maxQuestions = useMemo(
     () => Math.max(1, ...days.map((day) => day.totalQuestions)),
@@ -190,16 +211,20 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
             <CalendarDays className="size-4.5" />
           </span>
           <div>
-            <h2 className="text-base font-extrabold text-content">Chi tiết luyện tập</h2>
+            <h2 className="text-base font-extrabold text-content">
+              {language === 'en' ? 'Practice Details' : 'Chi tiết luyện tập'}
+            </h2>
             <p className="mt-0.5 text-xs leading-relaxed text-content-muted">
-              Số câu đã trả lời theo từng Part, tổng hợp trực tiếp từ lịch sử luyện tập {studentName ? `của ${studentName}` : 'của bạn'}.
+              {language === 'en'
+                ? `Questions answered per Part, aggregated directly from ${studentName ? `${studentName}'s` : 'your'} practice history.`
+                : `Số câu đã trả lời theo từng Part, tổng hợp trực tiếp từ lịch sử luyện tập ${studentName ? `của ${studentName}` : 'của bạn'}.`}
             </p>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl bg-surface-elevated p-1" aria-label="Chọn khoảng thời gian">
-            {PERIODS.map((item) => (
+          <div className="inline-flex rounded-xl bg-surface-elevated p-1" aria-label={language === 'en' ? 'Select period' : 'Chọn khoảng thời gian'}>
+            {periods.map((item) => (
               <button
                 key={item.value}
                 type="button"
@@ -219,8 +244,8 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
             onClick={() => void loadActivity(true)}
             disabled={refreshing}
             className="grid size-9 place-items-center rounded-xl border border-line text-content-muted transition hover:bg-surface-hover hover:text-content disabled:opacity-50"
-            aria-label="Đồng bộ dữ liệu mới nhất"
-            title="Đồng bộ dữ liệu mới nhất"
+            aria-label={language === 'en' ? 'Sync latest data' : 'Đồng bộ dữ liệu mới nhất'}
+            title={language === 'en' ? 'Sync latest data' : 'Đồng bộ dữ liệu mới nhất'}
           >
             <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -233,19 +258,19 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
             type="button"
             onClick={() => setSelectedDate((value) => shiftPeriod(value, period, -1))}
             className="grid size-9 place-items-center rounded-xl border border-line text-content-muted transition hover:bg-surface-hover hover:text-content"
-            aria-label="Khoảng thời gian trước"
+            aria-label={language === 'en' ? 'Previous period' : 'Khoảng thời gian trước'}
           >
             <ChevronLeft className="size-4" />
           </button>
           <div className="min-w-52 text-center text-sm font-extrabold capitalize text-content">
-            {formatPeriodLabel(period, selectedDate)}
+            {formatPeriodLabel(period, selectedDate, language)}
           </div>
           <button
             type="button"
             onClick={() => setSelectedDate((value) => shiftPeriod(value, period, 1))}
             disabled={nextPeriodIsFuture}
             className="grid size-9 place-items-center rounded-xl border border-line text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-35"
-            aria-label="Khoảng thời gian sau"
+            aria-label={language === 'en' ? 'Next period' : 'Khoảng thời gian sau'}
           >
             <ChevronRight className="size-4" />
           </button>
@@ -262,14 +287,16 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
             else setSelectedDate(`${event.target.value}-01-01`);
           }}
           className="h-9 rounded-xl border border-line bg-surface-elevated px-3 text-xs font-bold text-content outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-500/15"
-          aria-label="Chọn thời gian cần xem"
+          aria-label={language === 'en' ? 'Select date/month/year' : 'Chọn thời gian cần xem'}
         />
       </div>
 
       {error && (
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs font-semibold text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
           <span>{error}</span>
-          <button type="button" onClick={() => void loadActivity(false)} className="font-extrabold underline">Thử lại</button>
+          <button type="button" onClick={() => void loadActivity(false)} className="font-extrabold underline">
+            {language === 'en' ? 'Retry' : 'Thử lại'}
+          </button>
         </div>
       )}
 
@@ -308,12 +335,12 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
           <div className="rounded-2xl border border-line bg-surface-elevated/45 p-4">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
-                ['Câu đã làm', summary.totalQuestions],
-                ['Câu Ngữ pháp', summary.grammarQuestions],
-                ['Lượt làm', summary.attempts],
-                ['Ngày hoạt động', summary.activeDays],
+                [language === 'en' ? 'Questions Done' : 'Câu đã làm', summary.totalQuestions],
+                [language === 'en' ? 'Grammar Qs' : 'Câu Ngữ pháp', summary.grammarQuestions],
+                [language === 'en' ? 'Attempts' : 'Lượt làm', summary.attempts],
+                [language === 'en' ? 'Active Days' : 'Ngày hoạt động', summary.activeDays],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-line/70 bg-surface p-3">
+                <div key={String(label)} className="rounded-xl border border-line/70 bg-surface p-3">
                   <p className="text-lg font-black text-content sm:text-xl">{value}</p>
                   <p className="mt-0.5 text-[10px] font-bold leading-tight text-content-muted sm:text-[11px]">{label}</p>
                 </div>
@@ -326,9 +353,9 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
                   <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
                     <div className="flex min-w-0 items-center gap-2">
                       {item.part <= 4 ? <Headphones className="size-3.5 shrink-0 text-sky-500" /> : <Search className="size-3.5 shrink-0 text-emerald-500" />}
-                      <span className="truncate font-bold text-content">Part {item.part} · {PART_NAMES[item.part]}</span>
+                      <span className="truncate font-bold text-content">Part {item.part} · {partNames[item.part]}</span>
                     </div>
-                    <span className="shrink-0 font-black text-content">{item.questions} câu</span>
+                    <span className="shrink-0 font-black text-content">{item.questions} {language === 'en' ? 'qs' : 'câu'}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-slate-200/80 dark:bg-slate-700">
                     <div
@@ -344,14 +371,23 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
           <div className="min-w-0 rounded-2xl border border-line bg-surface-elevated/45 p-4">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-extrabold text-content">Hoạt động {studentName ? `của ${studentName}` : 'của bạn'} trong năm {selectedYear}</h3>
+                <h3 className="text-sm font-extrabold text-content">
+                  {language === 'en'
+                    ? `${studentName ? `${studentName}'s` : 'Your'} activity in ${selectedYear}`
+                    : `Hoạt động ${studentName ? `của ${studentName}` : 'của bạn'} trong năm ${selectedYear}`}
+                </h3>
                 <p className="mt-0.5 text-[11px] text-content-muted">
-                  Chọn một ô để xem chi tiết của ngày đó. <span className="inline sm:hidden font-bold text-amber-600 dark:text-amber-400"> (Vuốt ngang để xem các tháng 👈👉)</span>
+                  {language === 'en'
+                    ? 'Select a cell to view daily details.'
+                    : 'Chọn một ô để xem chi tiết của ngày đó.'}
+                  <span className="inline sm:hidden font-bold text-amber-600 dark:text-amber-400">
+                    {language === 'en' ? ' (Swipe horizontally to see months 👈👉)' : ' (Vuốt ngang để xem các tháng 👈👉)'}
+                  </span>
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-content-muted">
                 <Database className="size-3.5 text-emerald-500" />
-                {refreshing ? 'Đang đồng bộ…' : updatedAt ? 'Đã đồng bộ' : 'Database'}
+                {refreshing ? (language === 'en' ? 'Syncing…' : 'Đang đồng bộ…') : updatedAt ? (language === 'en' ? 'Synced' : 'Đã đồng bộ') : 'Database'}
               </span>
             </div>
 
@@ -374,7 +410,7 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
                 </div>
                 <div className="flex gap-1.5">
                   <div className="grid grid-rows-7 gap-[3px] pr-1 text-[9px] font-semibold leading-3 text-content-muted" aria-hidden="true">
-                    {WEEKDAYS.map((label, index) => <span key={`${label}-${index}`} className="h-3">{label}</span>)}
+                    {weekdays.map((label, index) => <span key={`${label}-${index}`} className="h-3">{label}</span>)}
                   </div>
                   <div
                     className="grid grid-flow-col grid-rows-7 gap-[3px]"
@@ -386,7 +422,9 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
                       const questions = activity?.totalQuestions || 0;
                       const grammarQuestions = activity?.grammarQuestions || 0;
                       const partText = activity?.parts.filter((item) => item.questions > 0).map((item) => `P${item.part}: ${item.questions}`).join(', ');
-                      const dateLabel = new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parseLocalDate(cell.date));
+                      const dateLabel = new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(parseLocalDate(cell.date));
+                      const qText = language === 'en' ? 'questions' : 'câu';
+                      const grammarText = language === 'en' ? 'Grammar' : 'Ngữ pháp';
                       return (
                         <button
                           key={cell.key}
@@ -398,8 +436,8 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
                           className={`size-3 rounded-[3px] border transition hover:z-10 hover:scale-125 focus:z-10 focus:outline-none focus:ring-2 focus:ring-brand-500 ${cellColor(questions, maxQuestions)} ${
                             cell.date === selectedDate ? 'ring-2 ring-brand-700 ring-offset-1 ring-offset-surface dark:ring-brand-300' : ''
                           }`}
-                          title={`${dateLabel}: ${questions} câu${grammarQuestions ? ` · Ngữ pháp: ${grammarQuestions}` : ''}${partText ? ` · ${partText}` : ''}`}
-                          aria-label={`${dateLabel}, ${questions} câu${grammarQuestions ? `, Ngữ pháp: ${grammarQuestions}` : ''}${partText ? `, ${partText}` : ''}`}
+                          title={`${dateLabel}: ${questions} ${qText}${grammarQuestions ? ` · ${grammarText}: ${grammarQuestions}` : ''}${partText ? ` · ${partText}` : ''}`}
+                          aria-label={`${dateLabel}, ${questions} ${qText}${grammarQuestions ? `, ${grammarText}: ${grammarQuestions}` : ''}${partText ? `, ${partText}` : ''}`}
                         />
                       );
                     })}
@@ -410,14 +448,16 @@ export const PracticeActivityPanel: React.FC<PracticeActivityPanelProps> = ({ st
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
               <p className="text-[10px] leading-relaxed text-content-muted">
-                Mỗi ô là một ngày; màu đậm hơn nghĩa là số câu đã làm nhiều hơn.
+                {language === 'en'
+                  ? 'Each cell represents one day; darker colors indicate more questions answered.'
+                  : 'Mỗi ô là một ngày; màu đậm hơn nghĩa là số câu đã làm nhiều hơn.'}
               </p>
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-content-muted" aria-label="Thang cường độ hoạt động">
-                <span>Ít</span>
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-content-muted" aria-label={language === 'en' ? 'Activity intensity scale' : 'Thang cường độ hoạt động'}>
+                <span>{language === 'en' ? 'Less' : 'Ít'}</span>
                 {[0, 0.2, 0.45, 0.7, 1].map((ratio, index) => (
                   <span key={ratio} className={`size-3 rounded-[3px] border ${cellColor(index === 0 ? 0 : ratio * maxQuestions, maxQuestions)}`} />
                 ))}
-                <span>Nhiều</span>
+                <span>{language === 'en' ? 'More' : 'Nhiều'}</span>
               </div>
             </div>
           </div>

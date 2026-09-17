@@ -6,6 +6,7 @@ import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
+import { useLanguage } from '../../context/LanguageContext';
 import { NationalDayBanner } from './NationalDayBanner';
 import './WelcomeBackCard.css';
 
@@ -18,8 +19,9 @@ export interface WelcomeBackCardProps {
   isLoading?: boolean;
 }
 
-const DEFAULT_MESSAGE = "Gâu gâu! Tỉnh Tú đây, hôm nay mình luyện phần nào?";
-const JUMP_MESSAGES = [
+const DEFAULT_MESSAGE_VI = "Gâu gâu! Tỉnh Tú đây, hôm nay mình luyện phần nào?";
+const DEFAULT_MESSAGE_EN = "Woof woof! Tinh Tu here, which part are we practicing today?";
+const JUMP_MESSAGES_VI = [
   "Cậu vừa nhéo mình à? 🐾",
   "Hôm nay học chưa nè?",
   "Nhảy phát cho vui thôi!",
@@ -27,9 +29,18 @@ const JUMP_MESSAGES = [
   "Cố lên nha, mình luôn ủng hộ cậu! 🚀",
   "Nhiều XP quá ta ơi!",
 ];
+const JUMP_MESSAGES_EN = [
+  "Did you just pinch me? 🐾",
+  "Have you practiced today?",
+  "Just a quick jump for fun!",
+  "Hold on, let me fetch a test for you!",
+  "Keep it up, I'm always cheering for you! 🚀",
+  "So much XP!",
+];
 
 export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
   const { isFeatureEnabled } = useFeatureFlags();
+  const { language, t } = useLanguage();
   const isNationalDayTheme = isFeatureEnabled('national_day_theme');
 
   if (isNationalDayTheme) {
@@ -45,17 +56,28 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
     isLoading = false,
   } = props;
 
-  const [bubbleText, setBubbleText] = useState(DEFAULT_MESSAGE);
+  const defaultMsg = language === 'en' ? DEFAULT_MESSAGE_EN : DEFAULT_MESSAGE_VI;
+  const [bubbleText, setBubbleText] = useState(defaultMsg);
+
+  useEffect(() => {
+    setBubbleText(language === 'en' ? DEFAULT_MESSAGE_EN : DEFAULT_MESSAGE_VI);
+  }, [language]);
 
   // Auto reset bubble text after 5 seconds
   useEffect(() => {
-    if (bubbleText !== DEFAULT_MESSAGE) {
+    if (bubbleText !== defaultMsg) {
       const timer = setTimeout(() => {
-        setBubbleText(DEFAULT_MESSAGE);
+        setBubbleText(defaultMsg);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [bubbleText]);
+  }, [bubbleText, defaultMsg]);
+
+  const handleMascotInteract = () => {
+    const jumpMsgs = language === 'en' ? JUMP_MESSAGES_EN : JUMP_MESSAGES_VI;
+    const randomMsg = jumpMsgs[Math.floor(Math.random() * jumpMsgs.length)];
+    setBubbleText(randomMsg);
+  };
 
   if (isLoading) {
     return (
@@ -105,15 +127,6 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
     );
   }
 
-  const handleMascotInteract = () => {
-    let newMessage;
-    do {
-      newMessage = JUMP_MESSAGES[Math.floor(Math.random() * JUMP_MESSAGES.length)];
-    } while (newMessage === bubbleText && JUMP_MESSAGES.length > 1);
-    
-    setBubbleText(newMessage);
-  };
-
   return (
     <section 
       className="welcome-dashboard-card relative flex flex-col md:flex-row items-center justify-between p-6 sm:p-8 rounded-[24px] overflow-hidden"
@@ -132,13 +145,13 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
             transition={{ duration: 0.4 }}
           >
             <Flame className="size-3.5 text-amber-950 fill-amber-950/20" />
-            <span>Chào mừng trở lại</span>
+            <span>{t('dashboard.welcomeTitle')}</span>
           </motion.div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-950 tracking-tight leading-snug">
-            Chào {userName} <span className="inline-block animate-[wave-hand_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
+            {t('dashboard.greeting', { name: userName })} <span className="inline-block animate-[wave-hand_2s_ease-in-out_infinite] origin-bottom-right">👋</span>
           </h1>
           <p className="text-xs sm:text-sm font-semibold text-amber-900/80 mt-1.5 max-w-sm">
-            Tiếp tục lộ trình TOEIC hôm nay để duy trì phong độ và chinh phục mục tiêu của bạn!
+            {t('dashboard.greetingSubtitle')}
           </p>
         </div>
 
@@ -147,7 +160,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
           <StatCard
             id="stat-xp"
             icon={<Award className="size-4" />}
-            label="Điểm XP"
+            label={t('dashboard.xpPoints')}
             value={xp}
             badgeBg="bg-gradient-to-br from-blue-400 to-blue-600"
             iconColor="text-white"
@@ -155,18 +168,18 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
           <StatCard
             id="stat-streak"
             icon={<Flame className="size-4" />}
-            label="Chuỗi ngày"
+            label={t('dashboard.streak')}
             value={streakDays}
-            unit="ngày"
+            unit={t('common.days')}
             badgeBg="bg-gradient-to-br from-orange-400 to-red-500"
             iconColor="text-white"
           />
           <StatCard
             id="stat-longest-streak"
             icon={<Trophy className="size-4" />}
-            label="Max Streak"
+            label={t('dashboard.longestStreak')}
             value={longestStreak}
-            unit="ngày"
+            unit={t('common.days')}
             badgeBg="bg-gradient-to-br from-amber-400 to-amber-600"
             iconColor="text-white"
           />
@@ -211,7 +224,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
             
             <span className="relative z-10 flex items-center gap-1.5">
               <Play className="size-4 fill-current text-amber-950" />
-              Làm đề ngay
+              {t('dashboard.practiceNow')}
             </span>
             <ArrowRight className="relative z-10 size-4 transition-transform group-hover:translate-x-1" />
           </Link>

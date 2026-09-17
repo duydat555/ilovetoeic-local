@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   AlertCircle,
   ArrowRight,
   Bell,
   CheckCheck,
+  Compass,
   Flame,
+  HelpCircle,
   LogOut,
   Menu,
   Moon,
@@ -24,6 +27,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { NotificationListItem } from '../notifications/NotificationListItem';
 import { getDiceBearAvatar } from '../../utils/avatar';
 import { ActiveTimeTracker } from '../common/ActiveTimeTracker';
+import { startWebsiteTour } from '../../utils/tourGuide';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
@@ -32,6 +36,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  const { language, toggleLanguage, t } = useLanguage();
   const {
     notifications,
     unreadCount,
@@ -50,8 +55,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   const role = getUserRole(user);
   const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
   const searchPlaceholder = isAdminArea
-    ? 'Tìm lớp, học sinh hoặc bài tập...'
-    : 'Tìm kiếm bài tập, từ vựng, ngữ pháp...';
+    ? t('header.searchAdminPlaceholder')
+    : t('header.searchPlaceholder');
 
   useEffect(() => {
     const closeMenus = (event: KeyboardEvent) => {
@@ -91,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           <Menu className="w-6 h-6" />
         </button>
 
-        <div className="relative w-full hidden sm:block group">
+        <div id="tour-search" className="relative w-full hidden sm:block group">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-content-muted" />
           <input
             type="text"
@@ -106,10 +111,11 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         {/* Streak Counter */}
         {user && !isAdminArea && (
           <div
+            id="tour-streak"
             className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 shadow-sm dark:text-amber-400 sm:text-sm"
             role="status"
             aria-live="polite"
-            title={`Chuỗi học hiện tại: ${user.streakDays} ngày`}
+            title={`${t('header.streakTitle')}: ${user.streakDays} ${t('header.streakDays')}`}
           >
             <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
             <span className="inline-flex items-center gap-1">
@@ -124,19 +130,54 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   {user.streakDays}
                 </motion.span>
               </AnimatePresence>
-              <span className="hidden sm:inline">ngày</span>
+              <span className="hidden sm:inline">{t('header.streakDays')}</span>
             </span>
           </div>
         )}
 
         {/* Active Session Time Tracker */}
-        {user && <ActiveTimeTracker />}
+        {user && (
+          <div id="tour-active-time">
+            <ActiveTimeTracker />
+          </div>
+        )}
+
+        {/* Quick Tour Guide Button */}
+        <motion.button
+          id="tour-help-button"
+          onClick={() => startWebsiteTour({ type: 'auto', force: true })}
+          whileTap={{ scale: 0.9 }}
+          aria-label={t('header.helpTitle')}
+          title={t('header.helpTitle')}
+          className="grid size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content"
+        >
+          <HelpCircle className="size-5" />
+        </motion.button>
+
+        {/* Language Switcher */}
+        <motion.button
+          id="tour-language-toggle"
+          onClick={toggleLanguage}
+          whileTap={{ scale: 0.92 }}
+          aria-label={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+          title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
+          className="flex h-9 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-content transition-all duration-200 hover:border-brand/40 hover:bg-surface-hover"
+        >
+          <span className={`transition-colors ${language === 'vi' ? 'font-black text-accent-strong' : 'font-semibold text-content-muted'}`}>
+            VI
+          </span>
+          <span className="text-[10px] text-line">/</span>
+          <span className={`transition-colors ${language === 'en' ? 'font-black text-accent-strong' : 'font-semibold text-content-muted'}`}>
+            EN
+          </span>
+        </motion.button>
 
         {/* Theme Toggle Button */}
         <motion.button
+          id="tour-theme-toggle"
           onClick={toggleTheme}
           whileTap={{ scale: 0.9 }}
-          aria-label={isDarkMode ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối'}
+          aria-label={isDarkMode ? t('header.themeLight') : t('header.themeDark')}
           aria-pressed={isDarkMode}
           className="grid size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content"
         >
@@ -156,7 +197,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         </motion.button>
 
         {/* Notification Dropdown */}
-        <div className="relative" ref={notificationsMenuRef}>
+        <div id="tour-notifications" className="relative" ref={notificationsMenuRef}>
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
@@ -197,9 +238,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               >
                 <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5">
                   <div className="min-w-0">
-                    <h2 className="text-sm font-extrabold text-content">Thông báo</h2>
+                    <h2 className="text-sm font-extrabold text-content">{t('header.notifications')}</h2>
                     <p className="mt-0.5 text-[11px] font-medium text-content-muted">
-                      {unreadCount > 0 ? `${unreadCount} cập nhật chưa đọc` : 'Bạn đã xem tất cả cập nhật'}
+                      {unreadCount > 0 ? `${unreadCount} ${t('header.notifications').toLowerCase()}` : (language === 'vi' ? 'Bạn đã xem tất cả cập nhật' : 'All caught up')}
                     </p>
                   </div>
                   <button
@@ -209,7 +250,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold text-accent-strong transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:cursor-not-allowed disabled:text-content-muted disabled:opacity-60 dark:hover:bg-brand-500/10"
                   >
                     <CheckCheck className="size-3.5" aria-hidden="true" />
-                    Đọc tất cả
+                    {language === 'vi' ? 'Đọc tất cả' : 'Mark all read'}
                   </button>
                 </header>
 
@@ -251,8 +292,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                         <span className="mx-auto grid size-10 place-items-center rounded-xl bg-slate-100 text-slate-400 dark:bg-surface-elevated dark:text-content-muted">
                           <Bell className="size-5" aria-hidden="true" />
                         </span>
-                        <p className="mt-3 text-sm font-bold text-content">Chưa có thông báo</p>
-                        <p className="mt-1 text-xs leading-relaxed text-content-muted">Cập nhật học tập mới sẽ xuất hiện tại đây.</p>
+                        <p className="mt-3 text-sm font-bold text-content">{t('header.noNotifications')}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-content-muted">{t('header.noNotificationsDesc')}</p>
                       </div>
                     </div>
                   )}
@@ -263,7 +304,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   onClick={() => setShowNotifications(false)}
                   className="flex items-center justify-center gap-2 border-t border-line px-4 py-3 text-xs font-bold text-accent-strong transition hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand-500/20"
                 >
-                  Xem tất cả thông báo
+                  {t('header.viewAllNotifications')}
                   <ArrowRight className="size-3.5" aria-hidden="true" />
                 </Link>
               </motion.section>
@@ -273,7 +314,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
 
         {/* User Account Menu */}
         {user ? (
-          <div className="relative" ref={userMenuRef}>
+          <div id="tour-user-menu" className="relative" ref={userMenuRef}>
             <button
               onClick={() => {
                 setShowUserMenu(!showUserMenu);
@@ -307,8 +348,30 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   className="flex items-center gap-2 px-4 py-2 text-sm text-content transition-colors duration-300 hover:bg-surface-hover"
                 >
                   <UserRound className="w-4 h-4" />
-                  <span>Hồ sơ cá nhân</span>
+                  <span>{t('header.profile')}</span>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    startWebsiteTour({ type: 'auto', force: true });
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-content transition-colors duration-300 hover:bg-surface-hover"
+                >
+                  <HelpCircle className="w-4 h-4 text-content-muted" />
+                  <span>{t('header.pageTour')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUserMenu(false);
+                    startWebsiteTour({ type: 'general', force: true });
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-content transition-colors duration-300 hover:bg-surface-hover"
+                >
+                  <Compass className="w-4 h-4 text-content-muted" />
+                  <span>{t('header.systemTour')}</span>
+                </button>
                 {role === 'admin' && (
                   <Link
                     to={isAdminArea ? '/dashboard' : '/admin/accounts'}
@@ -316,7 +379,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                     className="flex items-center gap-2 px-4 py-2 text-sm text-content transition-colors duration-200 hover:bg-surface-hover focus:outline-none focus:ring-2 focus:ring-inset focus:ring-brand/25"
                   >
                     <ShieldCheck className="size-4 text-accent-strong" aria-hidden="true" />
-                    <span>{isAdminArea ? 'Giao diện học sinh' : 'Admin'}</span>
+                    <span>{isAdminArea ? t('header.studentArea') : t('header.adminArea')}</span>
                   </Link>
                 )}
                 <button
@@ -324,7 +387,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-negative transition-colors duration-300 hover:bg-negative/10"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Đăng xuất</span>
+                  <span>{t('header.logout')}</span>
                 </button>
               </div>
             )}
@@ -334,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             to="/login"
             className="px-4 py-2 text-sm font-semibold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl transition-colors shadow-sm"
           >
-            Đăng nhập
+            {t('header.login')}
           </Link>
         )}
       </div>

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ListChecks, Loader2, X, XCircle } from 'lucide-react';
 import type { GrammarQuestion } from '../../services/grammar';
+import { useLanguage } from '../../context/LanguageContext';
 
 type QuestionFilter = 'all' | 'unanswered' | 'correct' | 'wrong';
 
@@ -27,6 +28,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
   loadingMore,
   onSelectQuestion,
 }) => {
+  const { language } = useLanguage();
   const [filter, setFilter] = useState<QuestionFilter>('all');
   const reduceMotion = useReducedMotion();
 
@@ -75,7 +77,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
         <div className="fixed inset-0 z-[100] overflow-hidden">
           <motion.button
             type="button"
-            aria-label="Đóng danh sách câu hỏi"
+            aria-label={language === 'en' ? 'Close question list' : 'Đóng danh sách câu hỏi'}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -92,7 +94,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                 duration: reduceMotion ? 0.1 : 0.24,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              aria-label="Danh sách câu hỏi ngữ pháp"
+              aria-label={language === 'en' ? 'Grammar question drawer' : 'Danh sách câu hỏi ngữ pháp'}
               className="flex w-screen max-w-md flex-col border-l border-line bg-surface shadow-2xl transform-gpu [will-change:transform] [webkit-backface-visibility:hidden]"
             >
               <header className="flex items-center justify-between border-b border-line px-5 py-4">
@@ -101,11 +103,22 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                     <ListChecks className="size-5" />
                   </span>
                   <div className="min-w-0">
-                    <h2 className="text-base font-extrabold text-content">Danh sách câu</h2>
-                    <p className="text-xs font-medium text-content-muted">Đã làm {answeredCount}/{total} câu ({completionPercent}%)</p>
+                    <h2 className="text-base font-extrabold text-content">
+                      {language === 'en' ? 'Question List' : 'Danh sách câu'}
+                    </h2>
+                    <p className="text-xs font-medium text-content-muted">
+                      {language === 'en'
+                        ? `Solved ${answeredCount}/${total} questions (${completionPercent}%)`
+                        : `Đã làm ${answeredCount}/${total} câu (${completionPercent}%)`}
+                    </p>
                   </div>
                 </div>
-                <button type="button" onClick={onClose} aria-label="Đóng danh sách câu hỏi" className="rounded-xl p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label={language === 'en' ? 'Close question list' : 'Đóng danh sách câu hỏi'}
+                  className="rounded-xl p-2 text-content-muted transition-colors hover:bg-surface-hover hover:text-content"
+                >
                   <X className="size-5" />
                 </button>
               </header>
@@ -116,10 +129,10 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
 
               <div className="grid grid-cols-4 gap-1.5 border-b border-line bg-canvas/50 p-3">
                 {([
-                  { id: 'all', label: 'Tất cả', count: questions.length },
-                  { id: 'unanswered', label: 'Chưa làm', count: Math.max(questions.length - answeredCount, 0) },
-                  { id: 'correct', label: 'Đúng', count: counts.correct },
-                  { id: 'wrong', label: 'Sai', count: counts.wrong },
+                  { id: 'all', label: language === 'en' ? 'All' : 'Tất cả', count: questions.length },
+                  { id: 'unanswered', label: language === 'en' ? 'Unanswered' : 'Chưa làm', count: Math.max(questions.length - answeredCount, 0) },
+                  { id: 'correct', label: language === 'en' ? 'Correct' : 'Đúng', count: counts.correct },
+                  { id: 'wrong', label: language === 'en' ? 'Incorrect' : 'Sai', count: counts.wrong },
                 ] as const).map((item) => (
                   <button
                     key={item.id}
@@ -158,7 +171,11 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                             onClose();
                           }}
                           className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-xs font-extrabold transition-colors ${stateClass}`}
-                          title={`Câu ${index + 1}${question.question_number ? `, câu gốc ${question.question_number}` : ''}`}
+                          title={
+                            language === 'en'
+                              ? `Question ${index + 1}${question.question_number ? `, original #${question.question_number}` : ''}`
+                              : `Câu ${index + 1}${question.question_number ? `, câu gốc ${question.question_number}` : ''}`
+                          }
                         >
                           <span>{index + 1}</span>
                           {!current && correct && <Check className="mt-0.5 size-3 stroke-[3]" />}
@@ -168,22 +185,25 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                     })}
                   </div>
                 ) : !loadingMore ? (
-                  <div className="grid h-40 place-items-center text-center text-xs font-semibold text-content-muted">Không có câu hỏi trong trạng thái này.</div>
+                  <div className="grid h-40 place-items-center text-center text-xs font-semibold text-content-muted">
+                    {language === 'en' ? 'No questions in this state.' : 'Không có câu hỏi trong trạng thái này.'}
+                  </div>
                 ) : null}
 
                 {loadingMore && (
                   <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-content-muted" role="status">
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> Đang tải đầy đủ danh sách câu
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                    <span>{language === 'en' ? 'Loading full question list...' : 'Đang tải đầy đủ danh sách câu'}</span>
                   </div>
                 )}
               </div>
 
               <footer className="border-t border-line bg-canvas/60 p-4">
                 <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-content-muted">
-                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-brand" />Đang xem</span>
-                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-positive/70" />Đúng</span>
-                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-negative/70" />Sai</span>
-                  <span className="flex items-center gap-1.5"><i className="size-3 rounded border border-line bg-canvas" />Chưa làm</span>
+                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-brand" />{language === 'en' ? 'Current' : 'Đang xem'}</span>
+                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-positive/70" />{language === 'en' ? 'Correct' : 'Đúng'}</span>
+                  <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-negative/70" />{language === 'en' ? 'Incorrect' : 'Sai'}</span>
+                  <span className="flex items-center gap-1.5"><i className="size-3 rounded border border-line bg-canvas" />{language === 'en' ? 'Unanswered' : 'Chưa làm'}</span>
                 </div>
               </footer>
             </motion.aside>

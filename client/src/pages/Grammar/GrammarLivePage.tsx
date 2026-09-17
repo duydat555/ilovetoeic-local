@@ -25,8 +25,10 @@ import {
 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { DeleteWrongQuestionsModal } from '../../components/mock-test/DeleteTestHistoryModal';
+import { TopToast } from '../../components/common/TopToast';
 import {
   GrammarCatalog,
   GrammarMode,
@@ -39,15 +41,28 @@ import type { WordTranslation } from '../../types';
 import { createClientId } from '../../utils/id';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
 import { GrammarQuestionDrawer } from './GrammarQuestionDrawer';
+import { soundFX } from '../../utils/soundEffects';
 
 const QUESTION_BATCH_SIZE = 50;
 const GRAMMAR_PROGRESS_STORAGE_PREFIX = 'toeic_grammar_progress';
 const OPTION_KEYS = ['A', 'B', 'C', 'D'] as const;
-const MODE_META: Record<GrammarMode, { label: string; description: string; icon: typeof LibraryBig }> = {
-  topic: { label: 'Theo chuyên đề', description: 'Học đúng điểm ngữ pháp cần củng cố', icon: LibraryBig },
-  bank: { label: 'Kho đề thật', description: 'Luyện câu Part 5 theo từng bộ ETS', icon: Database },
-  difficulty: { label: 'Theo độ khó', description: 'Tăng dần từ nền tảng đến nâng cao', icon: Target },
-};
+const getModeMeta = (language: string): Record<GrammarMode, { label: string; description: string; icon: typeof LibraryBig }> => ({
+  topic: {
+    label: language === 'en' ? 'By Topic' : 'Theo chuyên đề',
+    description: language === 'en' ? 'Target specific grammar points to master' : 'Học đúng điểm ngữ pháp cần củng cố',
+    icon: LibraryBig,
+  },
+  bank: {
+    label: language === 'en' ? 'Real ETS Bank' : 'Kho đề thật',
+    description: language === 'en' ? 'Practice Part 5 by actual ETS test sets' : 'Luyện câu Part 5 theo từng bộ ETS',
+    icon: Database,
+  },
+  difficulty: {
+    label: language === 'en' ? 'By Difficulty' : 'Theo độ khó',
+    description: language === 'en' ? 'Step-by-step from foundation to advanced' : 'Tăng dần từ nền tảng đến nâng cao',
+    icon: Target,
+  },
+});
 
 type Selection = Omit<GrammarQuestionFilters, 'offset' | 'limit'>;
 
@@ -347,6 +362,8 @@ const GrammarLoadingState = () => (
 
 export const GrammarLivePage: React.FC = () => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
+  const modeMeta = useMemo(() => getModeMeta(language), [language]);
   const [activityAttemptId, setActivityAttemptId] = useState(() => createClientId());
   const [catalog, setCatalog] = useState<GrammarCatalog | null>(null);
   const [selection, setSelection] = useState<Selection>({ mode: 'topic' });
@@ -371,6 +388,7 @@ export const GrammarLivePage: React.FC = () => {
   const [savingVocabulary, setSavingVocabulary] = useState('');
   const [vocabularyMessage, setVocabularyMessage] = useState('');
   const [vocabularyError, setVocabularyError] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const practiceRef = useRef<HTMLElement>(null);
   const questionCardRef = useRef<HTMLElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
@@ -407,11 +425,11 @@ export const GrammarLivePage: React.FC = () => {
       setCatalog(nextCatalog);
       setSelection(getInitialSelection(nextCatalog, 'topic'));
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Không thể tải thư viện ngữ pháp.');
+      setError(requestError instanceof Error ? requestError.message : (language === 'en' ? 'Unable to load grammar library.' : 'Không thể tải thư viện ngữ pháp.'));
     } finally {
       setIsCatalogLoading(false);
     }
-  }, []);
+  }, [language]);
 
   useEffect(() => { void loadCatalog(); }, [loadCatalog]);
 
@@ -431,8 +449,14 @@ export const GrammarLivePage: React.FC = () => {
   useEffect(() => {
     if (!user || progressOwner !== user.id) return;
     const saved = writeGrammarProgress(user.id, { answers, wrongAnswers });
-    setProgressStorageError(saved ? '' : 'Không thể lưu tiến độ trên trình duyệt này. Hãy kiểm tra quyền lưu trữ của trang.');
-  }, [answers, progressOwner, user, wrongAnswers]);
+    setProgressStorageError(saved ? '' : (language === 'en' ? 'Cannot save progress in this browser. Please check storage permissions.' : 'Không thể lưu tiến độ trên trình duyệt này. Hãy kiểm tra quyền lưu trữ của trang.'));
+  }, [answers, language, progressOwner, user, wrongAnswers]);
+
+  useEffect(() => {
+    if (!toastMessage) return undefined;
+    const timeout = window.setTimeout(() => setToastMessage(''), 3200);
+    return () => window.clearTimeout(timeout);
+  }, [toastMessage]);
 
   useEffect(() => {
     if (!user) {
@@ -590,7 +614,7 @@ export const GrammarLivePage: React.FC = () => {
     [catalog, selection.bankSetId],
   );
   const contextLabel = useMemo(() => {
-    if (isWrongReview && wrongReviewSection) return `Câu sai: ${wrongReviewSection.label}`;
+    if (isWrongReview && wrongReviewSection) return `${language === 'en' ? 'Wrong Questions' : 'Câu sai'}: ${wrongReviewSection.label}`;
     if (!catalog) return '';
     if (selection.mode === 'topic') {
       return activeTopic?.subtopics.find((item) => item.id === selection.subtopicId)?.title_vi
@@ -601,7 +625,7 @@ export const GrammarLivePage: React.FC = () => {
         || activeBank?.set_name || '';
     }
     return catalog.difficulties.find((item) => item.level === selection.difficultyLevel)?.name_vi || '';
-  }, [activeBank, activeTopic, catalog, isWrongReview, selection, wrongReviewSection]);
+  }, [activeBank, activeTopic, catalog, isWrongReview, language, selection, wrongReviewSection]);
 
   const changeMode = (mode: GrammarMode) => {
     if (!catalog || (mode === selection.mode && !isWrongReview)) return;
@@ -678,6 +702,11 @@ export const GrammarLivePage: React.FC = () => {
   const answerQuestion = (question: GrammarQuestion, answer: string) => {
     enqueueQuestionActivity(question.membership_id, answer);
     setAnswers((current) => ({ ...current, [question.membership_id]: answer }));
+    if (answer === question.correct_answer) {
+      soundFX.playCorrect();
+    } else {
+      soundFX.playWrong();
+    }
     setWrongAnswers((current) => {
       if (answer === question.correct_answer) {
         const next = { ...current };
@@ -719,14 +748,23 @@ export const GrammarLivePage: React.FC = () => {
   };
 
   const clearPracticeHistory = () => {
+    const clearedCount = Math.max(practiceHistoryCount, wrongAnswerCount);
     setAnswers({});
     setWrongAnswers({});
     setShowDeleteWrongHistory(false);
+    if (user?.id) {
+      writeGrammarProgress(user.id, { answers: {}, wrongAnswers: {} });
+    }
     if (isWrongReview) {
       setIsWrongReview(false);
       setWrongReviewSection(null);
       void loadQuestions(selection, 0);
     }
+    setToastMessage(
+      clearedCount > 0
+        ? (language === 'en' ? `Cleared ${clearedCount} questions from grammar practice history.` : `Đã xoá ${clearedCount} câu trong lịch sử luyện tập ngữ pháp.`)
+        : (language === 'en' ? 'Cleaned up grammar practice data.' : 'Đã dọn sạch dữ liệu luyện tập ngữ pháp.'),
+    );
   };
 
   const saveVocabularyEntry = async (entry: GrammarVocabularyEntry) => {
@@ -751,13 +789,13 @@ export const GrammarLivePage: React.FC = () => {
       setSavedVocabulary((current) => new Set(current).add(key));
       setVocabularyMessage(
         result.isDuplicate
-          ? `“${entry.word}” đã có trong sổ từ vựng.`
+          ? (language === 'en' ? `“${entry.word}” is already in your vocabulary notebook.` : `“${entry.word}” đã có trong sổ từ vựng.`)
           : result.cloudSynced
-            ? `Đã thêm “${entry.word}” vào sổ từ vựng.`
-            : `Đã lưu “${entry.word}” trên thiết bị; hệ thống sẽ đồng bộ lại khi kết nối ổn định.`,
+            ? (language === 'en' ? `Added “${entry.word}” to vocabulary notebook.` : `Đã thêm “${entry.word}” vào sổ từ vựng.`)
+            : (language === 'en' ? `Saved “${entry.word}” on device; will sync when connection is stable.` : `Đã lưu “${entry.word}” trên thiết bị; hệ thống sẽ đồng bộ lại khi kết nối ổn định.`),
       );
     } catch (saveError) {
-      setVocabularyError(saveError instanceof Error ? saveError.message : 'Không thể lưu từ vựng. Vui lòng thử lại.');
+      setVocabularyError(saveError instanceof Error ? saveError.message : (language === 'en' ? 'Unable to save vocabulary. Please try again.' : 'Không thể lưu từ vựng. Vui lòng thử lại.'));
     } finally {
       setSavingVocabulary('');
     }
@@ -770,10 +808,10 @@ export const GrammarLivePage: React.FC = () => {
       <div className="mx-auto grid min-h-[55vh] w-full max-w-3xl place-items-center pb-10">
         <section className="surface w-full rounded-2xl px-6 py-12 text-center">
           <AlertCircle className="mx-auto size-9 text-negative" />
-          <h1 className="mt-4 text-xl font-extrabold text-content">Chưa thể mở thư viện ngữ pháp</h1>
+          <h1 className="mt-4 text-xl font-extrabold text-content">{language === 'en' ? 'Unable to load grammar library' : 'Chưa thể mở thư viện ngữ pháp'}</h1>
           <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-content-muted">{error}</p>
           <button type="button" onClick={() => void loadCatalog()} className="btn-primary mt-6 text-sm">
-            <RefreshCcw className="size-4" /> Thử tải lại
+            <RefreshCcw className="size-4" /> {language === 'en' ? 'Try reloading' : 'Thử tải lại'}
           </button>
         </section>
       </div>
@@ -788,29 +826,33 @@ export const GrammarLivePage: React.FC = () => {
           <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="mb-3 flex items-center gap-2 text-xs font-bold text-brand-200">
-                <LibraryBig className="size-3.5" /> Ngữ pháp TOEIC
+                <LibraryBig className="size-3.5" /> {language === 'en' ? 'TOEIC Grammar' : 'Ngữ pháp TOEIC'}
               </div>
-              <h1 className="max-w-xl text-2xl font-black tracking-[-0.035em] sm:text-3xl">Hiểu cấu trúc, chọn đáp án chắc hơn</h1>
+              <h1 className="max-w-xl text-2xl font-black tracking-[-0.035em] sm:text-3xl">
+                {language === 'en' ? 'Master structure, choose answers with confidence' : 'Hiểu cấu trúc, chọn đáp án chắc hơn'}
+              </h1>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">
-                Luyện {Object.values(catalog.mode_counts).reduce((total, count) => total + count, 0).toLocaleString('vi-VN')} lượt câu hỏi theo chuyên đề, kho đề thật hoặc độ khó. Mỗi câu đều có giải thích tiếng Việt.
+                {language === 'en'
+                  ? `Practice ${Object.values(catalog.mode_counts).reduce((total, count) => total + count, 0).toLocaleString('en-US')} questions by topic, ETS test banks, or difficulty levels. Every question includes detailed explanations.`
+                  : `Luyện ${Object.values(catalog.mode_counts).reduce((total, count) => total + count, 0).toLocaleString('vi-VN')} lượt câu hỏi theo chuyên đề, kho đề thật hoặc độ khó. Mỗi câu đều có giải thích tiếng Việt.`}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:w-64">
               <div className="rounded-xl bg-white/10 px-3.5 py-3 ring-1 ring-white/10 backdrop-blur-sm">
-                <span className="block text-2xl font-black tabular-nums">{catalog.question_count.toLocaleString('vi-VN')}</span>
-                <span className="text-[11px] font-semibold text-slate-300">câu độc lập</span>
+                <span className="block text-2xl font-black tabular-nums">{catalog.question_count.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN')}</span>
+                <span className="text-[11px] font-semibold text-slate-300">{language === 'en' ? 'questions' : 'câu độc lập'}</span>
               </div>
               <div className="rounded-xl bg-brand-300 px-3.5 py-3 text-brand-950">
                 <span className="block text-2xl font-black tabular-nums">{catalog.topics.length}</span>
-                <span className="text-[11px] font-bold">chuyên đề</span>
+                <span className="text-[11px] font-bold">{language === 'en' ? 'topics' : 'chuyên đề'}</span>
               </div>
             </div>
           </div>
         </header>
 
-        <section className="grid gap-3 sm:grid-cols-3" aria-label="Chọn cách luyện ngữ pháp">
-          {(Object.keys(MODE_META) as GrammarMode[]).map((mode) => {
-            const meta = MODE_META[mode];
+        <section id="tour-gm-modes" className="grid gap-3 sm:grid-cols-3" aria-label={language === 'en' ? 'Choose grammar practice mode' : 'Chọn cách luyện ngữ pháp'}>
+          {(Object.keys(modeMeta) as GrammarMode[]).map((mode) => {
+            const meta = modeMeta[mode];
             const Icon = meta.icon;
             const active = selection.mode === mode;
             return (
@@ -830,7 +872,7 @@ export const GrammarLivePage: React.FC = () => {
                 <span className="min-w-0">
                   <span className="block text-sm font-extrabold">{meta.label}</span>
                   <span className={`mt-0.5 block truncate text-[11px] font-medium ${active ? 'text-brand-950/70' : 'text-content-muted'}`}>
-                    {catalog.mode_counts[mode]?.toLocaleString('vi-VN') || 0} câu · {meta.description}
+                    {catalog.mode_counts[mode]?.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN') || 0} {language === 'en' ? 'questions' : 'câu'} · {meta.description}
                   </span>
                 </span>
               </button>
@@ -839,12 +881,12 @@ export const GrammarLivePage: React.FC = () => {
         </section>
 
         <div className="grid min-w-0 gap-5 lg:grid-cols-[21rem_minmax(0,1fr)] lg:items-start">
-          <aside className="surface min-w-0 overflow-hidden rounded-2xl lg:sticky lg:top-5" aria-label="Danh mục ngữ pháp">
+          <aside id="tour-gm-catalog" className="surface min-w-0 overflow-hidden rounded-2xl lg:sticky lg:top-5" aria-label={language === 'en' ? 'Grammar catalog' : 'Danh mục ngữ pháp'}>
             <div className="border-b border-line px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-extrabold">{MODE_META[selection.mode].label}</h2>
-                  <p className="mt-0.5 text-[11px] text-content-muted">Chọn nội dung để bắt đầu</p>
+                  <h2 className="text-sm font-extrabold">{modeMeta[selection.mode].label}</h2>
+                  <p className="mt-0.5 text-[11px] text-content-muted">{language === 'en' ? 'Select content to begin' : 'Chọn nội dung để bắt đầu'}</p>
                 </div>
                 <Layers3 className="size-4 text-content-muted" />
               </div>
@@ -865,7 +907,7 @@ export const GrammarLivePage: React.FC = () => {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-extrabold">{topic.title_vi}</span>
-                        <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{topic.question_count} câu</span>
+                        <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{topic.question_count} {language === 'en' ? 'questions' : 'câu'}</span>
                       </span>
                       <ChevronDown className={`size-3.5 text-content-muted transition-transform ${active ? 'rotate-180' : ''}`} />
                     </button>
@@ -881,7 +923,7 @@ export const GrammarLivePage: React.FC = () => {
                           className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${!selection.subtopicId ? 'bg-accent/15 font-extrabold text-accent-strong' : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
                             }`}
                         >
-                          <span>Tất cả câu trong chuyên đề</span>
+                          <span>{language === 'en' ? 'All questions in topic' : 'Tất cả câu trong chuyên đề'}</span>
                           <span className="shrink-0 tabular-nums">{topic.question_count}</span>
                         </button>
                         {topic.subtopics.map((subtopic) => (
@@ -916,7 +958,7 @@ export const GrammarLivePage: React.FC = () => {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-xs font-extrabold">{bank.set_name}</span>
-                        <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{bank.test_count} đề · {bank.question_count} câu</span>
+                        <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{bank.test_count} {language === 'en' ? 'tests' : 'đề'} · {bank.question_count} {language === 'en' ? 'questions' : 'câu'}</span>
                       </span>
                       <ChevronDown className={`size-3.5 text-content-muted transition-transform ${active ? 'rotate-180' : ''}`} />
                     </button>
@@ -933,7 +975,7 @@ export const GrammarLivePage: React.FC = () => {
                             }`}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span>Tất cả câu trong bộ đề</span>
+                            <span>{language === 'en' ? 'All questions in test set' : 'Tất cả câu trong bộ đề'}</span>
                             <span className="tabular-nums">{bank.question_count}</span>
                           </span>
                         </button>
@@ -949,7 +991,7 @@ export const GrammarLivePage: React.FC = () => {
                             className={`rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${selection.testId === test.test_id ? 'bg-accent/15 font-extrabold text-accent-strong' : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'}`}
                           >
                             <span className="block truncate">{test.test_name}</span>
-                            <span className="mt-0.5 block text-[9px] opacity-75">{test.question_count} câu</span>
+                            <span className="mt-0.5 block text-[9px] opacity-75">{test.question_count} {language === 'en' ? 'questions' : 'câu'}</span>
                           </button>
                         ))}
                       </div>
@@ -976,7 +1018,7 @@ export const GrammarLivePage: React.FC = () => {
                         <span className={`grid size-9 shrink-0 place-items-center rounded-xl text-sm font-black ${active ? 'bg-accent text-brand-950' : 'bg-surface-elevated text-content-muted'}`}>{difficulty.level}</span>
                         <span className="flex-1">
                           <span className="block text-xs font-extrabold">{difficulty.name_vi}</span>
-                          <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{difficulty.question_count.toLocaleString('vi-VN')} câu</span>
+                          <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{difficulty.question_count.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN')} {language === 'en' ? 'questions' : 'câu'}</span>
                         </span>
                         {active && <Check className="size-4 text-positive" />}
                       </button>
@@ -987,7 +1029,7 @@ export const GrammarLivePage: React.FC = () => {
             </div>
           </aside>
 
-          <section ref={practiceRef} className="min-w-0 scroll-mt-5 space-y-4" id="grammar-practice" aria-label="Bài luyện ngữ pháp">
+          <section id="tour-gm-practice" ref={practiceRef} className="min-w-0 scroll-mt-5 space-y-4" aria-label={language === 'en' ? 'Grammar practice session' : 'Bài luyện ngữ pháp'}>
             {progressStorageError && <p className="text-[11px] font-semibold text-negative" role="alert">{progressStorageError}</p>}
 
             {isQuestionLoading ? (
@@ -995,9 +1037,9 @@ export const GrammarLivePage: React.FC = () => {
             ) : error ? (
               <section className="surface rounded-2xl px-6 py-12 text-center">
                 <AlertCircle className="mx-auto size-8 text-negative" />
-                <h2 className="mt-3 text-base font-extrabold">Không thể tải câu hỏi</h2>
+                <h2 className="mt-3 text-base font-extrabold">{language === 'en' ? 'Unable to load questions' : 'Không thể tải câu hỏi'}</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-content-muted">{error}</p>
-                <button type="button" onClick={() => void loadQuestions(selection, 0)} className="btn-primary mt-5 text-xs"><RefreshCcw className="size-3.5" /> Thử lại</button>
+                <button type="button" onClick={() => void loadQuestions(selection, 0)} className="btn-primary mt-5 text-xs"><RefreshCcw className="size-3.5" /> {language === 'en' ? 'Try again' : 'Thử lại'}</button>
               </section>
             ) : currentQuestion ? (
               <>
@@ -1008,7 +1050,7 @@ export const GrammarLivePage: React.FC = () => {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="shrink-0 rounded-md bg-brand-ink px-2 py-0.5 text-[10px] font-black text-white uppercase tracking-wider">
-                            Đang luyện
+                            {language === 'en' ? 'Practicing' : 'Đang luyện'}
                           </span>
                           <h2 className="truncate text-xs font-extrabold text-content sm:text-sm">{contextLabel}</h2>
                         </div>
@@ -1026,16 +1068,16 @@ export const GrammarLivePage: React.FC = () => {
                           ) : (
                             <ListChecks className="size-3.5 text-accent-strong" />
                           )}
-                          <span>Danh sách câu</span>
+                          <span>{language === 'en' ? 'Question List' : 'Danh sách câu'}</span>
                         </button>
 
                         <div className="flex items-center gap-2 rounded-lg bg-surface px-2.5 py-1 border border-line/60 text-[11px]">
                           <span className="font-extrabold text-content">
-                            Câu {currentIndex + 1}/{pagination.total}
+                            {language === 'en' ? 'Question ' : 'Câu '}{currentIndex + 1}/{pagination.total}
                           </span>
                           <span className="text-line">|</span>
                           <span className="font-bold text-positive flex items-center gap-1">
-                            <CheckCircle2 className="size-3" /> {correctCount} đúng
+                            <CheckCircle2 className="size-3" /> {correctCount} {language === 'en' ? 'correct' : 'đúng'}
                           </span>
                           {answeredCount > 0 && (
                             <span className="font-black tabular-nums text-content">
@@ -1057,7 +1099,7 @@ export const GrammarLivePage: React.FC = () => {
                   <div className="px-4 py-5 sm:px-6 sm:py-6">
                     {(currentQuestion.question_number || currentQuestion.difficulty_name_vi) && (
                       <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-content-muted">
-                        {currentQuestion.question_number && <span>Gốc #{currentQuestion.question_number}</span>}
+                        {currentQuestion.question_number && <span>{language === 'en' ? 'Original #' : 'Gốc #'}{currentQuestion.question_number}</span>}
                         {currentQuestion.difficulty_name_vi && <span>· {currentQuestion.difficulty_name_vi}</span>}
                       </div>
                     )}
@@ -1099,7 +1141,11 @@ export const GrammarLivePage: React.FC = () => {
                             {selectedAnswer === currentQuestion.correct_answer ? <Check className="size-3.5" /> : <X className="size-3.5" />}
                           </span>
                           <div className="min-w-0">
-                            <h3 className="text-sm font-extrabold">{selectedAnswer === currentQuestion.correct_answer ? 'Chính xác' : `Đáp án đúng là ${currentQuestion.correct_answer}`}</h3>
+                            <h3 className="text-sm font-extrabold">
+                              {selectedAnswer === currentQuestion.correct_answer
+                                ? (language === 'en' ? 'Correct' : 'Chính xác')
+                                : (language === 'en' ? `Correct answer is ${currentQuestion.correct_answer}` : `Đáp án đúng là ${currentQuestion.correct_answer}`)}
+                            </h3>
                             {renderFormattedExplanation(currentQuestion.explanation_vi, currentQuestion.correct_answer)}
                           </div>
                         </div>
@@ -1112,13 +1158,13 @@ export const GrammarLivePage: React.FC = () => {
                       }`}>
                       {currentQuestion.translation_vi && (
                         <section className="bg-surface px-4 py-4 sm:px-5">
-                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><Languages className="size-3.5 text-accent-strong" /> Bản dịch câu</h3>
+                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><Languages className="size-3.5 text-accent-strong" /> {language === 'en' ? 'Sentence Translation' : 'Bản dịch câu'}</h3>
                           <p className="mt-2 whitespace-pre-line text-xs leading-relaxed text-content-muted">{currentQuestion.translation_vi}</p>
                         </section>
                       )}
                       {currentQuestion.answer_translation_vi && (
                         <section className="bg-surface px-4 py-4 sm:px-5">
-                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><FileQuestion className="size-3.5 text-accent-strong" /> Nghĩa đáp án</h3>
+                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><FileQuestion className="size-3.5 text-accent-strong" /> {language === 'en' ? 'Option Meanings' : 'Nghĩa đáp án'}</h3>
                           <div className="mt-2.5 space-y-2">
                             {answerTranslationEntries.map((entry, idx) => {
                               const isCorrectOption = entry.letter === currentQuestion.correct_answer;
@@ -1153,7 +1199,7 @@ export const GrammarLivePage: React.FC = () => {
                       )}
                       {currentQuestion.vocabulary && (
                         <section className="bg-surface px-4 py-4 sm:px-5">
-                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><BookOpenCheck className="size-3.5 text-accent-strong" /> Từ vựng cần nhớ</h3>
+                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><BookOpenCheck className="size-3.5 text-accent-strong" /> {language === 'en' ? 'Key Vocabulary' : 'Từ vựng cần nhớ'}</h3>
                           <div className="mt-2 flex flex-col items-start gap-2">
                             {vocabularyEntries.map((entry) => {
                               const key = vocabularyKey(entry.word);
@@ -1171,8 +1217,8 @@ export const GrammarLivePage: React.FC = () => {
                                     type="button"
                                     onClick={() => void saveVocabularyEntry(entry)}
                                     disabled={saved || Boolean(savingVocabulary) || !user}
-                                    aria-label={saved ? `${entry.word} đã có trong sổ từ vựng` : `Thêm ${entry.word} vào sổ từ vựng`}
-                                    title={saved ? 'Đã lưu' : 'Thêm vào sổ từ vựng'}
+                                    aria-label={saved ? (language === 'en' ? `${entry.word} is already in vocabulary notebook` : `${entry.word} đã có trong sổ từ vựng`) : (language === 'en' ? `Add ${entry.word} to vocabulary notebook` : `Thêm ${entry.word} vào sổ từ vựng`)}
+                                    title={saved ? (language === 'en' ? 'Saved' : 'Đã lưu') : (language === 'en' ? 'Add to vocabulary' : 'Thêm vào sổ từ vựng')}
                                     className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${saved ? 'bg-positive/10 text-positive' : 'bg-accent/15 text-accent-strong hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-50'}`}
                                   >
                                     {saving ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
@@ -1189,19 +1235,19 @@ export const GrammarLivePage: React.FC = () => {
                   )}
                 </article>
 
-                <nav className="surface rounded-2xl p-3" aria-label="Điều hướng câu hỏi ngữ pháp">
+                <nav className="surface rounded-2xl p-3" aria-label={language === 'en' ? 'Grammar question navigation' : 'Điều hướng câu hỏi ngữ pháp'}>
                   <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
-                    <button type="button" disabled={currentIndex === 0} onClick={() => moveToQuestion(currentIndex - 1)} className="btn-secondary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><ArrowLeft className="size-3.5" /> <span>Trước</span></button>
+                    <button type="button" disabled={currentIndex === 0} onClick={() => moveToQuestion(currentIndex - 1)} className="btn-secondary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><ArrowLeft className="size-3.5" /> <span>{language === 'en' ? 'Previous' : 'Trước'}</span></button>
                     <div className="min-w-0 text-center" aria-live="polite">
-                      <p className="text-sm font-extrabold tabular-nums text-content">Câu {currentIndex + 1} / {pagination.total}</p>
-                      {isLoadingMore && <p className="mt-0.5 text-[10px] font-semibold text-content-muted">Đang nạp các câu tiếp theo…</p>}
+                      <p className="text-sm font-extrabold tabular-nums text-content">{language === 'en' ? 'Question ' : 'Câu '}{currentIndex + 1} / {pagination.total}</p>
+                      {isLoadingMore && <p className="mt-0.5 text-[10px] font-semibold text-content-muted">{language === 'en' ? 'Loading next questions…' : 'Đang nạp các câu tiếp theo…'}</p>}
                       {loadMoreError && (
                         <button type="button" onClick={() => void loadQuestions(selection, questions.length, true)} className="mt-0.5 text-[10px] font-bold text-negative hover:underline">
-                          Không thể nạp thêm · Thử lại
+                          {language === 'en' ? 'Failed to load more · Retry' : 'Không thể nạp thêm · Thử lại'}
                         </button>
                       )}
                     </div>
-                    <button type="button" disabled={currentIndex >= questions.length - 1} onClick={() => moveToQuestion(currentIndex + 1)} className="btn-primary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><span>Sau</span> <ArrowRight className="size-3.5" /></button>
+                    <button type="button" disabled={currentIndex >= questions.length - 1} onClick={() => moveToQuestion(currentIndex + 1)} className="btn-primary px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40 sm:px-5"><span>{language === 'en' ? 'Next' : 'Sau'}</span> <ArrowRight className="size-3.5" /></button>
                   </div>
                 </nav>
 
@@ -1210,7 +1256,7 @@ export const GrammarLivePage: React.FC = () => {
                     <summary className="flex cursor-pointer items-center justify-between px-4 py-3 sm:px-5 select-none text-xs font-extrabold text-content hover:bg-surface-hover">
                       <div className="flex items-center gap-2">
                         <ListRestart className="size-4 text-negative" />
-                        <span>Làm lại câu sai theo phần</span>
+                        <span>{language === 'en' ? 'Retry wrong questions by section' : 'Làm lại câu sai theo phần'}</span>
                         <span className="rounded-full bg-negative/10 px-2 py-0.5 text-[10px] font-black text-negative">
                           {wrongAnswerCount}
                         </span>
@@ -1222,19 +1268,18 @@ export const GrammarLivePage: React.FC = () => {
                             e.stopPropagation();
                             setShowDeleteWrongHistory(true);
                           }}
-                          disabled={!hasPracticeHistory}
-                          className="inline-flex min-h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-bold text-content-muted transition-colors hover:bg-surface-hover hover:text-negative active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex min-h-7 items-center gap-1.5 rounded-md px-2 text-[11px] font-bold text-content-muted transition-colors hover:bg-surface-hover hover:text-negative active:scale-[0.98]"
                         >
-                          <Trash2 className="size-3" /> Xoá lịch sử
+                          <Trash2 className="size-3" /> {language === 'en' ? 'Clear history' : 'Xoá lịch sử'}
                         </button>
                         <ChevronDown className="size-4 transition-transform group-open:rotate-180 text-content-muted" />
                       </div>
                     </summary>
 
                     <div className="border-t border-line p-4 sm:p-5 bg-surface-elevated/30">
-                      <div className="grid gap-2 sm:grid-cols-3" aria-label="Chọn phần có câu sai cần làm lại">
-                        {(Object.keys(MODE_META) as GrammarMode[]).map((mode) => {
-                          const meta = MODE_META[mode];
+                      <div className="grid gap-2 sm:grid-cols-3" aria-label={language === 'en' ? 'Select section with wrong questions to retry' : 'Chọn phần có câu sai cần làm lại'}>
+                        {(Object.keys(modeMeta) as GrammarMode[]).map((mode) => {
+                          const meta = modeMeta[mode];
                           const Icon = meta.icon;
                           const sections = wrongAnswerSectionsByMode[mode];
                           const modeCount = sections.reduce((total, section) => total + section.count, 0);
@@ -1246,12 +1291,12 @@ export const GrammarLivePage: React.FC = () => {
                                 </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block truncate text-[11px] font-extrabold text-content">{meta.label}</span>
-                                  <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{modeCount.toLocaleString('vi-VN')} câu sai</span>
+                                  <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{modeCount.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN')} {language === 'en' ? 'wrong' : 'câu sai'}</span>
                                 </span>
                               </header>
                               <div className="max-h-52 space-y-1 overflow-y-auto p-1.5">
                                 {sections.length === 0 ? (
-                                  <p className="px-2 py-4 text-center text-[10px] font-semibold text-content-muted">Chưa có câu sai</p>
+                                  <p className="px-2 py-4 text-center text-[10px] font-semibold text-content-muted">{language === 'en' ? 'No wrong questions' : 'Chưa có câu sai'}</p>
                                 ) : sections.map((section) => {
                                   const active = isWrongReview && wrongReviewSection?.key === section.key;
                                   return (
@@ -1285,13 +1330,13 @@ export const GrammarLivePage: React.FC = () => {
                 )}
 
                 {answeredCount > 0 && (
-                  <button type="button" onClick={resetCurrentPractice} className="mx-auto flex items-center gap-2 text-xs font-bold text-content-muted transition-colors hover:text-content"><RotateCcw className="size-3.5" /> {isWrongReview ? 'Làm lại danh sách này' : 'Làm lại chuyên mục này'}</button>
+                  <button type="button" onClick={resetCurrentPractice} className="mx-auto flex items-center gap-2 text-xs font-bold text-content-muted transition-colors hover:text-content"><RotateCcw className="size-3.5" /> {isWrongReview ? (language === 'en' ? 'Retry this list' : 'Làm lại danh sách này') : (language === 'en' ? 'Retry this section' : 'Làm lại chuyên mục này')}</button>
                 )}
               </>
             ) : (
               <section className="surface rounded-2xl px-6 py-12 text-center">
                 <FileQuestion className="mx-auto size-8 text-content-muted" />
-                <h2 className="mt-3 text-base font-extrabold">Mục này chưa có câu hỏi</h2>
+                <h2 className="mt-3 text-base font-extrabold">{language === 'en' ? 'This section has no questions yet' : 'Mục này chưa có câu hỏi'}</h2>
               </section>
             )}
           </section>
@@ -1310,18 +1355,33 @@ export const GrammarLivePage: React.FC = () => {
       <AnimatePresence>
         {showDeleteWrongHistory && (
           <DeleteWrongQuestionsModal
-            scopeLabel="Ngữ pháp TOEIC"
-            wrongCount={practiceHistoryCount}
+            scopeLabel={language === 'en' ? 'TOEIC Grammar' : 'Ngữ pháp TOEIC'}
+            wrongCount={practiceHistoryCount || wrongAnswerCount}
             deleting={false}
             error=""
-            title="Xoá lịch sử làm bài?"
-            description={<>Toàn bộ <strong className="text-content">{practiceHistoryCount} câu đã trả lời</strong> trong trang <strong className="text-content">Ngữ pháp TOEIC</strong>, bao gồm câu đúng và câu sai, sẽ bị xoá khỏi trình duyệt. Thao tác này không thể hoàn tác.</>}
-            confirmLabel="Xoá toàn bộ lịch sử"
-            closeLabel="Đóng xác nhận xoá lịch sử làm bài"
+            title={practiceHistoryCount > 0 || wrongAnswerCount > 0 ? (language === 'en' ? 'Clear practice history?' : 'Xoá lịch sử làm bài?') : (language === 'en' ? 'Clean up practice data?' : 'Dọn sạch dữ liệu làm bài?')}
+            description={
+              practiceHistoryCount > 0 || wrongAnswerCount > 0 ? (
+                language === 'en' ? (
+                  <>All <strong className="text-content">{practiceHistoryCount || wrongAnswerCount} answered questions</strong> in <strong className="text-content">TOEIC Grammar</strong>, including correct and incorrect answers, will be removed from your browser. This action cannot be undone.</>
+                ) : (
+                  <>Toàn bộ <strong className="text-content">{practiceHistoryCount || wrongAnswerCount} câu đã trả lời</strong> trong trang <strong className="text-content">Ngữ pháp TOEIC</strong>, bao gồm câu đúng và câu sai, sẽ bị xoá khỏi trình duyệt. Thao tác này không thể hoàn tác.</>
+                )
+              ) : (
+                language === 'en' ? (
+                  <>Are you sure you want to clean up all practice progress and wrong answers in <strong className="text-content">TOEIC Grammar</strong>? This will ensure your practice data is completely refreshed.</>
+                ) : (
+                  <>Bạn có chắc muốn dọn sạch toàn bộ tiến trình luyện tập và câu sai trong trang <strong className="text-content">Ngữ pháp TOEIC</strong>? Thao tác này sẽ đảm bảo dữ liệu của bạn được làm mới hoàn toàn.</>
+                )
+              )
+            }
+            confirmLabel={practiceHistoryCount > 0 || wrongAnswerCount > 0 ? (language === 'en' ? 'Delete all history' : 'Xoá toàn bộ lịch sử') : (language === 'en' ? 'Clean up data' : 'Dọn sạch dữ liệu')}
+            closeLabel={language === 'en' ? 'Close clear practice history modal' : 'Đóng xác nhận xoá lịch sử làm bài'}
             onConfirm={clearPracticeHistory}
             onClose={() => setShowDeleteWrongHistory(false)}
           />
         )}
+        {toastMessage && <TopToast key={toastMessage} message={toastMessage} />}
       </AnimatePresence>
     </>
   );

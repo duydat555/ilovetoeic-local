@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { FeatureKey, featureDefinitionByKey } from '../../config/features';
 import { useAuth } from '../../context/AuthContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -12,8 +13,26 @@ export const FeatureRouteGuard: React.FC<{ feature: FeatureKey }> = ({ feature }
   const { isFeatureEnabled, isLoading } = useFeatureFlags();
   const isAdmin = getUserRole(user) === 'admin';
 
-  // Admin luôn có quyền truy cập tất cả trang
-  if (isAdmin) return <Outlet />;
+  // Admin luôn có quyền truy cập tất cả trang để quản lý và kiểm tra
+  if (isAdmin) {
+    if (!isFeatureEnabled(feature)) {
+      const definition = featureDefinitionByKey.get(feature);
+      return (
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="mx-auto my-3 w-full max-w-[1400px] px-3 sm:px-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-300/80 bg-amber-50/90 p-3.5 text-amber-900 shadow-sm dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+              <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+              <p className="text-xs leading-relaxed font-semibold">
+                <span className="font-extrabold uppercase tracking-wide">Chế độ Giáo viên:</span> Tính năng <span className="underline font-bold">{definition?.name || feature}</span> hiện đang <span className="font-extrabold text-red-600 dark:text-red-400">ĐÃ TẮT</span> trên toàn hệ thống (học sinh không thể truy cập). Bạn vẫn có thể xem nội dung vì là Giáo viên.
+              </p>
+            </div>
+          </div>
+          <Outlet />
+        </div>
+      );
+    }
+    return <Outlet />;
+  }
 
   // Nếu trạng thái tính năng chưa tải xong khi vừa mở Web (lần đầu)
   if (isLoading) {

@@ -1,0 +1,1572 @@
+[
+  {
+    "id": "8506fdcd-ef86-4810-be0f-d85343f0a1d7",
+    "label": "1. Virtusonic (Part 6 Article)",
+    "title": "Questions 131-134 refer to the following article.",
+    "part": 6,
+    "en": "<div class=\"article\"><p style=\"font-size:11px\"><b>Article</b></p><h2>Article title</h2><p>COPENHAGEN (25 May)—Odense Media announced today that initial sales of the latest version of its tablet, Virtusonic, have — [131] — the company's expectations. Company spokesperson Kerstin Vestergaard attributes the — [132] — sales to a number of factors. First, there is the tablet's high-quality case. — [133] —. In addition, the Virtusonic has an adaptive screen brightness feature. This allows it to adjust automatically to less-than-ideal — [134] — conditions. Vestergaard believes that these characteristics make the Virtusonic a must-have for consumers.</p></div>",
+    "passageSentencePairs": [
+      {
+        "en": "Article title",
+        "vi": "Tiêu đề bài báo",
+        "type": "title",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "Article",
+        "vi": "Bài báo",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "COPENHAGEN (25 May)—Odense Media announced today that initial sales of the latest version of its tablet, Virtusonic, have — [131] — the company's expectations.",
+        "vi": "COPENHAGEN (25 tháng 5)—Odense Media hôm nay thông báo rằng doanh số ban đầu của phiên bản máy tính bảng mới nhất của hãng, Virtusonic, đã — [131] — kỳ vọng của công ty.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": [
+          131
+        ]
+      },
+      {
+        "en": "Company spokesperson Kerstin Vestergaard attributes the — [132] — sales to a number of factors.",
+        "vi": "Người phát ngôn công ty Kerstin Vestergaard quy doanh số — [132] — cho một số yếu tố.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": [
+          132
+        ]
+      },
+      {
+        "en": "First, there is the tablet's high-quality case.",
+        "vi": "Đầu tiên, phải kể đến lớp vỏ chất lượng cao của máy tính bảng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "— [133] —.",
+        "vi": "— [133] —.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": [
+          133
+        ]
+      },
+      {
+        "en": "In addition, the Virtusonic has an adaptive screen brightness feature.",
+        "vi": "Ngoài ra, Virtusonic còn có tính năng điều chỉnh độ sáng màn hình thích ứng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "This allows it to adjust automatically to less-than-ideal — [134] — conditions.",
+        "vi": "Tính năng này cho phép nó tự động điều chỉnh phù hợp với các điều kiện — [134] — không được lý tưởng lắm.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": [
+          134
+        ]
+      },
+      {
+        "en": "Vestergaard believes that these characteristics make the Virtusonic a must-have for consumers.",
+        "vi": "Vestergaard tin rằng những đặc điểm này làm cho Virtusonic trở thành một thiết bị không thể thiếu đối với người tiêu dùng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "21bd1343-3611-46bc-a9bd-42f09970b590",
+    "label": "2. Conference Room 120 (Part 6 Notice)",
+    "title": "Questions 135-138 refer to the following information.",
+    "part": 6,
+    "en": "<div class=\"information\">\n<p>Conference Room 120 can be booked for meetings and conference calls. First, make a reservation request online at www.gzpoffice.com/confroom. When your request ______[135], the system automatically checks for availability. Your request will be accepted if no other event is scheduled at that time. The system will then immediately send you an e-mail message to ______[136] your reservation. However, if another meeting is scheduled that conflicts with yours, you will be notified that the request has been declined. ______[137]. It is therefore ______[138] that you schedule your event well ahead of time. This way, if a given time slot is already reserved, you will be able to reschedule your meeting.</p></div>",
+    "passageSentencePairs": [
+      {
+        "en": "Conference Room 120 can be booked for meetings and conference calls.",
+        "vi": "Phòng họp 120 có thể được đặt trước cho các cuộc họp và cuộc gọi hội nghị.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "First, make a reservation request online at www.gzpoffice.com/confroom.",
+        "vi": "Đầu tiên, hãy gửi yêu cầu đặt phòng trực tuyến tại www.gzpoffice.com/confroom.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "When your request ______[135], the system automatically checks for availability.",
+        "vi": "Khi yêu cầu của bạn ______[135], hệ thống sẽ tự động kiểm tra tình trạng trống của phòng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": [
+          135
+        ]
+      },
+      {
+        "en": "Your request will be accepted if no other event is scheduled at that time.",
+        "vi": "Yêu cầu của bạn sẽ được chấp nhận nếu không có sự kiện nào khác được lên lịch vào thời gian đó.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "The system will then immediately send you an e-mail message to ______[136] your reservation.",
+        "vi": "Sau đó, hệ thống sẽ ngay lập tức gửi cho bạn một email để ______[136] việc đặt phòng của bạn.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": [
+          136
+        ]
+      },
+      {
+        "en": "However, if another meeting is scheduled that conflicts with yours, you will be notified that the request has been declined.",
+        "vi": "Tuy nhiên, nếu có một cuộc họp khác được lên lịch trùng với thời gian của bạn, bạn sẽ nhận được thông báo rằng yêu cầu đã bị từ chối.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "______[137].",
+        "vi": "______[137].",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": [
+          137
+        ]
+      },
+      {
+        "en": "It is therefore ______[138] that you schedule your event well ahead of time.",
+        "vi": "Do đó, việc bạn lên lịch cho sự kiện của mình từ trước là ______[138].",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": [
+          138
+        ]
+      },
+      {
+        "en": "This way, if a given time slot is already reserved, you will be able to reschedule your meeting.",
+        "vi": "Bằng cách này, nếu khung giờ đã cho đã được đặt trước, bạn sẽ có thể sắp xếp lại lịch họp của mình.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "ef9f4a03-6e7a-497a-b98e-d3a408144aff",
+    "label": "3. Polton Farm Fair (Part 6 Email)",
+    "title": "Questions 139-142 refer to the following e-mail.",
+    "part": 6,
+    "en": "<div class=\"email\">\n  <table border=\"1\" cellpadding=\"4\" style=\"margin-bottom:10px;width:100%\">\n    <tr><td><b>To:</b></td><td>Emily Swanton &lt;eswanton@swantonfarmfeed.com&gt;</td></tr>\n    <tr><td><b>From:</b></td><td>Arnold Hansen &lt;AHansen@poltonfairgrounds.org&gt;</td></tr>\n    <tr><td><b>Subject:</b></td><td>Polton Farm Fair</td></tr>\n    <tr><td><b>Date:</b></td><td>June 2</td></tr>\n  </table>\n  <p>This e-mail serves as a receipt for your registration ______[139] confirms your participation in the Seventeenth Annual Polton County Farm Fair from July 14 to July 16. As a returning exhibitor, Swanton Farm Feed will be offered ______[140] space at a discounted rate.</p>\n  <p>Please be aware of a new requirement when preparing your space. This year, all booths must be completely ready by 8 P.M. on July 13. ______[141]. Tables will be provided by the organizer, as in past years.</p>\n  <p>Thank you once again for your participation in our ______[142].</p>\n  <p>Arnold Hansen, Assistant Coordinator</p>\n  <p>Polton County Farm Fair</p>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "To: Emily Swanton <eswanton@swantonfarmfeed.com>",
+        "vi": "Đến: Emily Swanton <eswanton@swantonfarmfeed.com>",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "From: Arnold Hansen <AHansen@poltonfairgrounds.org>",
+        "vi": "Từ: Arnold Hansen <AHansen@poltonfairgrounds.org>",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Subject: Polton Farm Fair",
+        "vi": "Chủ đề: Hội chợ Nông trại Polton",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: June 2",
+        "vi": "Ngày: 2 tháng 6",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "This e-mail serves as a receipt for your registration ______[139] confirms your participation in the Seventeenth Annual Polton County Farm Fair from July 14 to July 16.",
+        "vi": "Email này dùng làm biên lai cho việc đăng ký của bạn ______[139] xác nhận sự tham gia của bạn trong Hội chợ Nông trại Hạt Polton Thường niên lần thứ mười bảy từ ngày 14 tháng 7 đến ngày 16 tháng 7.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": [
+          139
+        ]
+      },
+      {
+        "en": "As a returning exhibitor, Swanton Farm Feed will be offered ______[140] space at a discounted rate.",
+        "vi": "Là một nhà triển lãm lâu năm, Swanton Farm Feed sẽ được cung cấp ______[140] không gian với mức giá ưu đãi.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": [
+          140
+        ]
+      },
+      {
+        "en": "Please be aware of a new requirement when preparing your space.",
+        "vi": "Xin vui lòng lưu ý về một yêu cầu mới khi chuẩn bị không gian của bạn.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "This year, all booths must be completely ready by 8 P.M. on July 13.",
+        "vi": "Năm nay, tất cả các gian hàng phải được hoàn tất chuẩn bị trước 8 giờ tối ngày 13 tháng 7.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "______[141].",
+        "vi": "______[141].",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": [
+          141
+        ]
+      },
+      {
+        "en": "Tables will be provided by the organizer, as in past years.",
+        "vi": "Bàn sẽ được cung cấp bởi ban tổ chức, giống như những năm trước.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "Thank you once again for your participation in our ______[142].",
+        "vi": "Cảm ơn bạn một lần nữa vì đã tham gia vào ______[142] của chúng tôi.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": [
+          142
+        ]
+      },
+      {
+        "en": "Arnold Hansen, Assistant Coordinator",
+        "vi": "Arnold Hansen, Trợ lý Điều phối viên",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "Polton County Farm Fair",
+        "vi": "Hội chợ Nông trại Hạt Polton",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 13,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "e5d6bb84-4696-4912-aff9-9ce726043ed9",
+    "label": "4. Windquest Farms (Part 6 Memo)",
+    "title": "Questions 131-134 refer to the following memo.",
+    "part": 6,
+    "en": "<p>To: All Warehouse Employees<br /> From: Paul Wandayi, Warehouse Manager<br /> Date: 15 March<br /> Re: New crates coming<br /><br /> Beginning 1 April, Windquest Farms will use Flexmerge crates to transport our fruits and vegetables. These ------- (131) will simplify work and shrink operational costs.<br /><br /> Flexmerge crates are collapsible, which means they are easy to stack and they save space. ------- (132). They are also highly durable. This feature minimizes the need ------- (133) frequent replacement of crates. Finally, they are designed with ergonomic features, thereby ------- (134) the risk of injuries. Safety is our top priority here at Windquest Farms.</p>",
+    "passageSentencePairs": [
+      {
+        "en": "To: All Warehouse Employees",
+        "vi": "Đến: Tất cả Nhân viên Kho",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "From: Paul Wandayi, Warehouse Manager",
+        "vi": "Từ: Paul Wandayi, Quản lý Kho",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: 15 March",
+        "vi": "Ngày: 15 tháng 3",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Re: New crates coming",
+        "vi": "V/v: Các thùng hàng mới sắp đến",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "Beginning 1 April, Windquest Farms will use Flexmerge crates to transport our fruits and vegetables.",
+        "vi": "Bắt đầu từ ngày 1 tháng 4, Windquest Farms sẽ sử dụng các thùng hàng Flexmerge để vận chuyển trái cây và rau củ của chúng ta.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "These ------- (131) will simplify work and shrink operational costs.",
+        "vi": "Những ------- (131) này sẽ đơn giản hóa công việc và cắt giảm chi phí vận hành.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": [
+          131
+        ]
+      },
+      {
+        "en": "Flexmerge crates are collapsible, which means they are easy to stack and they save space.",
+        "vi": "Các thùng hàng Flexmerge có thể gấp gọn, có nghĩa là chúng dễ xếp chồng và tiết kiệm không gian.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "------- (132).",
+        "vi": "------- (132).",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": [
+          132
+        ]
+      },
+      {
+        "en": "They are also highly durable.",
+        "vi": "Chúng cũng có độ bền rất cao.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "This feature minimizes the need ------- (133) frequent replacement of crates.",
+        "vi": "Tính năng này giảm thiểu nhu cầu ------- (133) phải thay thế thùng hàng thường xuyên.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": [
+          133
+        ]
+      },
+      {
+        "en": "Finally, they are designed with ergonomic features, thereby ------- (134) the risk of injuries.",
+        "vi": "Cuối cùng, chúng được thiết kế với các tính năng côngοnоmics (công thái học), qua đó ------- (134) rủi ro chấn thương.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": [
+          134
+        ]
+      },
+      {
+        "en": "Safety is our top priority here at Windquest Farms.",
+        "vi": "An toàn là ưu tiên hàng đầu của chúng ta tại Windquest Farms.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "046abf5b-0f37-4e26-bee8-1e835e5c7770",
+    "label": "5. Katsunori Sanu (Part 7 Letter)",
+    "title": "Questions 154-157 refer to the following letter.",
+    "part": 7,
+    "en": "<div style=\"border: 1px solid black; padding: 10px; margin: auto;\">\n<p>Katsunori Sanu</p>\n<p>860 Cottonwood Avenue, Apartment 5A</p>\n<p>Walkerton, ON N0G 2V0</p>\n<p>January 3</p>\n<p>Gisel Valdez</p>\n<p>3758 Fallon Drive</p>\n<p>Ottawa, ON K1Z 7B5</p>\n<p>Dear Ms. Valdez,</p>\n<p>Per my lease agreement, this letter constitutes written notice that I will be moving out of my apartment on February 28, the day my lease expires. — [1] —. I have accepted a job offer in Toronto and will be relocating. Please let me know when I can expect the return of my security deposit.</p>\n<p>— [2] —. I have enjoyed my three years living here. I will gladly recommend the Cottonwood Apartments to anyone looking to rent in the area. One thing I have really liked is that I have never had to wait long to use a washer or dryer in the laundry room since there are plenty of machines available. — [3] —. Most impressive, though, is your maintenance service. The crew members quickly addressed all issues, replacing smoke detectors, changing filters in my furnace, and weatherproofing windows before the cold season set in.</p>\n<p>I will let you know my new address as soon as I have one. — [4] —. You can always reach me on my mobile phone, 613-555-0129.</p>\n<p>Sincerely,</p>\n<p>Katsunori Sanu</p>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "Katsunori Sanu",
+        "vi": "Katsunori Sanu",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "860 Cottonwood Avenue, Apartment 5A",
+        "vi": "860 Cottonwood Avenue, Apartment 5A",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Walkerton, ON N0G 2V0",
+        "vi": "Walkerton, ON N0G 2V0",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "January 3",
+        "vi": "Ngày 3 tháng 1",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "Gisel Valdez",
+        "vi": "Gisel Valdez",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "3758 Fallon Drive",
+        "vi": "3758 Fallon Drive",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "Ottawa, ON K1Z 7B5",
+        "vi": "Ottawa, ON K1Z 7B5",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "Dear Ms. Valdez,",
+        "vi": "Kính gửi bà Valdez,",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "Per my lease agreement, this letter constitutes written notice that I will be moving out of my apartment on February 28, the day my lease expires.",
+        "vi": "Theo thỏa thuận thuê nhà của tôi, bức thư này cấu thành thông báo bằng văn bản rằng tôi sẽ chuyển khỏi căn hộ của mình vào ngày 28 tháng 2, ngày hợp đồng thuê nhà của tôi hết hạn.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "— [1] —.",
+        "vi": "— [1] —.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "I have accepted a job offer in Toronto and will be relocating.",
+        "vi": "Tôi đã nhận được lời mời làm việc tại Toronto và sẽ chuyển đến đó sinh sống.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": []
+      },
+      {
+        "en": "Please let me know when I can expect the return of my security deposit.",
+        "vi": "Vui lòng cho tôi biết khi nào tôi có thể nhận lại tiền đặt cọc bảo đảm của mình.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "— [2] —.",
+        "vi": "— [2] —.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 13,
+        "question_numbers": []
+      },
+      {
+        "en": "I have enjoyed my three years living here.",
+        "vi": "Tôi rất thích thú với ba năm sống ở đây.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 14,
+        "question_numbers": []
+      },
+      {
+        "en": "I will gladly recommend the Cottonwood Apartments to anyone looking to rent in the area.",
+        "vi": "Tôi sẽ sẵn lòng giới thiệu Khu căn hộ Cottonwood cho bất kỳ ai đang tìm thuê nhà trong khu vực này.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 15,
+        "question_numbers": []
+      },
+      {
+        "en": "One thing I have really liked is that I have never had to wait long to use a washer or dryer in the laundry room since there are plenty of machines available.",
+        "vi": "Một điều tôi thực sự thích là tôi chưa bao giờ phải đợi lâu để sử dụng máy giặt hoặc máy sấy trong phòng giặt vì có rất nhiều máy móc sẵn có.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 16,
+        "question_numbers": []
+      },
+      {
+        "en": "— [3] —.",
+        "vi": "— [3] —.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 17,
+        "question_numbers": []
+      },
+      {
+        "en": "Most impressive, though, is your maintenance service.",
+        "vi": "Tuy nhiên, điều ấn tượng nhất chính là dịch vụ bảo trì của các bạn.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 18,
+        "question_numbers": []
+      },
+      {
+        "en": "The crew members quickly addressed all issues, replacing smoke detectors, changing filters in my furnace, and weatherproofing windows before the cold season set in.",
+        "vi": "Các thành viên trong đội ngũ đã giải quyết nhanh chóng mọi vấn đề, thay thế thiết bị báo khói, thay bộ lọc trong lò sưởi của tôi và chống thời tiết cho các cửa sổ trước khi mùa lạnh kéo đến.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 19,
+        "question_numbers": []
+      },
+      {
+        "en": "I will let you know my new address as soon as I have one.",
+        "vi": "Tôi sẽ thông báo cho bạn địa chỉ mới của tôi ngay khi tôi có.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 20,
+        "question_numbers": []
+      },
+      {
+        "en": "— [4] —.",
+        "vi": "— [4] —.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 21,
+        "question_numbers": []
+      },
+      {
+        "en": "You can always reach me on my mobile phone, 613-555-0129.",
+        "vi": "Bạn luôn có thể liên lạc với tôi qua điện thoại di động, 613-555-0129.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 22,
+        "question_numbers": []
+      },
+      {
+        "en": "Sincerely,",
+        "vi": "Trân trọng,",
+        "type": "sign_off",
+        "doc_index": 0,
+        "sentence_id": 23,
+        "question_numbers": []
+      },
+      {
+        "en": "Katsunori Sanu",
+        "vi": "Katsunori Sanu",
+        "type": "sign_off",
+        "doc_index": 0,
+        "sentence_id": 24,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "6f4bb1b7-fa5e-4b40-9b6a-165d70f89125",
+    "label": "6. Houkcomm (Part 7 Article)",
+    "title": "Questions 164-167 refer to the following article.",
+    "part": 7,
+    "en": "<div class=\"article\">\n  <div style=\"column-count:2;column-gap:20px;text-align:justify\">\n    <h3 style=\"margin-top:0;text-align:center\">Houkcomm Eyes Downtown Roseville</h3>\n    <p>(April 22)—Houkcomm, one of the state's leading telecommunications companies, will likely establish operations in Roseville. Houkcomm is reportedly looking to open a Roseville office as part of a new venture for the company: an expansion into the digital media industry. Houkcomm spokespeople have not offered any details on the plan, but two architects involved with the project confirmed that one proposed office building design would accommodate over 100 workers. The likely location for this soon-to-be constructed building, according to these sources, is a property adjacent to Behr Square in central Roseville.</p>\n  </div>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "Houkcomm Eyes Downtown Roseville",
+        "vi": "Houkcomm Nhắm Tới Trung Tâm Thành Phố Roseville",
+        "type": "title",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "(April 22)—Houkcomm, one of the state's leading telecommunications companies, will likely establish operations in Roseville.",
+        "vi": "(Ngày 22 tháng 4)—Houkcomm, một trong những công ty viễn thông hàng đầu của bang, có khả năng sẽ thiết lập hoạt động tại Roseville.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Houkcomm is reportedly looking to open a Roseville office as part of a new venture for the company: an expansion into the digital media industry.",
+        "vi": "Houkcomm được cho là đang tìm cách mở một văn phòng tại Roseville như một phần trong dự án mới của công ty: việc mở rộng sang ngành công nghiệp truyền thông kỹ thuật số.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Houkcomm spokespeople have not offered any details on the plan, but two architects involved with the project confirmed that one proposed office building design would accommodate over 100 workers.",
+        "vi": "Các phát ngôn viên của Houkcomm chưa cung cấp bất kỳ chi tiết nào về kế hoạch này, nhưng hai kiến trúc sư tham gia vào dự án đã xác nhận rằng một thiết kế tòa nhà văn phòng được đề xuất sẽ có sức chứa hơn 100 nhân viên.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "The likely location for this soon-to-be constructed building, according to these sources, is a property adjacent to Behr Square in central Roseville.",
+        "vi": "Vị trí có khả năng cao cho tòa nhà sắp được xây dựng này, theo các nguồn tin trên, là một lô đất nằm liền kề với Quảng trường Behr ở trung tâm Roseville.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "00d7c5da-29b0-4b34-b72b-a53621e542e1",
+    "label": "7. Double Passage (Job Ad & Email)",
+    "title": "Questions 176-180 refer to the following job advertisement and e-mail.",
+    "part": 7,
+    "en": "<div>\n  <div style=\"border:1px solid #999;padding:12px;margin-bottom:10px\">\n    <div class=\"jobad\" style=\"border:1px solid #ccc;padding:12px\">\n      <p style=\"margin:0 0 4px 0\"><b>DISTRICT SALES MANAGER</b></p>\n      <p>Eason Technologies, a premier provider of energy-efficient air-conditioning systems for offices and retail facilities, is seeking a sales manager for our southwest district. The position is based in Barrow.</p>\n      <p><b>&#128100; Responsibilities:</b></p>\n      <ul style=\"margin:0 0 8px 0\">\n        <li>overseeing the activities of the district sales team</li>\n        <li>identifying potential customers and acquiring their business</li>\n        <li>forecasting and tracking sales accurately</li>\n        <li>monitoring customer satisfaction to ensure retention</li>\n      </ul>\n      <p><b>&#128100; Required qualifications:</b></p>\n      <ul style=\"margin:0 0 8px 0\">\n        <li>a degree in business or a technical field</li>\n        <li>five years of experience in a sales leadership role</li>\n        <li>excellent public speaking skills</li>\n        <li>willingness to travel frequently</li>\n      </ul>\n      <p style=\"margin:0\">To apply, send your r&eacute;sum&eacute; and a cover letter to hiring@easontech.com.</p>\n    </div>\n  </div>\n  <div style=\"border:1px solid #999;padding:12px\">\n    <div class=\"email\">\n      <div style=\"background:#d0d0d0;text-align:center;padding:4px;font-weight:bold;border:1px solid #999\">E-Mail message</div>\n      <table border=\"1\" cellpadding=\"4\" style=\"margin-bottom:0;width:100%;border-collapse:collapse\">\n        <tr><td style=\"width:90px\"><b>From:</b></td><td>So-Won Na</td></tr>\n        <tr><td><b>To:</b></td><td>Brandon Fisher</td></tr>\n        <tr><td><b>Subject:</b></td><td>Potential candidate</td></tr>\n        <tr><td><b>Date:</b></td><td>January 30</td></tr>\n      </table>\n      <div style=\"border:1px solid #ccc;padding:10px;margin-top:0\">\n        <p>Hello Brandon,</p>\n        <p>I wanted to let you know about someone who may be a good candidate for the southwest district sales manager position. His name is Edgar Malone, and he&rsquo;s a sales representative at Levya Corporation. We became friends after running into each other at trade shows around the country. I saw him give sales pitches a couple of times at them, and he&rsquo;s very good at it. I believe he&rsquo;s been at Levya for at least five years and has a degree in mechanical engineering. Shall I send him an e-mail sharing the job advertisement and suggesting that he apply?</p>\n        <p>Best,</p>\n        <p style=\"margin-bottom:0\">So-Won</p>\n      </div>\n    </div>\n  </div>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "DISTRICT SALES MANAGER",
+        "vi": "TRƯỞNG PHÒNG KINH DOANH KHU VỰC",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "Eason Technologies, a premier provider of energy-efficient air-conditioning systems for offices and retail facilities, is seeking a sales manager for our southwest district.",
+        "vi": "Eason Technologies, nhà cung cấp hàng đầu về hệ thống điều hòa không khí tiết kiệm năng lượng cho văn phòng và các cơ sở bán lẻ, đang tìm kiếm một trưởng phòng kinh doanh cho khu vực tây nam của chúng tôi.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "The position is based in Barrow.",
+        "vi": "Vị trí này làm việc tại Barrow.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "👤 Responsibilities:",
+        "vi": "👤 Trách nhiệm công việc:",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "overseeing the activities of the district sales team",
+        "vi": "giám sát các hoạt động của đội ngũ kinh doanh khu vực",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "identifying potential customers and acquiring their business",
+        "vi": "xác định khách hàng tiềm năng và giành được hợp đồng kinh doanh của họ",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "forecasting and tracking sales accurately",
+        "vi": "dự báo và theo dõi doanh số bán hàng một cách chính xác",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "monitoring customer satisfaction to ensure retention",
+        "vi": "theo dõi sự hài lòng của khách hàng để đảm bảo tỷ lệ giữ chân khách hàng",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "👤 Required qualifications:",
+        "vi": "👤 Yêu cầu năng lực:",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "a degree in business or a technical field",
+        "vi": "bằng cấp chuyên ngành kinh doanh hoặc một lĩnh vực kỹ thuật",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "five years of experience in a sales leadership role",
+        "vi": "năm năm kinh nghiệm ở vị trí lãnh đạo kinh doanh",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": []
+      },
+      {
+        "en": "excellent public speaking skills",
+        "vi": "kỹ năng thuyết trình trước công chúng xuất sắc",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "willingness to travel frequently",
+        "vi": "sẵn sàng đi công tác thường xuyên",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 13,
+        "question_numbers": []
+      },
+      {
+        "en": "To apply, send your résumé and a cover letter to hiring@easontech.com.",
+        "vi": "Để ứng tuyển, hãy gửi sơ yếu lý lịch (résumé) và thư xin việc của bạn đến địa chỉ hiring@easontech.com.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 14,
+        "question_numbers": []
+      },
+      {
+        "en": "From: So-Won Na",
+        "vi": "Từ: So-Won Na",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 15,
+        "question_numbers": []
+      },
+      {
+        "en": "To: Brandon Fisher",
+        "vi": "Đến: Brandon Fisher",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 16,
+        "question_numbers": []
+      },
+      {
+        "en": "Subject: Potential candidate",
+        "vi": "Chủ đề: Ứng viên tiềm năng",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 17,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: January 30",
+        "vi": "Ngày: 30 tháng 1",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 18,
+        "question_numbers": []
+      },
+      {
+        "en": "Hello Brandon,",
+        "vi": "Chào Brandon,",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 19,
+        "question_numbers": []
+      },
+      {
+        "en": "I wanted to let you know about someone who may be a good candidate for the southwest district sales manager position.",
+        "vi": "Tôi muốn thông báo cho bạn về một người có thể là ứng viên phù hợp cho vị trí trưởng phòng kinh doanh khu vực tây nam.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 20,
+        "question_numbers": []
+      },
+      {
+        "en": "His name is Edgar Malone, and he’s a sales representative at Levya Corporation.",
+        "vi": "Tên anh ấy là Edgar Malone, và anh ấy là đại diện kinh doanh tại Tập đoàn Levya.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 21,
+        "question_numbers": []
+      },
+      {
+        "en": "We became friends after running into each other at trade shows around the country.",
+        "vi": "Chúng tôi trở thành bạn sau khi tình cờ gặp nhau tại các triển lãm thương mại trên khắp cả nước.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 22,
+        "question_numbers": []
+      },
+      {
+        "en": "I saw him give sales pitches a couple of times at them, and he’s very good at it.",
+        "vi": "Tôi đã thấy anh ấy thuyết trình giới thiệu sản phẩm vài lần tại đó, và anh ấy rất giỏi việc này.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 23,
+        "question_numbers": []
+      },
+      {
+        "en": "I believe he’s been at Levya for at least five years and has a degree in mechanical engineering.",
+        "vi": "Tôi tin rằng anh ấy đã làm việc tại Levya ít nhất năm năm và có bằng cử nhân ngành kỹ thuật cơ khí.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 24,
+        "question_numbers": []
+      },
+      {
+        "en": "Shall I send him an e-mail sharing the job advertisement and suggesting that he apply?",
+        "vi": "Tôi có nên gửi cho anh ấy một email chia sẻ thông tin tuyển dụng và gợi ý anh ấy ứng tuyển không?",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 25,
+        "question_numbers": []
+      },
+      {
+        "en": "Best,",
+        "vi": "Thân ái,",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 26,
+        "question_numbers": []
+      },
+      {
+        "en": "So-Won",
+        "vi": "So-Won",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 27,
+        "question_numbers": []
+      },
+      {
+        "en": "E-Mail message",
+        "vi": "Tin nhắn email",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 28,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "0178c951-5bc2-4c0c-ac4a-942015f21101",
+    "label": "8. Double Passage (Invoice & Email)",
+    "title": "Questions 181-185 refer to the following invoice and e-mail.",
+    "part": 7,
+    "en": "<div style=\"width: 100%; border: 1px solid black; padding: 10px; margin: auto;\">\n<p style=\"text-align: center;\"><strong>Brit-Revision Editing Services Invoice</strong></p>\n<p>Freelance Editor: Lisa Yamashita</p>\n<p>Invoice Date: 30 September</p>\n<p>&nbsp;</p>\n<p>Address:</p>\n<p>178 Upsala Road</p>\n<p>LONDON</p>\n<p>E16 1DJ</p>\n<p>&nbsp;</p>\n<p>Contact:</p>\n<p>(020) 7946 0612</p>\n<p>lisa.yamashita@bluesun.co.uk</p>\n<p>Stashcash ID: Lisa.Yamashita8</p>\n<table style=\"width: 100%; border-collapse: collapse;\">\n<tbody>\n<tr style=\"border-bottom: 1px solid black;\">\n<th style=\"text-align: left; padding: 8px; border: 1px solid black;\">Client Name</th>\n<th style=\"text-align: left; padding: 8px; border: 1px solid black;\">Project Description</th>\n<th style=\"text-align: left; padding: 8px; border: 1px solid black;\">Date Completed</th>\n<th style=\"text-align: left; padding: 8px; border: 1px solid black;\">Time</th>\n</tr>\n<tr>\n<td style=\"padding: 8px; border: 1px solid black;\">Eddie Kent</td>\n<td style=\"padding: 8px; border: 1px solid black;\">University thesis editing</td>\n<td style=\"padding: 8px; border: 1px solid black;\">5 September</td>\n<td style=\"padding: 8px; border: 1px solid black;\">2 hours</td>\n</tr>\n<tr>\n<td style=\"padding: 8px; border: 1px solid black;\">Ben Gallagher</td>\n<td style=\"padding: 8px; border: 1px solid black;\">Grant proposal editing</td>\n<td style=\"padding: 8px; border: 1px solid black;\">9 September</td>\n<td style=\"padding: 8px; border: 1px solid black;\">10 hours</td>\n</tr>\n<tr>\n<td style=\"padding: 8px; border: 1px solid black;\">Lydia Quinn of Hyden Interiors</td>\n<td style=\"padding: 8px; border: 1px solid black;\">Marketing copy editing</td>\n<td style=\"padding: 8px; border: 1px solid black;\">17 September</td>\n<td style=\"padding: 8px; border: 1px solid black;\">8.5 hours</td>\n</tr>\n<tr>\n<td style=\"padding: 8px; border: 1px solid black;\">Winona Rogers</td>\n<td style=\"padding: 8px; border: 1px solid black;\">Journal article editing</td>\n<td style=\"padding: 8px; border: 1px solid black;\">22 September</td>\n<td style=\"padding: 8px; border: 1px solid black;\">2 hours</td>\n</tr>\n<tr>\n<td style=\"padding: 8px; border: 1px solid black;\">Tony Withers</td>\n<td style=\"padding: 8px; border: 1px solid black;\">CV and cover letter editing</td>\n<td style=\"padding: 8px; border: 1px solid black;\">28 September</td>\n<td style=\"padding: 8px; border: 1px solid black;\">2.5 hours</td>\n</tr>\n</tbody>\n</table>\n</div>\n<div style=\"width: 100%; border: 1px solid black; padding: 10px; margin: auto;\">\n<p>To: Lisa Yamashita &lt;lisa.yamashita@bluesun.co.uk&gt;</p>\n<p>From: Claudio Aguilar &lt;caguilar@britrevision.co.uk&gt;</p>\n<p>Date: 1 October</p>\n<p>Subject: Your recent invoice</p>\n<p>Dear Lisa,</p>\n<p>Thank you for sending your invoice for services rendered in the month of September. I want to commend you on your superb start as one of our independent freelance editors. Our clients had nothing but positive things to say about your work. As you know, we do not dictate how you structure your workday; instead, Brit-Revision (BRV) guidelines require simply that deadlines be met and that work quality be maintained. You have done both admirably.</p>\n<p>Also, we will pay you for an additional 30 minutes of work that you did for Mr. Kent. He reported that you did consulting work for him over the phone on a short oral presentation that he created. As for the work that you did for our long-standing corporate client Lydia Quinn, you will see on your receipt that we have paid you at a higher hourly rate.</p>\n<p>I have initiated the transfer of &pound;750 into your Stashcash account. The funds should appear in your account by tomorrow morning.</p>\n<p>Sincerely,</p>\n<p>Claudio Aguilar</p>\n<p>Accounts Payable, Brit-Revision Editing Services</p>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "Client Name - Project Description - Date Completed - Time",
+        "vi": "Tên Khách Hàng - Mô Tả Dự Án - Ngày Hoàn Thành - Thời Gian",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "Eddie Kent - University thesis editing - 5 September - 2 hours",
+        "vi": "Eddie Kent - Chỉnh sửa luận văn đại học - 5 tháng 9 - 2 giờ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Ben Gallagher - Grant proposal editing - 9 September - 10 hours",
+        "vi": "Ben Gallagher - Chỉnh sửa đề xuất tài trợ - 9 tháng 9 - 10 giờ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Lydia Quinn of Hyden Interiors - Marketing copy editing - 17 September - 8.5 hours",
+        "vi": "Lydia Quinn thuộc Hyden Interiors - Chỉnh sửa nội dung tiếp thị - 17 tháng 9 - 8.5 giờ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "Winona Rogers - Journal article editing - 22 September - 2 hours",
+        "vi": "Winona Rogers - Chỉnh sửa bài báo tạp chí - 22 tháng 9 - 2 giờ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "Tony Withers - CV and cover letter editing - 28 September - 2.5 hours",
+        "vi": "Tony Withers - Chỉnh sửa CV và thư xin việc - 28 tháng 9 - 2.5 giờ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "Brit-Revision Editing Services Invoice",
+        "vi": "Hóa đơn Dịch vụ Chỉnh sửa Brit-Revision",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "Freelance Editor: Lisa Yamashita",
+        "vi": "Biên tập viên tự do: Lisa Yamashita",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "Invoice Date: 30 September",
+        "vi": "Ngày hóa đơn: 30 tháng 9",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "Address:",
+        "vi": "Địa chỉ:",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "178 Upsala Road",
+        "vi": "178 Upsala Road",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": []
+      },
+      {
+        "en": "LONDON",
+        "vi": "LONDON",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "E16 1DJ",
+        "vi": "E16 1DJ",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 13,
+        "question_numbers": []
+      },
+      {
+        "en": "Contact:",
+        "vi": "Liên hệ:",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 14,
+        "question_numbers": []
+      },
+      {
+        "en": "(020) 7946 0612",
+        "vi": "(020) 7946 0612",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 15,
+        "question_numbers": []
+      },
+      {
+        "en": "lisa.yamashita@bluesun.co.uk",
+        "vi": "lisa.yamashita@bluesun.co.uk",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 16,
+        "question_numbers": []
+      },
+      {
+        "en": "Stashcash ID: Lisa.Yamashita8",
+        "vi": "Mã Stashcash: Lisa.Yamashita8",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 17,
+        "question_numbers": []
+      },
+      {
+        "en": "To: Lisa Yamashita <lisa.yamashita@bluesun.co.uk>",
+        "vi": "Đến: Lisa Yamashita <lisa.yamashita@bluesun.co.uk>",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 18,
+        "question_numbers": []
+      },
+      {
+        "en": "From: Claudio Aguilar <caguilar@britrevision.co.uk>",
+        "vi": "Từ: Claudio Aguilar <caguilar@britrevision.co.uk>",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 19,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: 1 October",
+        "vi": "Ngày: 1 tháng 10",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 20,
+        "question_numbers": []
+      },
+      {
+        "en": "Subject: Your recent invoice",
+        "vi": "Chủ đề: Hóa đơn gần đây của bạn",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 21,
+        "question_numbers": []
+      },
+      {
+        "en": "Dear Lisa,",
+        "vi": "Lisa thân mến,",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 22,
+        "question_numbers": []
+      },
+      {
+        "en": "Thank you for sending your invoice for services rendered in the month of September.",
+        "vi": "Cảm ơn bạn đã gửi hóa đơn cho các dịch vụ đã thực hiện trong tháng 9.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 23,
+        "question_numbers": []
+      },
+      {
+        "en": "I want to commend you on your superb start as one of our independent freelance editors.",
+        "vi": "Tôi muốn khen ngợi bạn vì khởi đầu xuất sắc với tư cách là một trong những biên tập viên tự do độc lập của chúng tôi.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 24,
+        "question_numbers": []
+      },
+      {
+        "en": "Our clients had nothing but positive things to say about your work.",
+        "vi": "Khách hàng của chúng tôi chỉ có những nhận xét tích cực về công việc của bạn.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 25,
+        "question_numbers": []
+      },
+      {
+        "en": "As you know, we do not dictate how you structure your workday; instead, Brit-Revision (BRV) guidelines require simply that deadlines be met and that work quality be maintained.",
+        "vi": "Như bạn đã biết, chúng tôi không áp đặt cách bạn sắp xếp ngày làm việc của mình; thay vào đó, các hướng dẫn của Brit-Revision (BRV) chỉ đơn giản yêu cầu phải đáp ứng thời hạn và duy trì chất lượng công việc.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 26,
+        "question_numbers": []
+      },
+      {
+        "en": "You have done both admirably.",
+        "vi": "Bạn đã làm rất tốt cả hai điều đó.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 27,
+        "question_numbers": []
+      },
+      {
+        "en": "Also, we will pay you for an additional 30 minutes of work that you did for Mr. Kent.",
+        "vi": "Ngoài ra, chúng tôi sẽ trả tiền cho bạn thêm 30 phút làm việc mà bạn đã thực hiện cho ông Kent.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 28,
+        "question_numbers": []
+      },
+      {
+        "en": "He reported that you did consulting work for him over the phone on a short oral presentation that he created.",
+        "vi": "Ông ấy báo cáo rằng bạn đã làm công việc tư vấn cho ông ấy qua điện thoại về một bài thuyết trình ngắn mà ông ấy đã chuẩn bị.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 29,
+        "question_numbers": []
+      },
+      {
+        "en": "As for the work that you did for our long-standing corporate client Lydia Quinn, you will see on your receipt that we have paid you at a higher hourly rate.",
+        "vi": "Đối với công việc bạn đã làm cho khách hàng doanh nghiệp lâu năm của chúng tôi, Lydia Quinn, bạn sẽ thấy trên biên nhận của mình rằng chúng tôi đã trả cho bạn mức thù lao theo giờ cao hơn.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 30,
+        "question_numbers": []
+      },
+      {
+        "en": "I have initiated the transfer of £750 into your Stashcash account.",
+        "vi": "Tôi đã tiến hành chuyển khoản 750 bảng Anh vào tài khoản Stashcash của bạn.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 31,
+        "question_numbers": []
+      },
+      {
+        "en": "The funds should appear in your account by tomorrow morning.",
+        "vi": "Số tiền này sẽ xuất hiện trong tài khoản của bạn trước sáng mai.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 32,
+        "question_numbers": []
+      },
+      {
+        "en": "Sincerely,",
+        "vi": "Trân trọng,",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 33,
+        "question_numbers": []
+      },
+      {
+        "en": "Claudio Aguilar",
+        "vi": "Claudio Aguilar",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 34,
+        "question_numbers": []
+      },
+      {
+        "en": "Accounts Payable, Brit-Revision Editing Services",
+        "vi": "Phòng Phải Trả, Dịch vụ Chỉnh sửa Brit-Revision",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 35,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "00f54007-35a3-4cb6-9481-d88fa25ab8b7",
+    "label": "9. Triple Passage (Web & Email & Article)",
+    "title": "Questions 186-190 refer to the following Web page, e-mail, and article.",
+    "part": 7,
+    "en": "<div>\n<div style=\"border:1px solid #999;padding:12px;margin-bottom:10px\">\n<div class=\"webpage\">\n<div style=\"border:1px solid #ccc;padding:10px;\">\n<p style=\"font-size:11px;color:#555\">http://www.newstarthome.org/donations</p>\n<p><b>New Start Home</b></p>\n<p>New Start Home stores accept donations of new or used furniture, appliances, housewares, and building materials. Items should be in good condition. Items that require repair or are stained or ripped cannot be accepted. Proceeds from the sale of our goods are used to fund community projects, such as educational programs, housing renovations, and neighborhood park beautification.</p>\n<p><b>How to donate:</b></p>\n<ol>\n<li>Using our home screen, find the New Start Home nearest you by entering your address into the search box.</li>\n<li>Drop off your unneeded goods yourself or contact your nearest location to schedule pickup of large items or bulk donations from your home or business.</li>\n<li>Please check our Web site for the hours of each store location.</li>\n</ol>\n</div>\n</div>\n</div>\n<div style=\"border:1px solid #999;padding:12px;margin-bottom:10px\">\n<div class=\"email\">\n<table border=\"1\" cellpadding=\"4\" style=\"margin-bottom:10px;width:100%\">\n<tr><td><b>From:</b></td><td>bmorris@morriscountryinn.com</td></tr>\n<tr><td><b>To:</b></td><td>aperez@newstarthome.org</td></tr>\n<tr><td><b>Date:</b></td><td>March 27</td></tr>\n<tr><td><b>Re:</b></td><td>Donation</td></tr>\n</table>\n<p>Dear Mr. Perez,</p>\n<p>I am the owner of the Morris Country Inn in Canton. It will be closing permanently when I retire next month. I have many pieces of furniture in excellent condition—beds, desks, easy chairs, and more. A friend suggested that this inventory could be donated to your organization. The New Start Home branch in Hartford seems to be the closest to my inn, and I see that you are the store manager there. We are located almost 35 miles away. Can I arrange a pickup of these goods at my establishment?</p>\n<p>Regards,<br>Brenda Morris<br>Morris Country Inn</p>\n</div>\n</div>\n<div style=\"border:1px solid #999;padding:12px;margin-bottom:10px\">\n<div class=\"article\">\n<h2 style=\"text-align:center\">Morris Country Inn Shutting Its Doors</h2>\n<p>CANTON (April 27)—Brenda Morris watched the New Start Home truck drive away, full of furnishings from the Morris Country Inn. She has been the owner-operator of the inn, a local landmark, for 40 years. \"I am happy to be heading to Seaview Point, with its beaches and warm weather,\" remarked Ms. Morris. \"And I now plan to spend time volunteering and just relaxing. But the inn has been a big part of my life, and it will be hard leaving this community.\"</p>\n<p>The property that the Morris Country Inn currently stands on has been sold to the Brent Valley Development Group, which plans to convert the building into apartment units over the coming year.</p>\n</div>\n</div>\n</div>",
+    "passageSentencePairs": [
+      {
+        "en": "http://www.newstarthome.org/donations",
+        "vi": "http://www.newstarthome.org/donations",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "New Start Home",
+        "vi": "New Start Home",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "New Start Home stores accept donations of new or used furniture, appliances, housewares, and building materials.",
+        "vi": "Các cửa hàng của New Start Home nhận quyên góp đồ nội thất, thiết bị gia dụng, đồ dùng nhà bếp và vật liệu xây dựng mới hoặc đã qua sử dụng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Items should be in good condition.",
+        "vi": "Các vật phẩm phải ở trong tình trạng tốt.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "Items that require repair or are stained or ripped cannot be accepted.",
+        "vi": "Những vật phẩm cần sửa chữa hoặc bị bẩn hoặc rách sẽ không thể được nhận.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "Proceeds from the sale of our goods are used to fund community projects, such as educational programs, housing renovations, and neighborhood park beautification.",
+        "vi": "Tiền thu được từ việc bán hàng hóa của chúng tôi được dùng để tài trợ cho các dự án cộng đồng, chẳng hạn như các chương trình giáo dục, cải tạo nhà ở và làm đẹp công viên khu dân cư.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "How to donate:",
+        "vi": "Cách thức quyên góp:",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "Using our home screen, find the New Start Home nearest you by entering your address into the search box.",
+        "vi": "Sử dụng màn hình chính của chúng tôi, hãy tìm cửa hàng New Start Home gần bạn nhất bằng cách nhập địa chỉ của bạn vào ô tìm kiếm.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "Drop off your unneeded goods yourself or contact your nearest location to schedule pickup of large items or bulk donations from your home or business.",
+        "vi": "Tự mang đồ không cần thiết của bạn đến hoặc liên hệ với địa điểm gần nhất để sắp xếp việc đến lấy các vật phẩm lớn hoặc đồ quyên góp số lượng lớn từ nhà hoặc doanh nghiệp của bạn.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "Please check our Web site for the hours of each store location.",
+        "vi": "Vui lòng kiểm tra trang web của chúng tôi để biết giờ mở cửa của từng địa điểm cửa hàng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "From: bmorris@morriscountryinn.com",
+        "vi": "Từ: bmorris@morriscountryinn.com",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 11,
+        "question_numbers": []
+      },
+      {
+        "en": "To: aperez@newstarthome.org",
+        "vi": "Đến: aperez@newstarthome.org",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: March 27",
+        "vi": "Ngày: 27 tháng 3",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 13,
+        "question_numbers": []
+      },
+      {
+        "en": "Re: Donation",
+        "vi": "V/v: Quyên góp",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 14,
+        "question_numbers": []
+      },
+      {
+        "en": "Dear Mr. Perez,",
+        "vi": "Kính gửi ông Perez,",
+        "type": "metadata",
+        "doc_index": 1,
+        "sentence_id": 15,
+        "question_numbers": []
+      },
+      {
+        "en": "I am the owner of the Morris Country Inn in Canton.",
+        "vi": "Tôi là chủ của khách sạn Morris Country Inn ở Canton.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 16,
+        "question_numbers": []
+      },
+      {
+        "en": "It will be closing permanently when I retire next month.",
+        "vi": "Khách sạn sẽ đóng cửa vĩnh viễn khi tôi nghỉ hưu vào tháng tới.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 17,
+        "question_numbers": []
+      },
+      {
+        "en": "I have many pieces of furniture in excellent condition—beds, desks, easy chairs, and more.",
+        "vi": "Tôi có rất nhiều món đồ nội thất trong tình trạng xuất sắc — giường, bàn làm việc, ghế bành, và nhiều thứ khác.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 18,
+        "question_numbers": []
+      },
+      {
+        "en": "A friend suggested that this inventory could be donated to your organization.",
+        "vi": "Một người bạn đã gợi ý rằng số lượng hàng hóa này có thể được quyên góp cho tổ chức của các bạn.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 19,
+        "question_numbers": []
+      },
+      {
+        "en": "The New Start Home branch in Hartford seems to be the closest to my inn, and I see that you are the store manager there.",
+        "vi": "Chi nhánh New Start Home ở Hartford dường như là gần khách sạn của tôi nhất, và tôi thấy rằng bạn là cửa hàng trưởng ở đó.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 20,
+        "question_numbers": []
+      },
+      {
+        "en": "We are located almost 35 miles away.",
+        "vi": "Chúng tôi nằm cách đó gần 35 dặm.",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 21,
+        "question_numbers": []
+      },
+      {
+        "en": "Can I arrange a pickup of these goods at my establishment?",
+        "vi": "Liệu tôi có thể sắp xếp việc đến lấy những hàng hóa này tại cơ sở của tôi không?",
+        "type": "paragraph",
+        "doc_index": 1,
+        "sentence_id": 22,
+        "question_numbers": []
+      },
+      {
+        "en": "Regards,",
+        "vi": "Trân trọng,",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 23,
+        "question_numbers": []
+      },
+      {
+        "en": "Brenda Morris",
+        "vi": "Brenda Morris",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 24,
+        "question_numbers": []
+      },
+      {
+        "en": "Morris Country Inn",
+        "vi": "Morris Country Inn",
+        "type": "sign_off",
+        "doc_index": 1,
+        "sentence_id": 25,
+        "question_numbers": []
+      },
+      {
+        "en": "Morris Country Inn Shutting Its Doors",
+        "vi": "Khách sạn Morris Country Inn đóng cửa",
+        "type": "title",
+        "doc_index": 2,
+        "sentence_id": 26,
+        "question_numbers": []
+      },
+      {
+        "en": "CANTON (April 27)—Brenda Morris watched the New Start Home truck drive away, full of furnishings from the Morris Country Inn.",
+        "vi": "CANTON (27 tháng 4)—Brenda Morris nhìn theo chiếc xe tải của New Start Home lái đi, chở đầy đồ đạc từ khách sạn Morris Country Inn.",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 27,
+        "question_numbers": []
+      },
+      {
+        "en": "She has been the owner-operator of the inn, a local landmark, for 40 years.",
+        "vi": "Bà đã là chủ kiêm quản lý của khách sạn này, một địa danh quen thuộc của địa phương, trong suốt 40 năm.",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 28,
+        "question_numbers": []
+      },
+      {
+        "en": "\"I am happy to be heading to Seaview Point, with its beaches and warm weather,\" remarked Ms. Morris.",
+        "vi": "\"Tôi rất vui khi được chuyển đến Seaview Point, với những bãi biển và thời tiết ấm áp,\" bà Morris nhận xét.",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 29,
+        "question_numbers": []
+      },
+      {
+        "en": "\"And I now plan to spend time volunteering and just relaxing.",
+        "vi": "\"Và bây giờ tôi dự định dành thời gian làm tình nguyện và chỉ để nghỉ ngơi.",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 30,
+        "question_numbers": []
+      },
+      {
+        "en": "But the inn has been a big part of my life, and it will be hard leaving this community.\"",
+        "vi": "Nhưng khách sạn đã là một phần lớn trong cuộc đời tôi, và sẽ rất khó khăn khi phải rời xa cộng đồng này.\"",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 31,
+        "question_numbers": []
+      },
+      {
+        "en": "The property that the Morris Country Inn currently stands on has been sold to the Brent Valley Development Group, which plans to convert the building into apartment units over the coming year.",
+        "vi": "Khu đất mà khách sạn Morris Country Inn hiện đang tọa lạc đã được bán cho Tập đoàn Phát triển Brent Valley, công ty có kế hoạch chuyển đổi tòa nhà thành các căn hộ trong năm tới.",
+        "type": "paragraph",
+        "doc_index": 2,
+        "sentence_id": 32,
+        "question_numbers": []
+      }
+    ]
+  },
+  {
+    "id": "00188823-c39d-49da-917a-29026b478029",
+    "label": "10. Email (Part 7 Single)",
+    "title": "Questions 153-155 refer to the following e-mail.",
+    "part": 7,
+    "en": "<div class=\"email\"><table border=\"1\" cellpadding=\"4\" style=\"margin-bottom:10px\">\n<tr><td><b>To:</b></td><td>catiyeh@mymailroom.au</td></tr>\n<tr><td><b>From:</b></td><td>achen@mutamark.au</td></tr>\n<tr><td><b>Date:</b></td><td>1 July</td></tr>\n<tr><td><b>Subject:</b></td><td>Mutamark conference</td></tr>\n</table>\n<p>Dear Ms. Atiyeh,</p>\n<p>To follow up on our phone conversation earlier today, I would like to extend to you a formal written invitation to speak at the eighth annual Mutamark conference, scheduled to take place this year from 17 to 20 September in Zagros. Because you drew a sizeable crowd when you appeared at the conference in the past, we will be making special arrangements for your visit this time. The Blue Room at the Debeljak Hotel holds only 120, so this year we are also booking the Koros Hall, which has a capacity of 270. We can offer you a 40-to-50-minute slot on the last day of the conference, when attendance should be at its peak. Please e-mail me to confirm your acceptance and to let me know more about your audiovisual requirements. We can provide overhead projection for still images if you will be using them again.</p>\n<p>Very best regards,<br>Alex Chen, Conference Planning<br>Mutamark Headquarters, Melbourne</p></div>",
+    "passageSentencePairs": [
+      {
+        "en": "To: catiyeh@mymailroom.au",
+        "vi": "Đến: catiyeh@mymailroom.au",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 1,
+        "question_numbers": []
+      },
+      {
+        "en": "From: achen@mutamark.au",
+        "vi": "Từ: achen@mutamark.au",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 2,
+        "question_numbers": []
+      },
+      {
+        "en": "Date: 1 July",
+        "vi": "Ngày: 1 tháng 7",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 3,
+        "question_numbers": []
+      },
+      {
+        "en": "Subject: Mutamark conference",
+        "vi": "Chủ đề: Hội nghị Mutamark",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 4,
+        "question_numbers": []
+      },
+      {
+        "en": "Dear Ms. Atiyeh,",
+        "vi": "Kính gửi bà Atiyeh,",
+        "type": "metadata",
+        "doc_index": 0,
+        "sentence_id": 5,
+        "question_numbers": []
+      },
+      {
+        "en": "To follow up on our phone conversation earlier today, I would like to extend to you a formal written invitation to speak at the eighth annual Mutamark conference, scheduled to take place this year from 17 to 20 September in Zagros.",
+        "vi": "Để tiếp nối cuộc điện thoại của chúng ta hồi đầu ngày hôm nay, tôi xin gửi lời mời chính thức bằng văn bản đến bà để phát biểu tại hội nghị thường niên lần thứ tám của Mutamark, dự kiến diễn ra trong năm nay từ ngày 17 đến ngày 20 tháng 9 tại Zagros.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 6,
+        "question_numbers": []
+      },
+      {
+        "en": "Because you drew a sizeable crowd when you appeared at the conference in the past, we will be making special arrangements for your visit this time.",
+        "vi": "Vì bà từng thu hút một lượng lớn người tham dự khi xuất hiện tại hội nghị trong quá khứ, chúng tôi sẽ chuẩn bị những sắp xếp đặc biệt cho chuyến thăm của bà lần này.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 7,
+        "question_numbers": []
+      },
+      {
+        "en": "The Blue Room at the Debeljak Hotel holds only 120, so this year we are also booking the Koros Hall, which has a capacity of 270.",
+        "vi": "Phòng Blue tại Khách sạn Debeljak chỉ chứa được 120 người, vì vậy năm nay chúng tôi cũng sẽ đặt thêm Hội trường Koros, nơi có sức chứa 270 người.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 8,
+        "question_numbers": []
+      },
+      {
+        "en": "We can offer you a 40-to-50-minute slot on the last day of the conference, when attendance should be at its peak.",
+        "vi": "Chúng tôi có thể cung cấp cho bà một khung giờ từ 40 đến 50 phút vào ngày cuối cùng của hội nghị, khi lượng người tham dự đạt mức cao nhất.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 9,
+        "question_numbers": []
+      },
+      {
+        "en": "Please e-mail me to confirm your acceptance and to let me know more about your audiovisual requirements.",
+        "vi": "Vui lòng gửi email cho tôi để xác nhận việc nhận lời mời và cho tôi biết thêm về các yêu cầu thiết bị nghe nhìn của bà.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 10,
+        "question_numbers": []
+      },
+      {
+        "en": "We can provide overhead projection for still images if you will be using them again.",
+        "vi": "Chúng tôi có thể cung cấp máy chiếu hắt cho hình ảnh tĩnh nếu bà sẽ tiếp tục sử dụng chúng.",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 11,
+        "question_numbers": []
+      },
+      {
+        "en": "Very best regards,",
+        "vi": "Trân trọng nhất,",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 12,
+        "question_numbers": []
+      },
+      {
+        "en": "Alex Chen, Conference Planning",
+        "vi": "Alex Chen, Ban Kế hoạch Hội nghị",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 13,
+        "question_numbers": []
+      },
+      {
+        "en": "Mutamark Headquarters, Melbourne",
+        "vi": "Trụ sở chính Mutamark, Melbourne",
+        "type": "paragraph",
+        "doc_index": 0,
+        "sentence_id": 14,
+        "question_numbers": []
+      }
+    ]
+  }
+]

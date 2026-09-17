@@ -1,5 +1,6 @@
 import {
   ClipboardCheck,
+  Headphones,
   Languages,
   LayoutDashboard,
   LibraryBig,
@@ -23,12 +24,29 @@ export interface NavigationItem {
   featureKey?: FeatureKey;
 }
 
+export const NAV_TRANSLATION_KEYS: Record<string, string> = {
+  '/dashboard': 'nav.dashboard',
+  '/practice-by-level': 'nav.practiceByLevel',
+  '/mock-test': 'nav.mockTest',
+  '/vocabulary': 'nav.vocabulary',
+  '/grammar': 'nav.grammar',
+  '/listening': 'nav.listening',
+  '/ranking': 'nav.ranking',
+  '/feedback': 'nav.feedback',
+  '/profile': 'nav.profile',
+  '/settings': 'nav.settings',
+  '/admin/accounts': 'nav.adminAccounts',
+  '/admin/feedback': 'nav.adminFeedback',
+  '/admin/features': 'nav.adminFeatures',
+};
+
 export const studentNavItems: NavigationItem[] = [
   { path: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard, end: true, featureKey: 'dashboard' },
   { path: '/practice-by-level', label: 'Luyện theo Level', icon: SlidersHorizontal, featureKey: 'mock_test' },
   { path: '/mock-test', label: 'Đề thi', icon: ClipboardCheck, featureKey: 'mock_test' },
   { path: '/vocabulary', label: 'Từ vựng Flashcard', icon: Languages, featureKey: 'vocabulary' },
   { path: '/grammar', label: 'Ngữ pháp TOEIC', icon: LibraryBig, featureKey: 'grammar' },
+  { path: '/listening', label: 'Luyện nghe TOEIC', icon: Headphones, featureKey: 'listening' },
   { path: '/ranking', label: 'Bảng xếp hạng', icon: Trophy, featureKey: 'ranking' },
   { path: '/feedback', label: 'Góp ý & Phản hồi', icon: MessageSquarePlus, featureKey: 'feedback' },
   { path: '/profile', label: 'Hồ sơ cá nhân', icon: UserRound, featureKey: 'profile' },

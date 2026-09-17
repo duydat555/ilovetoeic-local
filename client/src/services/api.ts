@@ -87,6 +87,15 @@ export const apiService = {
         if (raw.format_status === 'done' && translatedParts.length > 0) {
           question.passageTranslationHtml = translatedParts.join('<hr class="passage-separator" />');
         }
+        if (raw.passage_sentence_pairs) {
+          try {
+            question.passageSentencePairs = typeof raw.passage_sentence_pairs === 'string'
+              ? JSON.parse(raw.passage_sentence_pairs)
+              : raw.passage_sentence_pairs;
+          } catch {
+            // ignore
+          }
+        }
       }
       return question;
     });
@@ -291,10 +300,9 @@ export const apiService = {
                     ? passageParts.join('<hr class="passage-separator" />')
                     : p.title;
                 }
-                // passageTranslation: bảng passages không có dich_nghia riêng.
-                // Dùng q.dich_nghia (bản dịch đoạn văn lưu ở từng câu hỏi) khi chưa có.
+                // passageTranslation: dùng q.dich_nghia nếu có, TUYỆT ĐỐI KHÔNG dùng q.explanation_vi (giải thích đáp án)
                 if (!formatted.passageTranslation) {
-                  const qDichNghia = q.dich_nghia || q.explanation_vi;
+                  const qDichNghia = q.dich_nghia || undefined;
                   if (qDichNghia) {
                     formatted.passageTranslation = qDichNghia;
                   }
@@ -319,6 +327,15 @@ export const apiService = {
                 }
                 if (['pending', 'done', 'error'].includes(p.format_status)) {
                   formatted.passageTranslationFormatStatus = p.format_status;
+                }
+                if (p.passage_sentence_pairs) {
+                  try {
+                    formatted.passageSentencePairs = typeof p.passage_sentence_pairs === 'string'
+                      ? JSON.parse(p.passage_sentence_pairs)
+                      : p.passage_sentence_pairs;
+                  } catch {
+                    // ignore
+                  }
                 }
                 if (!formatted.audioUrl && p.audio_url) {
                   formatted.audioUrl = formatAudioUrl(p.audio_url);
@@ -717,10 +734,10 @@ function formatQuestionObject(q: any): Question {
   const finalExplanationEn = q.explanation_en || q.dich_nghia_dap_an || undefined;
 
   // passageTranslation = bản dịch ĐOẠN VĂN
-  // - Câu hỏi thuộc passage: dùng q.dich_nghia (toàn bộ bản dịch đoạn văn)
+  // - Câu hỏi thuộc passage: dùng q.dich_nghia (bản dịch đoạn văn), TUYỆT ĐỐI KHÔNG dùng explanation_vi
   // - Câu hỏi standalone: không có passageTranslation riêng
   const passageTranslationRaw = isPassageQuestion
-    ? (q.dich_nghia || q.explanation_vi || undefined)
+    ? (q.dich_nghia || undefined)
     : undefined;
 
   return {
@@ -751,6 +768,11 @@ function formatQuestionObject(q: any): Question {
       : undefined,
     passageTranslationFormatStatus: ['pending', 'done', 'error'].includes(q.format_status)
       ? q.format_status
+      : undefined,
+    passageSentencePairs: q.passage_sentence_pairs
+      ? (typeof q.passage_sentence_pairs === 'string'
+        ? JSON.parse(q.passage_sentence_pairs)
+        : q.passage_sentence_pairs)
       : undefined,
     questionTranslation: finalQuestionTranslation,
     optionsTranslation: q.dich_nghia_dap_an || q.explanation_en || undefined,

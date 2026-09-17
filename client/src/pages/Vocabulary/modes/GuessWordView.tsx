@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { VocabularyWord } from '../../../types';
 import { playPronunciation } from '../../../utils/audioPronunciation';
+import { soundFX } from '../../../utils/soundEffects';
 
 interface Props {
   words: VocabularyWord[];
@@ -123,11 +124,13 @@ export const GuessWordView: React.FC<Props> = ({ words, onWordMastered, onWordNe
     if (!inputClean) return;
 
     if (inputClean === targetClean) {
+      soundFX.playCorrect();
       setIsCorrect(true);
       setShowAnswer(true);
       playPronunciation(currentWord.word, 'US', undefined, currentWord.audioUrl);
       onWordMastered?.(currentWord.id);
     } else {
+      soundFX.playWrong();
       setIsCorrect(false);
       setIsShake(true);
       setTimeout(() => setIsShake(false), 500);
@@ -137,6 +140,7 @@ export const GuessWordView: React.FC<Props> = ({ words, onWordMastered, onWordNe
 
   // Give up / Don't know
   const handleGiveUp = () => {
+    soundFX.playWrong();
     setShowAnswer(true);
     setIsCorrect(false);
     playPronunciation(currentWord.word, 'US', undefined, currentWord.audioUrl);

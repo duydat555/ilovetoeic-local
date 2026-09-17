@@ -26,3 +26,6 @@ backups/
 .code-review-graph/
 .gemini/
 GEMINI.md
+scratch/
+server/*passages*.json
+

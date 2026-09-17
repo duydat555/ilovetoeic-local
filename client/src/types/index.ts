@@ -24,6 +24,7 @@ export interface User {
   isFrozen?: boolean;
   frozenAt?: string | null;
   accessExpiresAt?: string | null;
+  isPro?: boolean;
 }
 
 export interface ActivityItem {
@@ -130,12 +131,22 @@ export interface QuestionEvidence {
 
 export type PassageFormatStatus = 'pending' | 'done' | 'error';
 
+export interface StructuredSentencePair {
+  sentence_id: number;
+  en: string;
+  vi: string;
+  question_numbers?: number[];
+  type: 'paragraph' | 'metadata' | 'title' | 'sign_off';
+  doc_index: number;
+}
+
 export interface Question {
   id: string;
   partId: number;
   difficultyLevel?: number;
   questionNumber: number;
   passageId?: string;
+  passageSentencePairs?: StructuredSentencePair[];
   sharedGroupId?: string;
   audioUrl?: string;
   localAudioUrl?: string;
@@ -238,6 +249,7 @@ export interface StudyAttemptReviewQuestion {
   optionsTranslation: string;
   passageText: string;
   passageTranslationHtml: string;
+  passageSentencePairs?: StructuredSentencePair[];
   transcript: string;
   audioUrl?: string;
   imageUrl?: string;
@@ -407,3 +419,138 @@ export interface NotificationItem {
   readAt?: string | null;
   createdAt: string;
 }
+
+export type ListeningDifficulty = 'easy' | 'medium' | 'hard';
+
+export type ListeningMode =
+  | 'dictation'
+  | 'mean_select'
+  | 'word_select'
+  | 'listen_check'
+  | 'transcribe'
+  | 'listen_full';
+
+export interface ListeningCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  order_index: number;
+  set_count: number;
+}
+
+export interface DifficultyLevelInfo {
+  level: number;
+  name: string;
+  description: string;
+  totalSets: number;
+  totalSentences: number;
+  partCounts: {
+    all: number;
+    'Part 1': number;
+    'Part 2': number;
+    'Part 3': number;
+    'Part 4': number;
+    [key: string]: number;
+  };
+}
+
+export interface DifficultyOverview {
+  success: boolean;
+  totalPracticeAttempts: number;
+  totalQuestionsEvaluated: number;
+  updateFrequency: string;
+  lastCalculatedAt: string;
+  levels: DifficultyLevelInfo[];
+}
+
+export interface ListeningTestSummary {
+  testNumber: number;
+  title: string;
+  year: number;
+  setCount: number;
+  sentenceCount: number;
+  partCounts: {
+    part1: number;
+    part2: number;
+    part3: number;
+    part4: number;
+  };
+  completedSets: number;
+  completionRate: number;
+}
+
+export interface ListeningSet {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  title: string;
+  description: string;
+  part: string;
+  difficulty: ListeningDifficulty;
+  difficultyLevel?: number;
+  audioUrl?: string;
+  isPro: boolean;
+  isLocked?: boolean;
+  hasVideo: boolean;
+  videoSourceType: string;
+  coverImage: string;
+  sentenceCount: number;
+  orderIndex: number;
+  completionRate: number;
+  lastSentenceIndex: number;
+  progressStatus: 'not_started' | 'in_progress' | 'completed';
+  notesCount?: number;
+  lastStudiedAt?: string | null;
+}
+
+export interface WordTimestamp {
+  word: string;
+  start: number;
+  end: number;
+  score?: number;
+  posTag?: string;
+  lemma?: string;
+}
+
+export interface ListeningSentence {
+  id: string;
+  orderIndex: number;
+  groupIndex?: number;
+  audioUrl?: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  startTime: number;
+  endTime?: number | null;
+  text: string;
+  words?: WordTimestamp[];
+  phoneticUs?: string;
+  wordsToFill: string[];
+  translationVi: string;
+  distractors: string[];
+  checkOptions: {
+    is_correct?: boolean;
+    display_text?: string;
+    explanation?: string;
+  };
+}
+
+export interface ListeningNote {
+  id: string;
+  sentenceId?: string | null;
+  word: string;
+  note: string;
+  createdAt: string;
+}
+
+export interface UserListeningProgress {
+  currentSentenceIndex: number;
+  completedSentences: string[];
+  sentenceScores: Record<string, { score: number; hints: number; completedAt: string }>;
+  completionRate: number;
+  totalScore: number;
+  totalHintsUsed: number;
+  notes?: ListeningNote[];
+  lastStudiedAt?: string;
+}
+

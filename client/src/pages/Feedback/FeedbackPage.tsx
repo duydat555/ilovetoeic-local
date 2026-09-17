@@ -23,12 +23,14 @@ import {
   feedbackService,
 } from '../../services/feedback';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { getModalMotion } from '../../components/common/modalMotion';
 import { ModalPortal } from '../../components/common/ModalPortal';
 import { FeedbackPageSkeleton } from './components/FeedbackPageSkeleton';
 
 export const FeedbackPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const reduceMotion = useReducedMotion();
   const modalMotion = getModalMotion(reduceMotion);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,10 +78,10 @@ export const FeedbackPage: React.FC = () => {
   const compressImageToFullHD = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onerror = () => reject(new Error('Không thể đọc file ảnh.'));
+      reader.onerror = () => reject(new Error(t('feedback.errImageRead')));
       reader.onload = (event) => {
         const img = new Image();
-        img.onerror = () => reject(new Error('File ảnh không hợp lệ.'));
+        img.onerror = () => reject(new Error(t('feedback.errImageInvalid')));
         img.onload = () => {
           const MAX_WIDTH = 1920;
           const MAX_HEIGHT = 1080;
@@ -123,7 +125,7 @@ export const FeedbackPage: React.FC = () => {
     const selectedFiles = Array.from(files).slice(0, remainingSlots);
     for (const file of selectedFiles) {
       if (file.size > 15 * 1024 * 1024) {
-        setErrorMsg('Mỗi ảnh đính kèm không vượt quá 15MB.');
+        setErrorMsg(t('feedback.errImageSize'));
         continue;
       }
 
@@ -132,7 +134,7 @@ export const FeedbackPage: React.FC = () => {
         setImages((prev) => [...prev, compressedBase64].slice(0, 4));
       } catch (err) {
         console.warn('Lỗi nén ảnh:', err);
-        setErrorMsg('Có lỗi xảy ra khi nén ảnh đính kèm.');
+        setErrorMsg(t('feedback.errImageCompress'));
       }
     }
 
@@ -151,11 +153,11 @@ export const FeedbackPage: React.FC = () => {
     setSuccessMsg(null);
 
     if (!title.trim()) {
-      setErrorMsg('Vui lòng nhập tiêu đề góp ý.');
+      setErrorMsg(t('feedback.errTitleRequired'));
       return;
     }
     if (!description.trim()) {
-      setErrorMsg('Vui lòng nhập mô tả chi tiết.');
+      setErrorMsg(t('feedback.errDescRequired'));
       return;
     }
 
@@ -168,13 +170,13 @@ export const FeedbackPage: React.FC = () => {
         images,
       });
 
-      setSuccessMsg('Gửi ý kiến thành công! Đội ngũ giảng viên đã tiếp nhận thông tin của bạn.');
+      setSuccessMsg(t('feedback.successMsg'));
       setTitle('');
       setDescription('');
       setImages([]);
       setMyFeedback((prev) => [created, ...prev]);
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Có lỗi xảy ra khi gửi góp ý. Vui lòng thử lại.');
+      setErrorMsg(err?.message || t('feedback.errGeneric'));
     } finally {
       setIsSubmitting(false);
     }
@@ -186,28 +188,28 @@ export const FeedbackPage: React.FC = () => {
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
             <CheckCircle2 className="size-3.5" />
-            Đã giải quyết
+            {t('feedback.statusResolved')}
           </span>
         );
       case 'in_progress':
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 px-2.5 py-0.5 text-xs font-bold text-sky-600 dark:text-sky-400">
             <Clock className="size-3.5" />
-            Đang thực hiện
+            {t('feedback.statusInProgress')}
           </span>
         );
       case 'rejected':
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/25 bg-rose-500/10 px-2.5 py-0.5 text-xs font-bold text-rose-600 dark:text-rose-400">
             <XCircle className="size-3.5" />
-            Từ chối
+            {t('feedback.statusRejected')}
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-600 dark:text-amber-400">
             <Clock className="size-3.5" />
-            Chờ tiếp nhận
+            {t('feedback.statusPending')}
           </span>
         );
     }
@@ -242,28 +244,28 @@ export const FeedbackPage: React.FC = () => {
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1 text-xs font-bold text-accent-strong">
           <HeartHandshake className="size-3.5 text-accent-strong" />
-          <span>Đồng hành phát triển cùng TOEIC Master</span>
+          <span>{t('feedback.partnerBadge')}</span>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h1 className="text-2xl font-black tracking-tight text-content sm:text-3xl">
-              Hòm thư Góp ý & Ý tưởng tính năng
+              {t('feedback.title')}
             </h1>
             <p className="mt-1.5 max-w-2xl text-xs sm:text-sm font-normal leading-relaxed text-content-muted">
-              Mỗi ý kiến đóng góp hoặc phát hiện lỗi của bạn giúp chúng tôi hoàn thiện sản phẩm nhanh hơn. Mọi phản hồi đều được ban đào tạo tiếp nhận và giải đáp minh bạch.
+              {t('feedback.subtitle')}
             </p>
           </div>
 
           {/* Quick Stats Pills */}
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <div className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-content">
-              <span className="text-content-muted">Tổng gửi:</span>
+              <span className="text-content-muted">{t('feedback.totalSent')}</span>
               <strong className="font-bold">{myFeedback.length}</strong>
             </div>
             <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="size-3.5" />
-              <span>{resolvedCount} đã phản hồi</span>
+              <span>{t('feedback.respondedCount', { count: resolvedCount })}</span>
             </div>
           </div>
         </div>
@@ -279,9 +281,9 @@ export const FeedbackPage: React.FC = () => {
           className="lg:col-span-7 rounded-3xl border border-line/80 bg-surface p-6 sm:p-8 shadow-xs"
         >
           <div className="mb-6">
-            <h2 className="text-lg font-black text-content">Gửi ý kiến đóng góp</h2>
+            <h2 className="text-lg font-black text-content">{t('feedback.formTitle')}</h2>
             <p className="mt-1 text-xs text-content-muted">
-              Chọn chủ đề và chia sẻ chi tiết góc nhìn của bạn để chúng tôi nắm rõ nhất
+              {t('feedback.formSubtitle')}
             </p>
           </div>
 
@@ -289,7 +291,7 @@ export const FeedbackPage: React.FC = () => {
             {/* Category Cards Selector */}
             <div className="space-y-2">
               <label className="block text-xs font-bold uppercase tracking-wider text-content-muted">
-                Loại nội dung
+                {t('feedback.typeLabel')}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <button
@@ -311,10 +313,10 @@ export const FeedbackPage: React.FC = () => {
                     >
                       <Lightbulb className="size-4" />
                     </span>
-                    <span className="text-sm font-extrabold text-content">Yêu cầu tính năng</span>
+                    <span className="text-sm font-extrabold text-content">{t('feedback.typeFeatureRequest')}</span>
                   </div>
                   <span className="mt-2 text-xs font-normal text-content-muted leading-relaxed">
-                    Đề xuất chế độ luyện tập, công cụ học hoặc giao diện mới
+                    {t('feedback.typeFeatureRequestDesc')}
                   </span>
                 </button>
 
@@ -337,10 +339,10 @@ export const FeedbackPage: React.FC = () => {
                     >
                       <MessageSquare className="size-4" />
                     </span>
-                    <span className="text-sm font-extrabold text-content">Góp ý cải thiện</span>
+                    <span className="text-sm font-extrabold text-content">{t('feedback.typeSuggestion')}</span>
                   </div>
                   <span className="mt-2 text-xs font-normal text-content-muted leading-relaxed">
-                    Báo lỗi câu hỏi, tối ưu âm thanh, đề xuất chỉnh sửa nội dung
+                    {t('feedback.typeSuggestionDesc')}
                   </span>
                 </button>
               </div>
@@ -351,7 +353,7 @@ export const FeedbackPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between text-xs font-bold text-content-muted">
                   <label htmlFor="feedback-title" className="uppercase tracking-wider">
-                    Tiêu đề ý kiến <span className="text-rose-500">*</span>
+                    {t('feedback.titleLabel')} <span className="text-rose-500">*</span>
                   </label>
                   <span>{title.length}/100</span>
                 </div>
@@ -360,7 +362,7 @@ export const FeedbackPage: React.FC = () => {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Tóm tắt ngắn gọn đề xuất hoặc vấn đề bạn gặp phải..."
+                  placeholder={t('feedback.titlePlaceholder')}
                   className="mt-1.5 w-full rounded-2xl border border-line/80 bg-surface px-4 py-3 text-sm font-medium text-content outline-none transition placeholder:text-content-muted/60 focus:border-accent focus:ring-4 focus:ring-accent/15"
                   maxLength={100}
                   required
@@ -369,14 +371,14 @@ export const FeedbackPage: React.FC = () => {
 
               <div>
                 <label htmlFor="feedback-desc" className="block text-xs font-bold uppercase tracking-wider text-content-muted">
-                  Mô tả chi tiết <span className="text-rose-500">*</span>
+                  {t('feedback.descLabel')} <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   id="feedback-desc"
                   rows={4}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Chia sẻ rõ ngữ cảnh, kỳ vọng của bạn hoặc các bước tái hiện nếu phát hiện lỗi..."
+                  placeholder={t('feedback.descPlaceholder')}
                   className="mt-1.5 w-full rounded-2xl border border-line/80 bg-surface px-4 py-3 text-sm font-medium text-content outline-none transition placeholder:text-content-muted/60 focus:border-accent focus:ring-4 focus:ring-accent/15 leading-relaxed"
                   required
                 />
@@ -386,9 +388,9 @@ export const FeedbackPage: React.FC = () => {
               <div>
                 <div className="flex items-center justify-between text-xs font-bold text-content-muted">
                   <span className="uppercase tracking-wider">
-                    Ảnh đính kèm <span className="font-normal">(tuỳ chọn)</span>
+                    {t('feedback.imagesLabel')} <span className="font-normal">{t('feedback.optional')}</span>
                   </span>
-                  <span>{images.length}/4 ảnh</span>
+                  <span>{t('feedback.imagesCount', { count: images.length })}</span>
                 </div>
 
                 <div className="mt-2.5 flex flex-wrap items-center gap-3">
@@ -399,14 +401,14 @@ export const FeedbackPage: React.FC = () => {
                     >
                       <img
                         src={imgSrc}
-                        alt={`Ảnh đính kèm ${idx + 1}`}
+                        alt={language === 'en' ? `Attached image ${idx + 1}` : `Ảnh đính kèm ${idx + 1}`}
                         className="size-full object-cover transition duration-300 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 flex items-center justify-center gap-1.5 bg-black/40 opacity-0 transition group-hover:opacity-100">
                         <button
                           type="button"
                           onClick={() => setPreviewImageUrl(imgSrc)}
-                          aria-label="Xem ảnh phóng to"
+                          aria-label={t('feedback.zoomImage')}
                           className="grid size-7 place-items-center rounded-full bg-surface text-content hover:text-accent shadow-sm"
                         >
                           <ZoomIn className="size-3.5" />
@@ -414,7 +416,7 @@ export const FeedbackPage: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => removeImage(idx)}
-                          aria-label="Xoá ảnh này"
+                          aria-label={t('feedback.removeImage')}
                           className="grid size-7 place-items-center rounded-full bg-surface text-rose-600 hover:bg-rose-500 hover:text-white shadow-sm"
                         >
                           <X className="size-3.5" />
@@ -430,7 +432,7 @@ export const FeedbackPage: React.FC = () => {
                       className="group flex size-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-line hover:border-accent/60 bg-surface-elevated/40 hover:bg-accent/5 text-content-muted hover:text-accent-strong transition active:scale-95"
                     >
                       <ImagePlus className="size-5 transition-transform group-hover:scale-110" />
-                      <span className="text-[11px] font-bold">Thêm ảnh</span>
+                      <span className="text-[11px] font-bold">{t('feedback.addImage')}</span>
                     </button>
                   )}
 
@@ -471,12 +473,12 @@ export const FeedbackPage: React.FC = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin text-current" />
-                    <span>Đang gửi ý kiến...</span>
+                    <span>{t('feedback.submitting')}</span>
                   </>
                 ) : (
                   <>
                     <SendHorizontal className="size-4 stroke-[2.2]" />
-                    <span>Gửi ý kiến đóng góp</span>
+                    <span>{t('feedback.submitBtn')}</span>
                   </>
                 )}
               </button>
@@ -487,7 +489,7 @@ export const FeedbackPage: React.FC = () => {
         {/* Right Column: History & Responses Feed (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-content">Lịch sử đóng góp</h2>
+            <h2 className="text-lg font-black text-content">{t('feedback.historyTitle')}</h2>
 
             {/* Filter Pills */}
             <div className="flex items-center gap-1 rounded-xl border border-line bg-surface p-1">
@@ -500,7 +502,7 @@ export const FeedbackPage: React.FC = () => {
                     : 'text-content-muted hover:text-content'
                 }`}
               >
-                Tất cả ({myFeedback.length})
+                {t('feedback.filterAll', { count: myFeedback.length })}
               </button>
               <button
                 type="button"
@@ -511,7 +513,7 @@ export const FeedbackPage: React.FC = () => {
                     : 'text-content-muted hover:text-content'
                 }`}
               >
-                Đang xử lý ({inProgressCount})
+                {t('feedback.filterPending', { count: inProgressCount })}
               </button>
               <button
                 type="button"
@@ -522,7 +524,7 @@ export const FeedbackPage: React.FC = () => {
                     : 'text-content-muted hover:text-content'
                 }`}
               >
-                Đã giải quyết ({resolvedCount})
+                {t('feedback.filterResolved', { count: resolvedCount })}
               </button>
             </div>
           </div>
@@ -533,11 +535,11 @@ export const FeedbackPage: React.FC = () => {
                 <span className="grid size-12 place-items-center rounded-2xl bg-accent/10 text-accent-strong mb-3">
                   <MessageSquarePlus className="size-6 stroke-[1.8]" />
                 </span>
-                <h3 className="text-sm font-extrabold text-content">Chưa có góp ý nào</h3>
+                <h3 className="text-sm font-extrabold text-content">{t('feedback.emptyTitle')}</h3>
                 <p className="mt-1 text-xs text-content-muted max-w-xs leading-relaxed">
                   {historyFilter === 'all'
-                    ? 'Bạn chưa gửi ý kiến nào. Hãy chia sẻ bất kỳ đề xuất hoặc vấn đề bạn gặp phải khi học tập nhé!'
-                    : 'Không có nội dung nào trong bộ lọc này.'}
+                    ? t('feedback.emptyAll')
+                    : t('feedback.emptyFilter')}
                 </p>
               </div>
 
@@ -545,20 +547,20 @@ export const FeedbackPage: React.FC = () => {
               <div className="rounded-3xl border border-line/80 bg-surface-elevated/40 p-5 space-y-3 shadow-xs">
                 <div className="flex items-center gap-2 text-xs font-extrabold text-content">
                   <HelpCircle className="size-4 text-accent-strong" />
-                  <span>Mẹo để ý kiến được giải quyết nhanh</span>
+                  <span>{t('feedback.tipsTitle')}</span>
                 </div>
                 <ul className="space-y-2 text-xs text-content-muted leading-relaxed">
                   <li className="flex items-start gap-2">
                     <span className="text-accent-strong font-bold">•</span>
-                    <span>Nêu rõ ngữ cảnh: Đang làm bài thi thử, phần Reading, hay đang tra cứu từ vựng...</span>
+                    <span>{t('feedback.tip1')}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent-strong font-bold">•</span>
-                    <span>Đính kèm ảnh chụp màn hình nếu gặp lỗi hiển thị để kỹ thuật viên dễ tái hiện.</span>
+                    <span>{t('feedback.tip2')}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-accent-strong font-bold">•</span>
-                    <span>Mô tả ngắn gọn nhưng súc tích về tính năng mong muốn sẽ giúp ích gì cho lộ trình của bạn.</span>
+                    <span>{t('feedback.tip3')}</span>
                   </li>
                 </ul>
               </div>
@@ -578,17 +580,17 @@ export const FeedbackPage: React.FC = () => {
                         {item.type === 'feature_request' ? (
                           <>
                             <Lightbulb className="size-3" />
-                            <span>Tính năng</span>
+                            <span>{t('feedback.badgeFeature')}</span>
                           </>
                         ) : (
                           <>
                             <MessageSquare className="size-3" />
-                            <span>Góp ý</span>
+                            <span>{t('feedback.badgeSuggestion')}</span>
                           </>
                         )}
                       </span>
                       <span className="text-[11px] font-medium text-content-muted">
-                        {new Date(item.createdAt).toLocaleDateString('vi-VN', {
+                        {new Date(item.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'vi-VN', {
                           day: '2-digit',
                           month: '2-digit',
                           year: 'numeric',
@@ -616,7 +618,7 @@ export const FeedbackPage: React.FC = () => {
                         >
                           <img
                             src={imgUrl}
-                            alt="Ảnh đính kèm"
+                            alt={language === 'en' ? `Attached image ${imgIdx + 1}` : `Ảnh đính kèm ${imgIdx + 1}`}
                             className="size-full object-cover transition duration-200 group-hover:scale-105"
                           />
                           <div className="absolute inset-0 grid place-items-center bg-black/30 opacity-0 group-hover:opacity-100 transition">
@@ -633,11 +635,11 @@ export const FeedbackPage: React.FC = () => {
                       <div className="flex items-center justify-between text-xs font-extrabold text-accent-strong">
                         <div className="flex items-center gap-1.5">
                           <GraduationCap className="size-3.5" />
-                          <span>Phản hồi từ Ban Đào Tạo</span>
+                          <span>{t('feedback.adminResponseHeader')}</span>
                         </div>
                         {item.respondedAt && (
                           <span className="text-[10px] font-medium text-content-muted">
-                            {new Date(item.respondedAt).toLocaleDateString('vi-VN', {
+                            {new Date(item.respondedAt).toLocaleDateString(language === 'en' ? 'en-US' : 'vi-VN', {
                               day: '2-digit',
                               month: '2-digit',
                             })}
@@ -674,14 +676,14 @@ export const FeedbackPage: React.FC = () => {
               >
                 <img
                   src={previewImageUrl}
-                  alt="Phóng to ảnh đính kèm"
+                  alt={language === 'en' ? 'Enlarged attached image' : 'Phóng to ảnh đính kèm'}
                   className="max-h-[82vh] max-w-full rounded-2xl object-contain"
                 />
                 <button
                   type="button"
                   onClick={() => setPreviewImageUrl(null)}
                   className="absolute right-4 top-4 grid size-9 place-items-center rounded-full bg-slate-950/80 text-white transition hover:bg-rose-600 focus:outline-none"
-                  aria-label="Đóng ảnh phóng to"
+                  aria-label={t('feedback.closePreview')}
                 >
                   <X className="size-4" />
                 </button>

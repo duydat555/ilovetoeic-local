@@ -261,6 +261,7 @@ def user_payload(user):
         "questionsAnswered": 0,
         "accuracyRate": 0,
         "authProvider": user.get("auth_provider") or "email",
+        "isPro": role == "admin" or bool(user.get("is_pro")),
     }
 
 

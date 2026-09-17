@@ -27,9 +27,13 @@ else:
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 
-# Gemini API Configuration
+# Translation API Configuration (DeepL, Gemini, Google Cloud Translation)
+DEEPL_API_KEY = os.getenv("DEEPL_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT", "")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+GOOGLE_TRANSLATE_API_KEY = os.getenv("GOOGLE_TRANSLATE_API_KEY", "")
 
 # Authentication and Google OAuth
 APP_SECRET = os.getenv("APP_SECRET", "change-this-secret-in-production")

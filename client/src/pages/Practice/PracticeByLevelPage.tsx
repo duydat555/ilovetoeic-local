@@ -8,8 +8,10 @@ import { DeleteWrongQuestionsModal } from '../../components/mock-test/DeleteTest
 import { LevelSlider } from '../../components/practice/LevelSlider';
 import { SkillToggle } from '../../components/practice/SkillToggle';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   LEVEL_LABELS,
+  LEVEL_LABELS_EN,
   PRACTICE_LEVEL_PARTS,
   PracticeSkill,
 } from '../../data/practiceByLevelData';
@@ -25,7 +27,14 @@ const createFallbackCounts = (): CountMap => Object.fromEntries(
   PRACTICE_LEVEL_PARTS.map((part) => [part.part, part.fallbackQuestionCounts]),
 );
 
-const getAverageDescription = (level: number) => {
+const getAverageDescription = (level: number, language: string) => {
+  if (language === 'en') {
+    if (level < 1.5) return 'Building Foundation';
+    if (level < 2.5) return 'Solid Basics';
+    if (level < 3.5) return 'Intermediate';
+    if (level < 4.5) return 'Upper Intermediate';
+    return 'Advanced';
+  }
   if (level < 1.5) return 'Đang xây nền tảng';
   if (level < 2.5) return 'Cơ bản vững vàng';
   if (level < 3.5) return 'Trung bình khá';
@@ -44,6 +53,8 @@ const getLevelAttempt = (attempt: StudyAttempt) => {
 export const PracticeByLevelPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, language } = useLanguage();
+  const labels = language === 'en' ? LEVEL_LABELS_EN : LEVEL_LABELS;
   const [skill, setSkill] = useState<PracticeSkill>('listening');
   const [selectedLevels, setSelectedLevels] = useState<Record<number, number>>(
     () => Object.fromEntries(PRACTICE_LEVEL_PARTS.map((part) => [part.part, 3])),
@@ -164,12 +175,12 @@ export const PracticeByLevelPage: React.FC = () => {
       <div
         className="mx-auto w-full max-w-7xl space-y-4 pb-10 text-content"
         role="status"
-        aria-label="Đang tải dữ liệu luyện tập theo Level"
+        aria-label={t('common.loading')}
         aria-busy="true"
       >
         <header>
-          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Luyện tập theo Level</h1>
-          <p className="mt-1 text-xs text-content-muted sm:text-sm">Chọn độ khó phù hợp với trình độ hiện tại của bạn.</p>
+          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{t('practiceByLevel.title')}</h1>
+          <p className="mt-1 text-xs text-content-muted sm:text-sm">{t('practiceByLevel.subtitle')}</p>
         </header>
 
         <BoneyardSkeleton
@@ -261,13 +272,17 @@ export const PracticeByLevelPage: React.FC = () => {
       const totalDeleted = Math.max(serverDeleted, deleteScope.displayCount || deleteScope.attemptCount || 0);
       setToastMessage(
         totalDeleted > 0 || wrongDeleted > 0
-          ? `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteScope.label}.`
-          : `Đã dọn sạch dữ liệu luyện tập của ${deleteScope.label}.`,
+          ? (language === 'en'
+            ? `Deleted ${totalDeleted} attempt(s) and ${wrongDeleted} wrong question(s) of ${deleteScope.label}.`
+            : `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteScope.label}.`)
+          : (language === 'en'
+            ? `Cleaned up practice data of ${deleteScope.label}.`
+            : `Đã dọn sạch dữ liệu luyện tập của ${deleteScope.label}.`),
       );
       setDeleteScope(null);
       window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
     } catch (requestError) {
-      setDeleteError(requestError instanceof Error ? requestError.message : 'Không thể xoá lịch sử làm bài.');
+      setDeleteError(requestError instanceof Error ? requestError.message : (language === 'en' ? 'Failed to delete practice history.' : 'Không thể xoá lịch sử làm bài.'));
     } finally {
       setDeletingWrong(false);
     }
@@ -276,51 +291,55 @@ export const PracticeByLevelPage: React.FC = () => {
   return (
     <div className="mx-auto w-full max-w-7xl space-y-4 pb-10 text-content">
       <header>
-        <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">Luyện tập theo Level</h1>
-        <p className="mt-1 text-xs text-content-muted sm:text-sm">Chọn độ khó phù hợp với trình độ hiện tại của bạn.</p>
+        <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{t('practiceByLevel.title')}</h1>
+        <p className="mt-1 text-xs text-content-muted sm:text-sm">{t('practiceByLevel.subtitle')}</p>
       </header>
 
-      <section className="surface overflow-hidden rounded-2xl p-4 sm:p-5" aria-labelledby="current-level-title">
+      <section id="tour-pbl-summary" className="surface overflow-hidden rounded-2xl p-4 sm:p-5" aria-labelledby="current-level-title">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="icon-box size-9 rounded-xl"><Award className="size-4" /></div>
             <div>
-              <h2 id="current-level-title" className="text-xs font-bold text-content-muted">Level trung bình hiện tại</h2>
+              <h2 id="current-level-title" className="text-xs font-bold text-content-muted">{t('practiceByLevel.averageLevel')}</h2>
               <div className="mt-0.5 flex items-baseline gap-2">
                 <strong className="text-3xl font-black tracking-tight text-content">
                   {averageLevel === null ? '--' : averageLevel.toFixed(1)}
                 </strong>
                 <span className="text-xs font-bold text-content-muted">
-                  {averageLevel === null ? 'Chưa có dữ liệu' : getAverageDescription(averageLevel)}
+                  {averageLevel === null ? t('practiceByLevel.noData') : getAverageDescription(averageLevel, language)}
                 </span>
               </div>
               <p className="mt-0.5 text-[11px] font-semibold text-content-muted">
-                {currentPartLevels.length}/7 Part đã được xác định
+                {t('practiceByLevel.partsIdentified', { count: currentPartLevels.length })}
               </p>
             </div>
           </div>
           <p className="max-w-md text-xs leading-relaxed text-content-muted">
             {averageLevel === null
-              ? 'Hoàn thành một bài với ít nhất 70% câu đúng để bắt đầu ghi nhận Level.'
-              : 'Kết quả được tính từ Level cao nhất bạn đã hoàn thành ở từng Part.'}
+              ? (language === 'en'
+                ? 'Complete a test with at least 70% correct answers to begin recording your Level.'
+                : 'Hoàn thành một bài với ít nhất 70% câu đúng để bắt đầu ghi nhận Level.')
+              : (language === 'en'
+                ? 'Calculated from the highest completed Level in each Part.'
+                : 'Kết quả được tính từ Level cao nhất bạn đã hoàn thành ở từng Part.')}
           </p>
         </div>
 
         <details className="group mt-4 border-t border-line pt-3">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-extrabold text-content marker:hidden">
-            <span>Cách tính Level trung bình</span>
+            <span>{language === 'en' ? 'How Average Level is calculated' : 'Cách tính Level trung bình'}</span>
             <ChevronDown className="size-3.5 shrink-0 text-content-muted transition-transform duration-200 group-open:rotate-180" aria-hidden="true" />
           </summary>
           <div className="mt-3 rounded-xl bg-surface-elevated px-3.5 py-3 text-xs leading-relaxed text-content-muted">
             <ol className="space-y-1.5">
-              <li><strong className="text-content">1.</strong> Một Level được hoàn thành khi bạn trả lời đúng ít nhất 70% số câu.</li>
-              <li><strong className="text-content">2.</strong> Với mỗi Part, hệ thống lấy Level cao nhất bạn đã hoàn thành.</li>
-              <li><strong className="text-content">3.</strong> Cộng Level của các Part đủ điều kiện, chia cho số Part đó và làm tròn một chữ số thập phân.</li>
+              <li><strong className="text-content">1.</strong> {language === 'en' ? 'A Level is completed when you answer at least 70% of questions correctly.' : 'Một Level được hoàn thành khi bạn trả lời đúng ít nhất 70% số câu.'}</li>
+              <li><strong className="text-content">2.</strong> {language === 'en' ? 'For each Part, the system takes the highest completed Level.' : 'Với mỗi Part, hệ thống lấy Level cao nhất bạn đã hoàn thành.'}</li>
+              <li><strong className="text-content">3.</strong> {language === 'en' ? 'Sum the qualifying Parts, divide by the number of Parts, and round to one decimal place.' : 'Cộng Level của các Part đủ điều kiện, chia cho số Part đó và làm tròn một chữ số thập phân.'}</li>
             </ol>
             {currentPartLevels.length > 0 ? (
               <div className="mt-3 border-t border-line pt-2.5">
                 <p className="font-bold text-content">
-                  Công thức hiện tại: ({currentPartLevels.map((item) => item.level).join(' + ')}) ÷ {currentPartLevels.length} = {averageLevel?.toFixed(1)}
+                  {language === 'en' ? 'Current formula' : 'Công thức hiện tại'}: ({currentPartLevels.map((item) => item.level).join(' + ')}) ÷ {currentPartLevels.length} = {averageLevel?.toFixed(1)}
                 </p>
                 <p className="mt-1">
                   {currentPartLevels.map((item) => `Part ${item.part}: Level ${item.level}`).join(', ')}
@@ -328,26 +347,32 @@ export const PracticeByLevelPage: React.FC = () => {
               </div>
             ) : (
               <p className="mt-3 border-t border-line pt-2.5 font-semibold text-content">
-                Chưa có Part nào đạt ngưỡng 70%. Kết quả đầu tiên sẽ xuất hiện sau khi bạn hoàn thành một Level.
+                {language === 'en'
+                  ? 'No Part has reached the 70% threshold yet. Your first result will appear after completing a Level.'
+                  : 'Chưa có Part nào đạt ngưỡng 70%. Kết quả đầu tiên sẽ xuất hiện sau khi bạn hoàn thành một Level.'}
               </p>
             )}
           </div>
         </details>
       </section>
 
-      <div className="flex justify-center sm:justify-start">
+      <div id="tour-pbl-skill" className="flex justify-center sm:justify-start">
         <SkillToggle value={skill} onChange={setSkill} />
       </div>
 
       {usingFallback && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200" role="status">
           <Database className="mt-0.5 size-3.5 shrink-0" />
-          <span>Chưa kết nối được dữ liệu số lượng thực. Trang đang hiển thị số liệu mẫu và sẽ kiểm tra lại khi tải lại.</span>
+          <span>
+            {language === 'en'
+              ? 'Could not connect to live question counts. Displaying sample figures; will recheck on reload.'
+              : 'Chưa kết nối được dữ liệu số lượng thực. Trang đang hiển thị số liệu mẫu và sẽ kiểm tra lại khi tải lại.'}
+          </span>
         </div>
       )}
 
       <section
-        id={`${skill}-parts`}
+        id="tour-pbl-grid"
         role="tabpanel"
         aria-labelledby={`practice-skill-${skill}`}
         className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2"
@@ -362,31 +387,32 @@ export const PracticeByLevelPage: React.FC = () => {
           }).length;
           const savedSessionCount = countLevelPracticeSessions(part.part, selectedLevel);
           const displayCount = Math.max(attemptCount, savedSessionCount);
-          const hasHistory = displayCount > 0 || wrongCount > 0;
+          const partTitle = language === 'en' && part.title_en ? part.title_en : part.title;
+          const partDesc = language === 'en' && part.description_en ? part.description_en : part.description;
           return (
             <article key={part.part} className="surface flex flex-col rounded-2xl p-4 sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h2 className="text-base font-extrabold tracking-tight">Part {part.part}: {part.title}</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-content-muted">{part.description}</p>
+                  <h2 className="text-base font-extrabold tracking-tight">Part {part.part}: {partTitle}</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-content-muted">{partDesc}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1 text-content-muted">
+                  {wrongCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
+                      aria-label={language === 'en' ? `Retry ${wrongCount} incorrect questions for Part ${part.part} Level ${selectedLevel}` : `Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
+                      title={language === 'en' ? `Retry ${wrongCount} incorrect questions` : `Làm lại ${wrongCount} câu sai`}
+                      className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
+                    >
+                      <RotateCcw className="size-3.5" />
+                      <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
+                        {wrongCount}
+                      </span>
+                    </button>
+                  )}
                   <button
                     type="button"
-                    disabled={wrongCount === 0}
-                    onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
-                    aria-label={`Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
-                    title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
-                    className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <RotateCcw className="size-3.5" />
-                    <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
-                      {wrongCount}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!hasHistory}
                     onClick={() => {
                       setDeleteError('');
                       setDeleteScope({
@@ -397,9 +423,9 @@ export const PracticeByLevelPage: React.FC = () => {
                         displayCount,
                       });
                     }}
-                    aria-label={`Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
-                    title={!hasHistory ? 'Chưa có lịch sử làm bài để xoá' : 'Xoá lịch sử làm bài'}
-                    className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
+                    title={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
+                    className="grid size-8 place-items-center rounded-lg text-content-muted transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -414,14 +440,16 @@ export const PracticeByLevelPage: React.FC = () => {
                 onChange={(level) => updatePartLevel(part.part, level)}
                 completedLevels={completedByPart[part.part] || []}
                 className="mt-4"
-                label={`Chọn độ khó cho Part ${part.part}`}
+                label={language === 'en' ? `Select difficulty for Part ${part.part}` : `Chọn độ khó cho Part ${part.part}`}
               />
 
               <div className="mt-4 flex flex-col gap-3 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between">
                 <div aria-live="polite">
-                  <p className="text-xs font-extrabold">Level {selectedLevel}: {LEVEL_LABELS[selectedLevel - 1]}</p>
+                  <p className="text-xs font-extrabold">Level {selectedLevel}: {labels[selectedLevel - 1]}</p>
                   <p className="mt-0.5 text-xs font-semibold text-content-muted">
-                    {isLoading ? 'Đang kiểm tra số câu...' : `${questionCount} câu khả dụng`}
+                    {isLoading
+                      ? (language === 'en' ? 'Checking question count...' : 'Đang kiểm tra số câu...')
+                      : (language === 'en' ? `${questionCount} questions available` : `${questionCount} câu khả dụng`)}
                   </p>
                 </div>
                 <div className="flex w-full flex-col gap-2 sm:w-auto">
@@ -432,7 +460,11 @@ export const PracticeByLevelPage: React.FC = () => {
                     className="btn-primary w-full whitespace-nowrap text-xs sm:w-auto"
                   >
                     {usingFallback || questionCount === 0 ? <RefreshCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
-                    {usingFallback ? 'Thử lại sau' : questionCount === 0 ? 'Chưa có câu hỏi' : 'Bắt đầu luyện tập'}
+                    {usingFallback
+                      ? (language === 'en' ? 'Retry later' : 'Thử lại sau')
+                      : questionCount === 0
+                        ? (language === 'en' ? 'No questions' : 'Chưa có câu hỏi')
+                        : (language === 'en' ? 'Start Practice' : 'Bắt đầu luyện tập')}
                   </button>
                 </div>
               </div>
@@ -448,10 +480,28 @@ export const PracticeByLevelPage: React.FC = () => {
             wrongCount={deleteScope.displayCount}
             deleting={deletingWrong}
             error={deleteError}
-            title="Xoá lịch sử làm bài?"
-            description={<>Toàn bộ <strong className="text-content">{deleteScope.displayCount} lượt hoặc phiên làm bài đã lưu</strong>, gồm kết quả câu đúng và câu sai của <strong className="text-content">{deleteScope.label}</strong>, sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>}
-            confirmLabel="Xoá toàn bộ lịch sử"
-            closeLabel="Đóng xác nhận xoá lịch sử làm bài"
+            title={deleteScope.displayCount > 0
+              ? (language === 'en' ? 'Delete practice history?' : 'Xoá lịch sử làm bài?')
+              : (language === 'en' ? 'Clean up practice data?' : 'Dọn sạch dữ liệu làm bài?')}
+            description={
+              deleteScope.displayCount > 0 ? (
+                language === 'en' ? (
+                  <>All <strong className="text-content">{deleteScope.displayCount} saved attempts or practice sessions</strong>, including correct and incorrect question records for <strong className="text-content">{deleteScope.label}</strong>, will be deleted. This cannot be undone.</>
+                ) : (
+                  <>Toàn bộ <strong className="text-content">{deleteScope.displayCount} lượt hoặc phiên làm bài đã lưu</strong>, gồm kết quả câu đúng và câu sai của <strong className="text-content">{deleteScope.label}</strong>, sẽ bị xoá khỏi database và trình duyệt. Thao tác này không thể hoàn tác.</>
+                )
+              ) : (
+                language === 'en' ? (
+                  <>Are you sure you want to clean up all data, saved incorrect questions, and draft sessions for <strong className="text-content">{deleteScope.label}</strong>?</>
+                ) : (
+                  <>Bạn có chắc muốn dọn sạch toàn bộ dữ liệu, câu sai đã lưu và bản nháp luyện tập của <strong className="text-content">{deleteScope.label}</strong>? Thao tác này sẽ đảm bảo dữ liệu của bạn được làm mới hoàn toàn.</>
+                )
+              )
+            }
+            confirmLabel={deleteScope.displayCount > 0
+              ? (language === 'en' ? 'Delete all history' : 'Xoá toàn bộ lịch sử')
+              : (language === 'en' ? 'Clean up data' : 'Dọn sạch dữ liệu')}
+            closeLabel={language === 'en' ? 'Close confirmation' : 'Đóng xác nhận xoá lịch sử làm bài'}
             onConfirm={() => void handleDeleteHistory()}
             onClose={closeDeleteModal}
           />

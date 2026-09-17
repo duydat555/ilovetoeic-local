@@ -1,6 +1,7 @@
 import {
   ClipboardCheck,
   Flag,
+  Headphones,
   Languages,
   LayoutDashboard,
   LibraryBig,
@@ -15,6 +16,7 @@ export type FeatureKey =
   | 'mock_test'
   | 'vocabulary'
   | 'grammar'
+  | 'listening'
   | 'ranking'
   | 'feedback'
   | 'profile'
@@ -109,6 +111,14 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
     icon: LibraryBig,
   },
   {
+    key: 'listening',
+    name: 'Luyện nghe TOEIC',
+    description: 'Kho bài nghe chép chính tả và đa chế độ luyện phản xạ âm thanh.',
+    category: 'learning',
+    core: false,
+    icon: Headphones,
+  },
+  {
     key: 'ranking',
     name: 'Bảng xếp hạng',
     description: 'Hiển thị xếp hạng thi đua giữa học sinh.',
@@ -141,9 +151,11 @@ export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
 const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/practice/runner', 'mock_test'],
   ['/mock-test/exam', 'mock_test'],
+  ['/practice-by-level', 'mock_test'],
   ['/vocabulary', 'vocabulary'],
   ['/mock-test', 'mock_test'],
   ['/grammar', 'grammar'],
+  ['/listening', 'listening'],
   ['/ranking', 'ranking'],
   ['/feedback', 'feedback'],
   ['/results', 'mock_test'],

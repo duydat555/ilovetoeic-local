@@ -5,6 +5,7 @@ import { AdminFeatureStatusProvider } from './context/AdminFeatureStatusContext'
 import { FeatureFlagsProvider } from './hooks/useFeatureFlags';
 import { NotificationProvider } from './context/NotificationContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { RoleGuard } from './components/auth/RoleGuard';
 import { AdminFeatureRoute } from './components/auth/AdminFeatureRoute';
@@ -27,6 +28,8 @@ const TopicListPage = lazy(() => import('./pages/Vocabulary/TopicListPage').then
 const SetDetailPage = lazy(() => import('./pages/Vocabulary/SetDetailPage').then((m) => ({ default: m.SetDetailPage })));
 const TopicFlashcardPage = lazy(() => import('./pages/Vocabulary/VocabularyLivePage').then((m) => ({ default: m.TopicFlashcardPage })));
 const GrammarLivePage = lazy(() => import('./pages/Grammar/GrammarLivePage').then((m) => ({ default: m.GrammarLivePage })));
+const ListeningListPage = lazy(() => import('./pages/Listening/ListeningListPage').then((m) => ({ default: m.ListeningListPage })));
+const ListeningPracticePage = lazy(() => import('./pages/Listening/ListeningPracticePage').then((m) => ({ default: m.ListeningPracticePage })));
 const RankingPage = lazy(() => import('./pages/Ranking/RankingPolishedPage').then((m) => ({ default: m.RankingPage })));
 const FeedbackPage = lazy(() => import('./pages/Feedback/FeedbackPage').then((m) => ({ default: m.FeedbackPage })));
 const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage').then((m) => ({ default: m.ProfilePage })));
@@ -36,6 +39,7 @@ const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManage
 const StudentPracticeDetailPage = lazy(() => import('./pages/Admin/StudentPracticeDetailPage').then((m) => ({ default: m.StudentPracticeDetailPage })));
 const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage').then((m) => ({ default: m.AdminFeedbackPage })));
 const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagementPage').then((m) => ({ default: m.FeatureManagementPage })));
+const InterleavedPreviewPage = lazy(() => import('./pages/InterleavedPreviewPage').then((m) => ({ default: m.InterleavedPreviewPage })));
 
 import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
 
@@ -48,7 +52,8 @@ const RouteFallback = () => (
 export const App: React.FC = () => {
   return (
     <ThemeProvider>
-      <AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
         <FeatureFlagsProvider>
         <AdminFeatureStatusProvider>
         <NotificationProvider>
@@ -57,6 +62,7 @@ export const App: React.FC = () => {
             <Routes>
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/interleaved-preview" element={<InterleavedPreviewPage />} />
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
@@ -84,6 +90,10 @@ export const App: React.FC = () => {
                 <Route path="/vocabulary/:topicId" element={<TopicFlashcardPage />} />
               </Route>
               <Route element={<FeatureRouteGuard feature="grammar" />}><Route path="/grammar" element={<GrammarLivePage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="listening" />}>
+                <Route path="/listening" element={<ListeningListPage />} />
+                <Route path="/listening/:setId" element={<ListeningPracticePage />} />
+              </Route>
               <Route path="/mistake-notebook" element={<Navigate to="/dashboard" replace />} />
               <Route element={<FeatureRouteGuard feature="ranking" />}><Route path="/ranking" element={<RankingPage />} /></Route>
               <Route element={<FeatureRouteGuard feature="feedback" />}><Route path="/feedback" element={<FeedbackPage />} /></Route>
@@ -111,6 +121,7 @@ export const App: React.FC = () => {
         </AdminFeatureStatusProvider>
         </FeatureFlagsProvider>
       </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   );
 };

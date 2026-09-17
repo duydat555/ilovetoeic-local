@@ -142,8 +142,8 @@ export const FeatureManagementPage: React.FC = () => {
   const [pendingDisable, setPendingDisable] = useState<PendingDisable | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
 
-  const loadConfiguration = useCallback(async (preserveSelection = true) => {
-    setIsLoading(true);
+  const loadConfiguration = useCallback(async (preserveSelection = true, showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     setLoadError('');
     try {
       const data = await backendService.getFeatureConfiguration();
@@ -161,12 +161,12 @@ export const FeatureManagementPage: React.FC = () => {
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Không thể tải cấu hình tính năng.');
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadConfiguration(false);
+    void loadConfiguration(false, true);
   }, [loadConfiguration]);
 
   useEffect(() => {
@@ -206,23 +206,54 @@ export const FeatureManagementPage: React.FC = () => {
     feature: FeatureDefinition,
     enabled: boolean,
     classId = '',
-    confirmed = false,
+    confirmed = true,
   ) => {
     const operationKey = `${scope}:${classId}:${feature.key}`;
     setBusyKey(operationKey);
+
+    // Optimistic UI update: flip the switch immediately
+    let previousState = true;
+    if (scope === 'global') {
+      setConfiguration((prev) => {
+        if (!prev) return prev;
+        previousState = prev.globalFlags[feature.key] !== false;
+        return {
+          ...prev,
+          globalFlags: {
+            ...prev.globalFlags,
+            [feature.key]: enabled,
+          },
+        };
+      });
+    }
+
     try {
       if (scope === 'global') {
         await backendService.updateGlobalFeature(feature.key, enabled, confirmed);
       } else {
         await backendService.updateClassFeature(classId, feature.key, enabled, confirmed);
       }
-      await loadConfiguration();
+      // Reload in background without full loading skeleton
+      await loadConfiguration(true, false);
       void reloadFeatureFlags();
       setToast({
         tone: 'success',
         message: `${enabled ? 'Đã bật' : 'Đã tắt'} ${feature.name}${scope === 'class' ? ' cho lớp đã chọn' : ' trên toàn hệ thống'}.`,
       });
     } catch (error) {
+      // Revert optimistic state on error
+      if (scope === 'global') {
+        setConfiguration((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            globalFlags: {
+              ...prev.globalFlags,
+              [feature.key]: previousState,
+            },
+          };
+        });
+      }
       setToast({
         tone: 'error',
         message: error instanceof Error ? error.message : 'Không thể cập nhật tính năng.',
@@ -230,7 +261,7 @@ export const FeatureManagementPage: React.FC = () => {
     } finally {
       setBusyKey('');
     }
-  }, [loadConfiguration]);
+  }, [loadConfiguration, reloadFeatureFlags]);
 
   const requestToggle = (
     scope: ScopeMode,
@@ -239,12 +270,7 @@ export const FeatureManagementPage: React.FC = () => {
     classId = '',
   ) => {
     if (feature.core) return;
-    const impactCount = enabled ? 0 : impactFor(scope, feature.key, classId);
-    if (!enabled && impactCount > 0) {
-      setPendingDisable({ scope, classId: classId || undefined, feature, impactCount });
-      return;
-    }
-    void commitToggle(scope, feature, enabled, classId);
+    void commitToggle(scope, feature, enabled, classId, true);
   };
 
   const toggleClassSelection = (classId: string) => {

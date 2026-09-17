@@ -1,10 +1,19 @@
 # Project collaboration rules
 
-## UI motion consistency
+Đây là **production app có user thật** (ilovetoeic.com / TOEICMaster). Mọi thay đổi phải an toàn cho production: không breaking change, không thao tác trực tiếp lên dữ liệu thật mà không backup, luôn cân nhắc edge case.
 
-- Every centered modal dialog must use the shared motion contract in `client/src/components/common/modalMotion.ts`.
-- Do not create modal-specific opening or closing durations, easing curves, offsets, or scale values.
-- Modal dismissal by close button, Cancel, Escape, or backdrop click must run the same exit animation before unmounting.
-- Modal motion must respect `prefers-reduced-motion`.
-- Drawers and anchored popovers may use directional motion appropriate to their interaction, but their opening and closing behavior must remain symmetrical.
-- When changing a modal interaction, audit other modal dialogs that use the same pattern and keep them synchronized.
+Chi tiết theo từng mảng được tách trong `docs/agents/`. Dựa vào loại task đang làm, đọc đúng file tương ứng trước khi bắt đầu:
+
+| Task liên quan tới... | Đọc file |
+|---|---|
+| Schema DB, migration, backup, connection pool, cache DB | `docs/agents/database.md` |
+| Deploy, CI/CD, VPS, secrets, tài nguyên server | `docs/agents/deployment.md` |
+| Modal, dialog, animation, motion | `docs/agents/ui-motion.md` |
+| API endpoint, cache logic, performance backend | `docs/agents/backend-api.md` |
+
+## Production safety (áp dụng chung, luôn đọc trước khi sửa gì)
+
+- Không hardcode secret/API key/password vào code hoặc commit. Nếu phát hiện secret bị lộ, báo ngay và đề xuất rotate.
+- Trước khi merge, phải chạy `npm run build` (client) và kiểm tra server khởi động được không lỗi.
+- Nếu task chạm vào nhiều mảng cùng lúc (ví dụ vừa sửa API vừa động tới DB), đọc tất cả file liên quan trong bảng trên trước khi code.
+- Khi thêm domain rule mới không thuộc các mảng ở trên: tạo file mới trong `docs/agents/`, rồi thêm 1 dòng vào bảng routing này — không nhét thẳng vào AGENTS.md.

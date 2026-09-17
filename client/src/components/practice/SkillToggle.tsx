@@ -2,6 +2,7 @@ import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { BookOpenText, Headphones } from 'lucide-react';
 import { PracticeSkill } from '../../data/practiceByLevelData';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface SkillToggleProps {
   value: PracticeSkill;
@@ -9,13 +10,14 @@ interface SkillToggleProps {
   className?: string;
 }
 
-const SKILLS = [
-  { id: 'listening' as const, label: 'Nghe', icon: Headphones },
-  { id: 'reading' as const, label: 'Đọc', icon: BookOpenText },
-];
-
 export const SkillToggle: React.FC<SkillToggleProps> = ({ value, onChange, className = '' }) => {
   const reduceMotion = useReducedMotion();
+  const { language } = useLanguage();
+
+  const SKILLS = [
+    { id: 'listening' as const, label: language === 'en' ? 'Listening' : 'Nghe', icon: Headphones },
+    { id: 'reading' as const, label: language === 'en' ? 'Reading' : 'Đọc', icon: BookOpenText },
+  ];
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -31,7 +33,7 @@ export const SkillToggle: React.FC<SkillToggleProps> = ({ value, onChange, class
     <div
       className={`relative inline-grid grid-cols-2 rounded-full bg-surface-elevated p-1 ring-1 ring-inset ring-line ${className}`}
       role="tablist"
-      aria-label="Chọn kỹ năng luyện tập"
+      aria-label={language === 'en' ? 'Select practice skill' : 'Chọn kỹ năng luyện tập'}
     >
       <motion.span
         className="pointer-events-none absolute inset-y-1 left-1 w-[calc((100%_-_0.5rem)/2)] rounded-full bg-accent shadow-[0_4px_14px_-6px_rgba(138,94,21,.55)] will-change-transform"

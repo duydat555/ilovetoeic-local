@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { VocabularyWord } from '../../../types';
 import { playPronunciation } from '../../../utils/audioPronunciation';
+import { soundFX } from '../../../utils/soundEffects';
 import { WordRainGameView } from './WordRainGameView';
 
 interface Props {
@@ -98,6 +99,7 @@ export const WordGameView: React.FC<Props> = ({ words, topicName }) => {
       const isMatch = firstPick.wordId === tile.wordId && firstPick.type !== tile.type;
 
       if (isMatch) {
+        soundFX.playWordPop();
         setTimeout(() => {
           setTiles((prev) =>
             prev.map((t) => (t.wordId === tile.wordId ? { ...t, isMatched: true } : t))
@@ -115,6 +117,7 @@ export const WordGameView: React.FC<Props> = ({ words, topicName }) => {
           setIsEvaluating(false);
         }, 300);
       } else {
+        soundFX.playWrong();
         setCombo(0);
         setTimeout(() => {
           setFirstPick(null);
@@ -130,6 +133,7 @@ export const WordGameView: React.FC<Props> = ({ words, topicName }) => {
     if (tiles.length > 0 && tiles.every((t) => t.isMatched)) {
       setIsWon(true);
       setIsTimerRunning(false);
+      soundFX.playComplete();
     }
   }, [tiles]);
 

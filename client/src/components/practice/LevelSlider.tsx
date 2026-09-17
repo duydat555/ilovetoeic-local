@@ -1,7 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check } from 'lucide-react';
-import { LEVEL_LABELS } from '../../data/practiceByLevelData';
+import { LEVEL_LABELS, LEVEL_LABELS_EN } from '../../data/practiceByLevelData';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface LevelSliderProps {
   value: number;
@@ -30,8 +31,9 @@ export const LevelSlider: React.FC<LevelSliderProps> = ({
   onChange,
   completedLevels = [],
   className = '',
-  label = 'Chọn độ khó',
+  label,
 }) => {
+  const { language } = useLanguage();
   const inputId = useId();
   const reduceMotion = useReducedMotion();
   const hideTimerRef = useRef<number | null>(null);
@@ -40,6 +42,8 @@ export const LevelSlider: React.FC<LevelSliderProps> = ({
   const completed = new Set(completedLevels);
   const selectedColor = getLevelColor(value);
   const progress = `${((value - 1) / 4) * 100}%`;
+  const labels = language === 'en' ? LEVEL_LABELS_EN : LEVEL_LABELS;
+  const computedLabel = label || (language === 'en' ? 'Select difficulty' : 'Chọn độ khó');
 
   const clearHideTimer = () => {
     if (hideTimerRef.current !== null) {
@@ -77,16 +81,19 @@ export const LevelSlider: React.FC<LevelSliderProps> = ({
 
   return (
     <div className={`level-slider ${className}`} style={{ '--level-color': selectedColor, '--level-progress': progress } as React.CSSProperties}>
-      <label htmlFor={inputId} className="sr-only">{label}</label>
+      <label htmlFor={inputId} className="sr-only">{computedLabel}</label>
       <div className="relative px-3 pt-12 sm:px-4">
         <div className="pointer-events-none absolute inset-x-3 top-7 grid grid-cols-5 sm:inset-x-4" aria-hidden="true">
-          {LEVEL_LABELS.map((_, index) => {
+          {labels.map((_, index) => {
             const level = index + 1;
             const isCompleted = completed.has(level);
             return (
               <div key={level} className="relative flex justify-center">
                 {isCompleted ? (
-                  <span className="pointer-events-auto grid size-4 place-items-center rounded-full bg-positive text-white shadow-sm" title={`Đã hoàn thành Level ${level}`}>
+                  <span
+                    className="pointer-events-auto grid size-4 place-items-center rounded-full bg-positive text-white shadow-sm"
+                    title={language === 'en' ? `Completed Level ${level}` : `Đã hoàn thành Level ${level}`}
+                  >
                     <Check className="size-2.5" strokeWidth={3} />
                   </span>
                 ) : null}
@@ -153,20 +160,20 @@ export const LevelSlider: React.FC<LevelSliderProps> = ({
               scheduleEmotionHide();
             }}
             className="level-range"
-            aria-valuetext={`Level ${value}, ${LEVEL_LABELS[value - 1]}`}
+            aria-valuetext={`Level ${value}, ${labels[value - 1]}`}
           />
         </div>
       </div>
 
       <div className="mt-2 grid grid-cols-5">
-        {LEVEL_LABELS.map((levelLabel, index) => {
+        {labels.map((levelLabel, index) => {
           const level = index + 1;
           const selected = value === level;
           return (
             <button
               key={levelLabel}
               type="button"
-              aria-label={`Chọn Level ${level}, ${levelLabel}`}
+              aria-label={language === 'en' ? `Select Level ${level}, ${levelLabel}` : `Chọn Level ${level}, ${levelLabel}`}
               aria-pressed={selected}
               onClick={() => onChange(level)}
               className={`min-w-0 px-0.5 text-center text-[10px] leading-tight sm:text-xs ${selected ? 'font-extrabold text-content' : 'font-semibold text-content-muted'}`}

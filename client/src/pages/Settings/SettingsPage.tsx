@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { Settings, Bell, Moon, Sun, Volume2, Globe, LogOut, CheckCircle2, Cpu, RefreshCw } from 'lucide-react';
+import { Settings, Bell, Moon, Sun, Volume2, Globe, LogOut, CheckCircle2, Cpu, RefreshCw, HelpCircle, ChevronRight, Compass } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { aiPreferenceService } from '../../services/aiPreference';
 import { ChromeAiAvailability, chromeAiService } from '../../services/chromeAi';
@@ -10,17 +10,35 @@ import { notificationPreferencesService } from '../../services/notificationPrefe
 import { backendService } from '../../services/backend';
 import { useNotifications } from '../../context/NotificationContext';
 import { TypographySettingsSection } from './components/TypographySettingsSection';
+import { soundFX } from '../../utils/soundEffects';
+import { AVAILABLE_TOURS, AVAILABLE_TOURS_EN, startWebsiteTour, TourType } from '../../utils/tourGuide';
+import { useLanguage } from '../../context/LanguageContext';
+import { Language } from '../../i18n/translations';
+
+const TOUR_PAGE_PATHS: Record<TourType, string> = {
+  general: '/dashboard',
+  dashboard: '/dashboard',
+  'mock-test': '/mock-test',
+  listening: '/listening',
+  'listening-practice': '/listening',
+  vocabulary: '/vocabulary',
+  grammar: '/grammar',
+  'practice-by-level': '/practice-by-level',
+  ranking: '/ranking',
+  profile: '/profile',
+};
 
 export const SettingsPage: React.FC = () => {
   const { isDarkMode, toggleTheme } = useTheme();
   const { logout } = useAuth();
   const { refreshNotifications } = useNotifications();
+  const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
 
   const initialNotificationPreferences = notificationPreferencesService.get();
   const [notifications, setNotifications] = useState(initialNotificationPreferences.studyReminders);
   const [reminderTime, setReminderTime] = useState(initialNotificationPreferences.reminderTime);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => soundFX.isEnabled());
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [aiPreference, setAiPreference] = useState<AiSourcePreference>(() => aiPreferenceService.get());
@@ -89,15 +107,15 @@ export const SettingsPage: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-content flex items-center gap-3">
             <Settings className="w-8 h-8 text-brand-600" />
-            <span>Cài đặt hệ thống</span>
+            <span>{t('settings.title')}</span>
           </h1>
-          <p className="text-sm text-slate-500 mt-1">Tùy chỉnh thông báo, giao diện, âm thanh và nguồn AI từ điển.</p>
+          <p className="text-sm text-slate-500 mt-1">{t('settings.subtitle')}</p>
         </div>
       </div>
 
       {savedSuccess && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl text-xs font-bold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Đã lưu cài đặt
+          <CheckCircle2 className="w-4 h-4" /> {t('common.saved')}
         </div>
       )}
 
@@ -116,8 +134,8 @@ export const SettingsPage: React.FC = () => {
               {isDarkMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-800 dark:text-content">Giao diện Tối / Sáng (Dark Mode)</div>
-              <div className="text-xs text-slate-500">Bật/tắt chế độ tối dịu mắt khi học ban đêm</div>
+              <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.themeMode')}</div>
+              <div className="text-xs text-slate-500">{t('settings.themeDesc')}</div>
             </div>
           </div>
           <button
@@ -138,8 +156,8 @@ export const SettingsPage: React.FC = () => {
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-800 dark:text-content">Nhắc nhở học tập hàng ngày</div>
-              <div className="text-xs text-slate-500">Nhận thông báo nhắc học để duy trì chuỗi ngày liên tục</div>
+              <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.studyReminders')}</div>
+              <div className="text-xs text-slate-500">{t('settings.studyRemindersDesc')}</div>
             </div>
           </div>
           <div className="flex shrink-0 items-center justify-end gap-3">
@@ -178,15 +196,27 @@ export const SettingsPage: React.FC = () => {
               <Volume2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-800 dark:text-content">Âm thanh hiệu ứng bài học</div>
-              <div className="text-xs text-slate-500">Phát âm thanh phản hồi khi trả lời đúng / sai</div>
+              <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.soundFX')}</div>
+              <div className="text-xs text-slate-500">{t('settings.soundFXDesc')}</div>
             </div>
           </div>
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`w-12 h-6 rounded-full transition-colors relative p-1 ${soundEnabled ? 'bg-brand' : 'bg-slate-300'}`}
+            type="button"
+            role="switch"
+            aria-checked={soundEnabled}
+            aria-label="Bật tắt âm thanh hiệu ứng bài học"
+            onClick={() => {
+              const next = !soundEnabled;
+              setSoundEnabled(next);
+              soundFX.setEnabled(next);
+              if (next) {
+                soundFX.playCorrect();
+              }
+              handleSaveSettings();
+            }}
+            className={`relative h-6 w-12 rounded-full p-1 transition-colors ${soundEnabled ? 'bg-brand' : 'bg-slate-300 dark:bg-surface-hover'}`}
           >
-            <div className={`w-4 h-4 rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+            <span className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${soundEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
           </button>
         </div>
 
@@ -197,10 +227,9 @@ export const SettingsPage: React.FC = () => {
               <Cpu className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-800 dark:text-content">Ưu tiên AI Local cho từ điển</div>
+              <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.aiDictionary')}</div>
               <div className="mt-0.5 max-w-xl text-xs leading-relaxed text-slate-500">
-                Dùng Gemini Nano trên Chrome khi khả dụng. Nếu thiết bị không hỗ trợ hoặc model gặp lỗi,
-                ứng dụng sẽ tự động chuyển sang Gemini API.
+                {t('settings.aiDictionaryDesc')}
               </div>
               <div className={`mt-2 text-[11px] font-semibold ${
                 localAiAvailability === 'available'
@@ -238,11 +267,59 @@ export const SettingsPage: React.FC = () => {
               onClick={toggleAiPreference}
               role="switch"
               aria-checked={aiPreference === 'local'}
-              aria-label="Ưu tiên AI Local cho từ điển"
+              aria-label={t('settings.aiDictionary')}
               className={`relative h-6 w-12 rounded-full p-1 transition-colors ${aiPreference === 'local' ? 'bg-brand' : 'bg-slate-300 dark:bg-surface-hover'}`}
             >
               <span className={`block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${aiPreference === 'local' ? 'translate-x-6' : 'translate-x-0'}`} />
             </button>
+          </div>
+        </div>
+
+        {/* User Guide & Tour */}
+        <div className="p-6 space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 shrink-0 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <HelpCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.guideTitle')}</div>
+                <div className="mt-0.5 max-w-xl text-xs leading-relaxed text-slate-500">
+                  {t('settings.guideDesc')}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => startWebsiteTour({ type: 'general', force: true })}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-xs font-bold text-brand-ink transition-colors hover:bg-brand-hover shadow-sm shrink-0"
+            >
+              <Compass className="size-3.5" />
+              <span>{t('settings.globalTourBtn')}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2.5 pt-2 sm:grid-cols-2">
+            {(language === 'en' ? AVAILABLE_TOURS_EN : AVAILABLE_TOURS).filter((t) => t.type !== 'general').map((tour) => (
+              <button
+                key={tour.type}
+                type="button"
+                onClick={() => {
+                  const path = TOUR_PAGE_PATHS[tour.type];
+                  navigate(path);
+                  setTimeout(() => {
+                    startWebsiteTour({ type: tour.type, force: true });
+                  }, 400);
+                }}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-elevated/40 p-3.5 text-left transition-colors hover:border-accent/40 hover:bg-surface-hover active:scale-[0.99]"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-content">{tour.title}</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-content-muted line-clamp-1">{tour.description}</p>
+                </div>
+                <ChevronRight className="size-4 shrink-0 text-content-muted" />
+              </button>
+            ))}
           </div>
         </div>
 
@@ -253,11 +330,19 @@ export const SettingsPage: React.FC = () => {
               <Globe className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm text-slate-800 dark:text-content">Ngôn ngữ hiển thị</div>
-              <div className="text-xs text-slate-500">Chọn ngôn ngữ ứng dụng</div>
+              <div className="font-bold text-sm text-slate-800 dark:text-content">{t('settings.languageTitle')}</div>
+              <div className="text-xs text-slate-500">{t('settings.languageDesc')}</div>
             </div>
           </div>
-          <select className="px-3 py-1.5 text-xs bg-slate-100 dark:bg-surface-hover border-none rounded-xl font-bold">
+          <select
+            value={language}
+            onChange={(e) => {
+              setLanguage(e.target.value as Language);
+              handleSaveSettings();
+            }}
+            aria-label={t('settings.languageTitle')}
+            className="px-3 py-1.5 text-xs bg-slate-100 dark:bg-surface-hover border-none rounded-xl font-bold text-content focus:ring-2 focus:ring-brand/30 cursor-pointer"
+          >
             <option value="vi">Tiếng Việt (Việt Nam)</option>
             <option value="en">English (US)</option>
           </select>
@@ -270,15 +355,15 @@ export const SettingsPage: React.FC = () => {
               <LogOut className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-sm text-red-600 dark:text-red-400">Đăng xuất khỏi thiết bị này</div>
-              <div className="text-xs text-slate-500">Xóa phiên làm việc hiện tại</div>
+              <div className="font-bold text-sm text-red-600 dark:text-red-400">{t('settings.logoutTitle')}</div>
+              <div className="text-xs text-slate-500">{t('settings.logoutDesc')}</div>
             </div>
           </div>
           <button
             onClick={handleLogout}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow-md shadow-red-600/20"
           >
-            Đăng xuất
+            {t('settings.logoutBtn')}
           </button>
         </div>
       </div>

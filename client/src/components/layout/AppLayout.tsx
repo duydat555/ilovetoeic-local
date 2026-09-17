@@ -10,6 +10,7 @@ import { AdminSidebar } from './RoleSidebars';
 import { getUserRole } from '../../utils/rbac';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { StudentIdentityModal } from '../auth/StudentIdentityModal';
+import { hasCompletedTour, startWebsiteTour } from '../../utils/tourGuide';
 
 export const AppLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -20,6 +21,13 @@ export const AppLayout: React.FC = () => {
   const outlet = useOutlet();
   const mainRef = useRef<HTMLElement>(null);
   const reduceMotion = useReducedMotion();
+  const isTestRunnerPage =
+    location.pathname.includes('/mock-test/exam') ||
+    location.pathname.includes('/practice/runner');
+  const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
+  const needsRankingIdentity = Boolean(
+    user && role === 'student' && !user.hasValidRankingName,
+  );
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -41,6 +49,18 @@ export const AppLayout: React.FC = () => {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, []);
 
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || isTestRunnerPage || needsRankingIdentity) {
+      return;
+    }
+    if (!hasCompletedTour()) {
+      const timer = setTimeout(() => {
+        startWebsiteTour(false);
+      }, 750);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, isAuthenticated, isTestRunnerPage, needsRankingIdentity]);
+
   if (isLoading) {
     return (
       <div className="grid min-h-[100dvh] place-items-center bg-canvas px-4" role="status" aria-label="Đang tải ứng dụng">
@@ -60,14 +80,6 @@ export const AppLayout: React.FC = () => {
   if (user && role === 'student' && user.isFrozen) {
     return <Navigate to="/account-frozen" replace />;
   }
-
-  const isTestRunnerPage =
-    location.pathname.includes('/mock-test/exam') ||
-    location.pathname.includes('/practice/runner');
-  const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
-  const needsRankingIdentity = Boolean(
-    user && role === 'student' && !user.hasValidRankingName,
-  );
 
   return (
     <div

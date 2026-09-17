@@ -477,7 +477,7 @@ export const TestExamPage: React.FC = () => {
                   const flagged = Boolean(flaggedQuestions[question.id]);
 
                   return (
-                    <article key={question.id} className="surface overflow-hidden rounded-2xl">
+                    <article key={question.id} id={`exam-question-${question.id}`} className="surface overflow-hidden rounded-2xl">
                       <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-line">
                         <div className="flex min-w-0 items-start gap-2.5">
                           <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand text-xs font-black text-brand-ink shadow-xs">
@@ -576,7 +576,7 @@ export const TestExamPage: React.FC = () => {
                 const flagged = Boolean(flaggedQuestions[question.id]);
 
                 return (
-                  <article key={question.id} className="surface overflow-hidden rounded-2xl">
+                  <article key={question.id} id={`exam-question-${question.id}`} className="surface overflow-hidden rounded-2xl">
                     <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-line">
                       <div className="flex min-w-0 items-start gap-2.5">
                         <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-brand text-xs font-black text-brand-ink shadow-xs">
@@ -647,12 +647,21 @@ export const TestExamPage: React.FC = () => {
         onClose={() => setShowQuestionDrawer(false)}
         questions={questions}
         currentIndex={currentIndex}
+        currentQuestionIds={currentGroup?.questions.map((q) => q.id) || []}
         onSelectQuestion={(idx) => {
           setCurrentIndex(idx);
           const targetQ = questions[idx];
           if (targetQ) {
             const targetGrpIdx = groups.findIndex((g) => g.questions.some((q) => q.id === targetQ.id));
-            if (targetGrpIdx >= 0) goToGroup(targetGrpIdx);
+            if (targetGrpIdx >= 0) {
+              goToGroup(targetGrpIdx);
+              setTimeout(() => {
+                document.getElementById(`exam-question-${targetQ.id}`)?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'start',
+                });
+              }, 120);
+            }
           }
         }}
         userAnswers={userAnswers}

@@ -258,29 +258,31 @@ export const InterleavedTranscript: React.FC<InterleavedTranscriptProps> = ({
     return (
       <section
         id="shared-transcript"
-        className={`space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20 ${className}`}
+        className={`space-y-4 rounded-2xl border border-sky-200/70 bg-sky-50/30 p-4 shadow-2xs dark:border-sky-950/80 dark:bg-sky-950/20 ${className}`}
       >
         <div>
           <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-            <Headphones className="size-4 text-brand-600 dark:text-brand-300" />
+            <Headphones className="size-4 text-sky-600 dark:text-sky-400" />
             <span>Transcript {partId ? `(Part ${partId})` : ''}</span>
           </div>
           {transcript && (
-            <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
+            <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-800 dark:text-content sm:font-medium">
               {cleanTranscriptSpacing(transcript)}
             </p>
           )}
         </div>
 
         {translation && (
-          <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
-            <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
-              <Languages className="size-4 text-brand-600 dark:text-brand-300" />
+          <div className="border-t border-sky-200/60 pt-3 dark:border-sky-900/50">
+            <div className="mb-2 flex items-center gap-2 text-xs font-bold text-sky-800 dark:text-sky-300">
+              <Languages className="size-4 text-sky-600 dark:text-sky-400" />
               <span>Dịch nghĩa tiếng Việt</span>
             </div>
-            <p className="whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-              {cleanTranscriptSpacing(translation)}
-            </p>
+            <div className="rounded-xs border-l-2 border-sky-500/80 pl-3.5 font-['Be_Vietnam_Pro',sans-serif] text-[13px] font-normal leading-relaxed text-sky-800 transition-all duration-200 ease-in-out dark:border-sky-400/80 dark:text-sky-300 sm:text-[13.5px]">
+              <p className="whitespace-pre-line">
+                {cleanTranscriptSpacing(translation)}
+              </p>
+            </div>
           </div>
         )}
       </section>
@@ -290,27 +292,27 @@ export const InterleavedTranscript: React.FC<InterleavedTranscriptProps> = ({
   return (
     <section
       id="shared-transcript"
-      className={`space-y-3.5 rounded-2xl border border-brand-200/90 bg-brand-50/40 p-4 dark:border-brand-900/80 dark:bg-brand-950/20 ${className}`}
+      className={`space-y-3.5 rounded-2xl border border-sky-200/70 bg-sky-50/30 p-4 shadow-2xs dark:border-sky-950/80 dark:bg-sky-950/20 ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-brand-200/60 pb-3 dark:border-brand-900/60">
+      <div className="flex items-center justify-between border-b border-sky-200/60 pb-3 dark:border-sky-900/50">
         <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900 dark:text-content">
-          <Headphones className="size-4 text-brand-600 dark:text-brand-300" />
+          <Headphones className="size-4 text-sky-600 dark:text-sky-400" />
           <span>Transcript {partId ? `(Part ${partId})` : ''}</span>
         </div>
         {speaker && (
-          <span className="rounded-md bg-brand-100/90 px-2.5 py-0.5 text-xs font-extrabold text-brand-800 dark:bg-brand-950 dark:text-brand-300">
+          <span className="rounded-md border border-sky-200/80 bg-sky-100/90 px-2.5 py-0.5 text-xs font-bold text-sky-800 dark:border-sky-800/60 dark:bg-sky-950/80 dark:text-sky-300">
             {speaker}
           </span>
         )}
       </div>
 
-      {/* Khối đoạn văn liền mạch với thiết kế đường kẻ lề trái & màu chuẩn theo website */}
+      {/* Khối đoạn văn liền mạch với thiết kế đường kẻ lề trái & màu xanh đồng bộ Part 6, 7 */}
       <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs dark:border-line/70 dark:bg-surface space-y-3.5">
         {lines.map((line, idx) => (
-          <div key={idx} className="space-y-1.5 text-sm leading-relaxed">
+          <div key={idx} className="space-y-1 text-left transition-all duration-200 ease-in-out">
             {/* Dòng Tiếng Anh */}
-            <div className="font-medium text-slate-900 dark:text-content">
+            <div className="text-sm font-normal leading-relaxed text-slate-900 dark:text-content sm:font-medium">
               {!isSentenceMode && line.speaker && (
                 <span className="mr-1.5 font-bold text-slate-900 dark:text-content">
                   {line.speaker}:
@@ -324,22 +326,20 @@ export const InterleavedTranscript: React.FC<InterleavedTranscriptProps> = ({
               <span>{line.enText}</span>
             </div>
 
-            {/* Dòng Dịch nghĩa Tiếng Việt (Có vạch kẻ lề trái + màu Brand chuẩn theo hình thiết kế) */}
+            {/* Dòng Dịch nghĩa Tiếng Việt (Đồng bộ 100% màu xanh sky với Part 6, 7) */}
             {line.viText && (
-              <div className="border-l-2 border-brand-500 pl-3 text-brand-700 dark:border-brand-400 dark:text-brand-300">
-                <div className="font-normal leading-relaxed">
-                  {!isSentenceMode && line.speaker && (
-                    <span className="mr-1.5 font-bold">
-                      {line.speaker}:
-                    </span>
-                  )}
-                  {isSentenceMode && idx === 0 && speaker && (
-                    <span className="mr-1.5 font-bold">
-                      {speaker}:
-                    </span>
-                  )}
-                  <span>{line.viText}</span>
-                </div>
+              <div className="mt-1 rounded-xs border-l-2 border-sky-500/80 pl-3.5 font-['Be_Vietnam_Pro',sans-serif] text-[13px] font-normal leading-relaxed text-sky-800 transition-all duration-200 ease-in-out dark:border-sky-400/80 dark:text-sky-300 sm:text-[13.5px]">
+                {!isSentenceMode && line.speaker && (
+                  <span className="mr-1.5 font-semibold text-sky-900 dark:text-sky-200">
+                    {line.speaker}:
+                  </span>
+                )}
+                {isSentenceMode && idx === 0 && speaker && (
+                  <span className="mr-1.5 font-semibold text-sky-900 dark:text-sky-200">
+                    {speaker}:
+                  </span>
+                )}
+                <span>{line.viText}</span>
               </div>
             )}
           </div>

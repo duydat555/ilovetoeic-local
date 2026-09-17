@@ -80,7 +80,8 @@ def get_practice_by_level_questions(
                q.dich_nghia_dap_an, q.difficulty_level, q.order_index,
                p.passage_text, p.passage_text_2, p.passage_text_3,
                p.transcript, p.format_status, p.passage_text_vi_html,
-               p.passage_text_2_vi_html, p.passage_text_3_vi_html
+               p.passage_text_2_vi_html, p.passage_text_3_vi_html,
+               p.passage_sentence_pairs
         FROM questions q
         LEFT JOIN passages p ON p.id = q.passage_id AND p.test_id = q.test_id
         JOIN tests t ON t.id = q.test_id

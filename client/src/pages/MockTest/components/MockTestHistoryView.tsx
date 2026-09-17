@@ -280,7 +280,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     setBulkDeleteError('');
     try {
       if (bulkDeleteTarget.type === 'test' && bulkDeleteTarget.testId) {
-        const tId = bulkDeleteTarget.testId;
+        const tId = String(bulkDeleteTarget.testId).trim().toLowerCase();
 
         // 1. Xoá sạch local storage & draft
         const localDeleted = storage.deleteTestHistory(tId);
@@ -308,8 +308,8 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
           console.warn('[!] Không thể xoá phiên làm bài từ database:', err);
         }
 
-        setAttempts((prev) => prev.filter((a) => a.testId !== tId));
-        const totalDeleted = Math.max(serverDeleted, localDeleted);
+        setAttempts((prev) => prev.filter((a) => String(a.testId || '').trim().toLowerCase() !== tId));
+        const totalDeleted = Math.max(serverDeleted, localDeleted, bulkDeleteTarget.count);
         setToastMessage(
           totalDeleted > 0
             ? `Đã xoá ${totalDeleted} lượt làm và dữ liệu liên quan của ${bulkDeleteTarget.testTitle || 'đề thi'}.`
@@ -668,8 +668,8 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  const curTest = allTests.find((t) => t.id === selectedTestId);
-                  const count = attempts.filter((a) => a.testId === selectedTestId).length;
+                  const curTest = allTests.find((t) => String(t.id).trim().toLowerCase() === String(selectedTestId).trim().toLowerCase());
+                  const count = attempts.filter((a) => String(a.testId || '').trim().toLowerCase() === String(selectedTestId).trim().toLowerCase()).length;
                   setBulkDeleteError('');
                   setBulkDeleteTarget({
                     type: 'test',
@@ -678,8 +678,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                     count,
                   });
                 }}
-                disabled={attempts.filter((a) => a.testId === selectedTestId).length === 0}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-negative/30 bg-negative/10 px-2.5 py-1.5 text-xs font-bold text-negative transition hover:bg-negative/20 hover:border-negative/50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-negative/30 bg-negative/10 px-2.5 py-1.5 text-xs font-bold text-negative transition hover:bg-negative/20 hover:border-negative/50 active:scale-95"
                 title="Xoá toàn bộ lượt làm bài của đề thi này"
               >
                 <Trash2 className="size-3.5" />
@@ -688,10 +687,14 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
             )}
 
             {/* Bulk Delete all history */}
-            {selectedTestId === 'all' && attempts.length > 0 && (
+            {selectedTestId === 'all' && (
               <button
                 type="button"
                 onClick={() => {
+                  if (attempts.length === 0) {
+                    setToastMessage('Chưa có lịch sử làm bài thi nào để xoá.');
+                    return;
+                  }
                   setBulkDeleteError('');
                   setBulkDeleteTarget({
                     type: 'all',
@@ -702,7 +705,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                 title="Xoá toàn bộ lịch sử làm bài thi"
               >
                 <Trash2 className="size-3.5" />
-                <span className="hidden sm:inline">Xoá tất cả lịch sử ({attempts.length})</span>
+                <span className="hidden sm:inline">Xoá tất cả lịch sử{attempts.length > 0 ? ` (${attempts.length})` : ''}</span>
                 <span className="sm:hidden">Xoá tất cả</span>
               </button>
             )}
@@ -1186,16 +1189,24 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
 
                 <h2 id="bulk-delete-title" className="mt-4 pr-8 text-lg font-extrabold text-content">
                   {bulkDeleteTarget.type === 'test'
-                    ? 'Xoá lịch sử làm bài đề này?'
+                    ? bulkDeleteTarget.count > 0
+                      ? 'Xoá lịch sử làm bài đề này?'
+                      : 'Dọn dẹp dữ liệu đề thi này?'
                     : 'Xoá tất cả lịch sử làm bài?'}
                 </h2>
 
                 <p id="bulk-delete-desc" className="mt-2 text-xs leading-relaxed text-content-muted">
                   {bulkDeleteTarget.type === 'test' ? (
-                    <>
-                      Toàn bộ <strong className="text-content">{bulkDeleteTarget.count} lượt làm bài</strong>, kết quả câu đúng/sai và phiên làm dở của đề{' '}
-                      <strong className="text-content">{bulkDeleteTarget.testTitle}</strong> sẽ bị xoá vĩnh viễn khỏi database và trình duyệt. Thao tác này không thể hoàn tác.
-                    </>
+                    bulkDeleteTarget.count > 0 ? (
+                      <>
+                        Toàn bộ <strong className="text-content">{bulkDeleteTarget.count} lượt làm bài</strong>, kết quả câu đúng/sai và phiên làm dở của đề{' '}
+                        <strong className="text-content">{bulkDeleteTarget.testTitle}</strong> sẽ bị xoá vĩnh viễn khỏi database và trình duyệt. Thao tác này không thể hoàn tác.
+                      </>
+                    ) : (
+                      <>
+                        Đề thi <strong className="text-content">{bulkDeleteTarget.testTitle}</strong> hiện chưa có lượt làm bài nào trong danh sách. Thao tác này sẽ dọn sạch toàn bộ bài thi nháp và dữ liệu tạm của đề này khỏi thiết bị và cơ sở dữ liệu.
+                      </>
+                    )
                   ) : (
                     <>
                       Toàn bộ <strong className="text-content">{bulkDeleteTarget.count} lượt làm bài thi</strong> của tất cả các đề đã lưu trong tài khoản của bạn sẽ bị xoá vĩnh viễn khỏi cơ sở dữ liệu. Thao tác này không thể hoàn tác.
@@ -1229,7 +1240,9 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                       {bulkDeleting
                         ? 'Đang xoá...'
                         : bulkDeleteTarget.type === 'test'
-                          ? 'Xác nhận xoá đề này'
+                          ? bulkDeleteTarget.count > 0
+                            ? 'Xác nhận xoá đề này'
+                            : 'Dọn sạch dữ liệu'
                           : 'Xoá toàn bộ lịch sử'}
                     </span>
                   </button>

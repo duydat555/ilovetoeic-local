@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   ChatMessage,
   communityChatService,
@@ -24,6 +25,7 @@ const QUICK_EMOJIS = ['👍', '❤️', '🔥', '👏', '💡', '😂'];
 
 export const CommunityChatWidget: React.FC = () => {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const reduceMotion = useReducedMotion();
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -61,7 +63,7 @@ export const CommunityChatWidget: React.FC = () => {
       setErrorMsg(null);
     } catch (err) {
       console.warn('Lỗi tải lịch sử tin nhắn:', err);
-      setErrorMsg('Không thể kết nối trò chuyện cộng đồng.');
+      setErrorMsg(language === 'en' ? 'Unable to connect to community chat.' : 'Không thể kết nối trò chuyện cộng đồng.');
     } finally {
       setIsLoading(false);
     }
@@ -237,12 +239,12 @@ export const CommunityChatWidget: React.FC = () => {
   };
 
   const handleDelete = async (msgId: string) => {
-    if (!window.confirm('Bạn muốn xoá tin nhắn này?')) return;
+    if (!window.confirm(language === 'en' ? 'Do you want to delete this message?' : 'Bạn muốn xoá tin nhắn này?')) return;
     try {
       await communityChatService.deleteMessage(msgId);
       setMessages((prev) => prev.filter((m) => m.id !== msgId));
     } catch (err: any) {
-      alert(err?.message || 'Xoá tin nhắn thất bại.');
+      alert(err?.message || (language === 'en' ? 'Failed to delete message.' : 'Xoá tin nhắn thất bại.'));
     }
   };
 
@@ -250,7 +252,7 @@ export const CommunityChatWidget: React.FC = () => {
     if (!isoString) return '';
     try {
       const date = new Date(isoString);
-      return date.toLocaleTimeString('vi-VN', {
+      return date.toLocaleTimeString(language === 'en' ? 'en-US' : 'vi-VN', {
         hour: '2-digit',
         minute: '2-digit',
       });
@@ -272,7 +274,7 @@ export const CommunityChatWidget: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-black tracking-tight text-content">
-                Trò chuyện Cộng đồng
+                {language === 'en' ? 'Community Chat' : 'Trò chuyện Cộng đồng'}
               </h2>
               {isWsConnected ? (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
@@ -282,12 +284,14 @@ export const CommunityChatWidget: React.FC = () => {
               ) : (
                 <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-extrabold text-amber-700 dark:text-amber-300 border border-amber-500/20">
                   <WifiOff className="size-3 text-amber-500" />
-                  Đang kết nối lại...
+                  {language === 'en' ? 'Reconnecting...' : 'Đang kết nối lại...'}
                 </span>
               )}
             </div>
             <p className="text-xs font-medium text-content-muted">
-              Kết nối WebSocket thời gian thực cùng cộng đồng học TOEIC
+              {language === 'en'
+                ? 'Real-time WebSocket chat with the TOEIC learner community'
+                : 'Kết nối WebSocket thời gian thực cùng cộng đồng học TOEIC'}
             </p>
           </div>
         </div>
@@ -298,7 +302,9 @@ export const CommunityChatWidget: React.FC = () => {
         {isLoading ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-content-muted">
             <Loader2 className="size-5 animate-spin text-amber-500" />
-            <span className="text-xs font-semibold">Đang tải phòng chat...</span>
+            <span className="text-xs font-semibold">
+              {language === 'en' ? 'Loading chat room...' : 'Đang tải phòng chat...'}
+            </span>
           </div>
         ) : errorMsg ? (
           <div className="flex h-full items-center justify-center text-center text-xs font-semibold text-rose-500">
@@ -307,8 +313,12 @@ export const CommunityChatWidget: React.FC = () => {
         ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center text-center text-xs font-medium text-content-muted">
             <MessageCircle className="size-8 text-amber-500/40" />
-            <span className="mt-2 font-bold text-content">Chưa có tin nhắn nào trong phòng chat.</span>
-            <span className="mt-0.5 text-[11px]">Hãy là người đầu tiên gửi tin nhắn!</span>
+            <span className="mt-2 font-bold text-content">
+              {language === 'en' ? 'No messages in the chat room yet.' : 'Chưa có tin nhắn nào trong phòng chat.'}
+            </span>
+            <span className="mt-0.5 text-[11px]">
+              {language === 'en' ? 'Be the first to send a message!' : 'Hãy là người đầu tiên gửi tin nhắn!'}
+            </span>
           </div>
         ) : (
           messages.map((msg) => {
@@ -334,11 +344,11 @@ export const CommunityChatWidget: React.FC = () => {
                     <span className="font-bold text-content">{msg.userName}</span>
                     {isAdmin ? (
                       <span className="rounded-md bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-black text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                        Giảng viên
+                        {language === 'en' ? 'Instructor' : 'Giảng viên'}
                       </span>
                     ) : (
                       <span className="rounded-md bg-amber-500/10 px-1.5 py-0.2 text-[9px] font-black text-amber-700 dark:text-amber-300 border border-amber-500/20">
-                        Học viên
+                        {language === 'en' ? 'Student' : 'Học viên'}
                       </span>
                     )}
                     <span className="text-[10px] text-content-muted">{formatTime(msg.createdAt)}</span>
@@ -374,7 +384,7 @@ export const CommunityChatWidget: React.FC = () => {
                         onClick={() =>
                           setActiveEmojiPickerMsgId(showEmojiPicker ? null : msg.id)
                         }
-                        title="Thả cảm xúc"
+                        title={language === 'en' ? 'React' : 'Thả cảm xúc'}
                         className="rounded-lg p-1 text-content-muted hover:bg-surface-hover hover:text-amber-500"
                       >
                         <Smile className="size-3.5" />
@@ -384,7 +394,7 @@ export const CommunityChatWidget: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setReplyToMessage(msg)}
-                        title="Trả lời tin nhắn"
+                        title={language === 'en' ? 'Reply' : 'Trả lời tin nhắn'}
                         className="rounded-lg p-1 text-content-muted hover:bg-surface-hover hover:text-sky-500"
                       >
                         <CornerUpLeft className="size-3.5" />
@@ -395,7 +405,7 @@ export const CommunityChatWidget: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => void handleDelete(msg.id)}
-                          title="Xoá tin nhắn"
+                          title={language === 'en' ? 'Delete message' : 'Xoá tin nhắn'}
                           className="rounded-lg p-1 text-content-muted hover:bg-surface-hover hover:text-rose-500"
                         >
                           <Trash2 className="size-3.5" />
@@ -471,7 +481,7 @@ export const CommunityChatWidget: React.FC = () => {
               <div className="flex items-center gap-2 text-content min-w-0 pr-2">
                 <CornerUpLeft className="size-3.5 text-amber-500 shrink-0" />
                 <span className="truncate">
-                  Đang trả lời <strong className="text-amber-600 dark:text-amber-400">@{replyToMessage.userName}</strong>: "{replyToMessage.content}"
+                  {language === 'en' ? 'Replying to' : 'Đang trả lời'} <strong className="text-amber-600 dark:text-amber-400">@{replyToMessage.userName}</strong>: "{replyToMessage.content}"
                 </span>
               </div>
               <button
@@ -493,8 +503,8 @@ export const CommunityChatWidget: React.FC = () => {
             onKeyDown={handleKeyDown}
             placeholder={
               replyToMessage
-                ? `Nhập câu trả lời cho @${replyToMessage.userName}...`
-                : 'Nhập tin nhắn trò chuyện...'
+                ? (language === 'en' ? `Reply to @${replyToMessage.userName}...` : `Nhập câu trả lời cho @${replyToMessage.userName}...`)
+                : (language === 'en' ? 'Type a message...' : 'Nhập tin nhắn trò chuyện...')
             }
             maxLength={1000}
             disabled={isSending}
@@ -503,7 +513,7 @@ export const CommunityChatWidget: React.FC = () => {
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            aria-label="Gửi tin nhắn"
+            aria-label={language === 'en' ? 'Send message' : 'Gửi tin nhắn'}
             className="absolute right-1.5 flex size-8 items-center justify-center rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold shadow-xs transition hover:opacity-95 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
           >
             {isSending ? (

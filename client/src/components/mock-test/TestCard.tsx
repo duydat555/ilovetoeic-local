@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { MockTestItem } from '../../types';
 import { TestMode } from './SelectModeModal';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface TestCardProps {
   test: MockTestItem;
@@ -36,6 +37,7 @@ export const TestCard: React.FC<TestCardProps> = ({
   selected = false,
   onSelect,
 }) => {
+  const { language } = useLanguage();
   const picker = variant === 'picker';
 
   return (
@@ -61,30 +63,30 @@ export const TestCard: React.FC<TestCardProps> = ({
         </h3>
         {!picker && (
           <div className="flex shrink-0 items-center gap-1 text-content-muted">
+            {wrongCount > 0 && (
+              <button
+                type="button"
+                onClick={() => onRetryWrong?.(test)}
+                aria-label={language === 'en' ? `Retry ${wrongCount} wrong questions in ${test.title}` : `Làm lại ${wrongCount} câu sai của ${test.title}`}
+                title={language === 'en' ? `Retry ${wrongCount} wrong questions` : `Làm lại ${wrongCount} câu sai`}
+                className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
+              >
+                <RotateCcw className="size-3.5" />
+                <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
+                  {wrongCount}
+                </span>
+              </button>
+            )}
             <button
               type="button"
-              disabled={wrongCount === 0}
-              onClick={() => onRetryWrong?.(test)}
-              aria-label={`Làm lại ${wrongCount} câu sai của ${test.title}`}
-              title={wrongCount === 0 ? 'Không có câu sai để làm lại' : `Làm lại ${wrongCount} câu sai`}
-              className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <RotateCcw className="size-3.5" />
-              <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
-                {wrongCount}
-              </span>
-            </button>
-            <button
-              type="button"
-              disabled={historyCount === 0 && wrongCount === 0}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onDeleteHistory?.(test);
               }}
-              aria-label={`Xoá lịch sử làm bài của ${test.title}`}
-              title={historyCount === 0 && wrongCount === 0 ? 'Chưa có lịch sử làm bài để xoá' : 'Xoá lịch sử làm bài'}
-              className="grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label={language === 'en' ? `Delete history of ${test.title}` : `Xoá lịch sử làm bài của ${test.title}`}
+              title={language === 'en' ? `Delete history of ${test.title}` : `Xoá lịch sử làm bài của ${test.title}`}
+              className="grid size-8 place-items-center rounded-lg text-content-muted transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
             >
               <Trash2 className="size-3.5" />
             </button>
@@ -95,11 +97,11 @@ export const TestCard: React.FC<TestCardProps> = ({
       <div className={`flex items-center gap-3 font-medium text-content-muted ${picker ? 'text-sm' : 'text-xs'}`}>
         <span className="flex items-center gap-1">
           <FileText className="size-3.5" />
-          {test.totalQuestions} câu
+          {test.totalQuestions} {language === 'en' ? 'questions' : 'câu'}
         </span>
         <span className="flex items-center gap-1">
           <Clock className="size-3.5" />
-          {test.durationMinutes} phút
+          {test.durationMinutes} {language === 'en' ? 'minutes' : 'phút'}
         </span>
       </div>
 
@@ -112,21 +114,21 @@ export const TestCard: React.FC<TestCardProps> = ({
               type="button"
               onClick={() => onViewHistory(test)}
               className="group/hist inline-flex items-center gap-1 font-semibold text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
-              title="Bấm để xem danh sách bài đã làm của đề này"
+              title={language === 'en' ? 'Click to view completed attempts for this test' : 'Bấm để xem danh sách bài đã làm của đề này'}
             >
-              <span>{historyCount} lượt đã làm</span>
+              <span>{historyCount} {language === 'en' ? (historyCount > 1 ? 'attempts' : 'attempt') : 'lượt đã làm'}</span>
               <span className="text-[10px] opacity-70 group-hover/hist:translate-x-0.5 transition-transform">→</span>
             </button>
           ) : (
-            `${historyCount} lượt đã làm`
+            `${historyCount} ${language === 'en' ? (historyCount > 1 ? 'attempts' : 'attempt') : 'lượt đã làm'}`
           )
         ) : (
-          'Chưa luyện tập'
+          language === 'en' ? 'Not practiced yet' : 'Chưa luyện tập'
         )}
       </p>
     </div>
 
-    <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3">
+    <div id="tour-mt-card-modes" className="mt-4 grid grid-cols-2 gap-2 border-t border-line pt-3">
       {picker ? (
         <button
           type="button"
@@ -138,7 +140,7 @@ export const TestCard: React.FC<TestCardProps> = ({
           }`}
         >
           {selected ? <CheckCircle2 className="size-4" /> : <FileText className="size-4" />}
-          {selected ? 'Đã chọn đề này' : 'Chọn đề này'}
+          {selected ? (language === 'en' ? 'Selected' : 'Đã chọn đề này') : (language === 'en' ? 'Select this test' : 'Chọn đề này')}
         </button>
       ) : (
         <>
@@ -148,7 +150,7 @@ export const TestCard: React.FC<TestCardProps> = ({
             className="flex min-h-9 items-center justify-center gap-1 rounded-xl border border-line bg-transparent px-3 py-2 text-xs font-bold text-content transition-colors duration-200 ease-out hover:border-accent/40 hover:bg-surface-hover"
           >
             <Play className="size-3.5 fill-current" />
-            Thi thử
+            {language === 'en' ? 'Take Exam' : 'Thi thử'}
           </button>
           <button
             type="button"
@@ -156,7 +158,7 @@ export const TestCard: React.FC<TestCardProps> = ({
             className="flex min-h-9 items-center justify-center gap-1 rounded-xl border border-positive/25 bg-positive/10 px-3 py-2 text-xs font-bold text-positive transition-colors duration-200 ease-out hover:bg-positive/15"
           >
             <BookOpen className="size-3.5" />
-            Luyện tập
+            {language === 'en' ? 'Practice' : 'Luyện tập'}
           </button>
         </>
       )}

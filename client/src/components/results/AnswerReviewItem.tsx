@@ -15,6 +15,7 @@ import { cleanExplanationText, getUnifiedQuestionTranslationText } from '../../u
 import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 import { FormattedReadingExplanation } from '../common/FormattedReadingExplanation';
+import { InterleavedPassage } from '../common/InterleavedPassage';
 import { QuestionImage } from '../common/QuestionImage';
 
 export interface AnswerReviewItemProps {
@@ -33,6 +34,7 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
   savedVocabWords = {},
 }) => {
   const [passageExpanded, setPassageExpanded] = useState(false);
+  const [showBilingualPassage, setShowBilingualPassage] = useState(false);
   const [savingWord, setSavingWord] = useState<string | null>(null);
 
   const explanationText = cleanExplanationText(question.explanation);
@@ -117,24 +119,48 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
       {/* Bài đọc liên quan (Passage) cho câu Reading */}
       {isReadingPart && question.passageText && (
         <div className="rounded-2xl border border-line bg-surface-elevated/40 p-4 text-xs">
-          <button
-            type="button"
-            onClick={() => setPassageExpanded(!passageExpanded)}
-            className="flex w-full items-center justify-between font-bold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition"
-          >
-            <span className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setPassageExpanded(!passageExpanded)}
+              className="flex items-center gap-2 font-bold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition"
+            >
               <BookOpen className="size-4 text-amber-500" />
               <span>Đoạn văn bài đọc (Passage)</span>
-            </span>
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-content-muted">
-              {passageExpanded ? 'Thu gọn' : 'Xem toàn văn'}
-              {passageExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-            </span>
-          </button>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-content-muted">
+                {passageExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              </span>
+            </button>
+
+            {passageExpanded && Boolean(question.passageSentencePairs || question.passageTranslation || question.passageTranslationHtml) && (
+              <button
+                type="button"
+                onClick={() => setShowBilingualPassage(!showBilingualPassage)}
+                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition active:scale-[0.98] ${showBilingualPassage
+                  ? 'bg-brand text-brand-ink'
+                  : 'bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200'
+                  }`}
+              >
+                <Languages className="size-3.5" />
+                {showBilingualPassage ? 'Ẩn song ngữ' : 'Xem song ngữ'}
+              </button>
+            )}
+          </div>
 
           {passageExpanded && (
-            <div className="mt-3 whitespace-pre-line border-t border-line pt-3 text-xs leading-relaxed text-content font-sans">
-              {question.passageText}
+            <div className="mt-3 border-t border-line pt-3 font-sans">
+              {showBilingualPassage && (question.passageSentencePairs || question.passageTranslation || question.passageTranslationHtml) ? (
+                <InterleavedPassage
+                  passageId={question.passageId}
+                  passageText={question.passageText}
+                  passageSentencePairs={question.passageSentencePairs}
+                  passageTranslation={question.passageTranslationHtml || question.passageTranslation}
+                />
+              ) : (
+                <div className="whitespace-pre-line text-xs leading-relaxed text-content font-sans">
+                  {question.passageText}
+                </div>
+              )}
             </div>
           )}
         </div>

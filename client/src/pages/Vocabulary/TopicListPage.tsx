@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   Briefcase,
@@ -26,6 +26,7 @@ import { AddWordModal } from './components/AddWordModal';
 import { getModalMotion } from '../../components/common/modalMotion';
 import { ModalPortal } from '../../components/common/ModalPortal';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { vocabularyService } from '../../services/vocabulary';
 import { vocabularyTopicService, VocabularyTopic } from '../../services/vocabularyTopics';
 import { systemVocabularyService, SystemVocabularySet } from '../../services/systemVocabulary';
@@ -51,6 +52,7 @@ const ConfirmModal = ({
   onClose: () => void;
   onConfirm: () => void;
 }) => {
+  const { language } = useLanguage();
   const reduceMotion = useReducedMotion();
   const contract = getModalMotion(reduceMotion);
   useEffect(() => {
@@ -81,7 +83,7 @@ const ConfirmModal = ({
               type="button"
               onClick={onClose}
               className="grid size-9 shrink-0 place-items-center rounded-xl text-content-muted hover:bg-surface-hover hover:text-content"
-              aria-label="Đóng"
+              aria-label={language === 'en' ? 'Close' : 'Đóng'}
             >
               <X className="size-4" />
             </button>
@@ -93,14 +95,14 @@ const ConfirmModal = ({
               onClick={onClose}
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface-elevated px-4 text-sm font-bold text-content hover:bg-surface-hover"
             >
-              Huỷ
+              {language === 'en' ? 'Cancel' : 'Huỷ'}
             </button>
             <button
               type="button"
               onClick={onConfirm}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-red-600 px-5 text-sm font-extrabold text-white shadow-md shadow-red-600/20 hover:bg-red-700 active:scale-98"
             >
-              Xác nhận
+              {language === 'en' ? 'Confirm' : 'Xác nhận'}
             </button>
           </div>
         </motion.div>
@@ -115,16 +117,18 @@ interface CategoryTab {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const CATEGORY_TABS: CategoryTab[] = [
-  { id: 'all', label: 'Tất cả các bộ', icon: Layers },
-  { id: 'toeic', label: 'TOEIC Trọng Tâm', icon: Award },
-  { id: 'general', label: 'Thông Dụng & Giao Tiếp', icon: Globe },
-  { id: 'oxford', label: 'Oxford Standards', icon: BookOpen },
-  { id: 'ielts', label: 'IELTS & Học Thuật', icon: GraduationCap },
-];
-
 export const TopicListPage: React.FC = () => {
   const { user } = useAuth();
+  const { language, t } = useLanguage();
+
+  const categoryTabs: CategoryTab[] = useMemo(() => [
+    { id: 'all', label: t('vocabulary.catAll'), icon: Layers },
+    { id: 'toeic', label: t('vocabulary.catToeic'), icon: Award },
+    { id: 'general', label: t('vocabulary.catGeneral'), icon: Globe },
+    { id: 'oxford', label: t('vocabulary.catOxford'), icon: BookOpen },
+    { id: 'ielts', label: t('vocabulary.catIelts'), icon: GraduationCap },
+  ], [language, t]);
+
   const [words, setWords] = useState<VocabularyWord[]>([]);
   const [personalTopics, setPersonalTopics] = useState<VocabularyTopic[]>([]);
   const [systemSets, setSystemSets] = useState<SystemVocabularySet[]>([]);
@@ -223,7 +227,7 @@ export const TopicListPage: React.FC = () => {
                 type="button"
                 onClick={() => setMenuId(menuId === topic.id ? '' : topic.id)}
                 className="grid size-8 place-items-center rounded-xl text-content-muted hover:bg-surface-hover hover:text-content transition-colors"
-                aria-label={`Quản lý ${topic.name}`}
+                aria-label={language === 'en' ? `Manage ${topic.name}` : `Quản lý ${topic.name}`}
               >
                 <MoreHorizontal className="size-4" />
               </button>
@@ -238,7 +242,7 @@ export const TopicListPage: React.FC = () => {
                     }}
                     className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
                   >
-                    Sửa chủ đề
+                    {language === 'en' ? 'Edit topic' : 'Sửa chủ đề'}
                   </button>
                   <button
                     type="button"
@@ -248,7 +252,7 @@ export const TopicListPage: React.FC = () => {
                     }}
                     className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-content hover:bg-surface-hover"
                   >
-                    Gộp chủ đề
+                    {language === 'en' ? 'Merge topic' : 'Gộp chủ đề'}
                   </button>
                   <button
                     type="button"
@@ -258,7 +262,7 @@ export const TopicListPage: React.FC = () => {
                     }}
                     className="w-full rounded-xl px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10"
                   >
-                    Xoá chủ đề
+                    {language === 'en' ? 'Delete topic' : 'Xoá chủ đề'}
                   </button>
                 </div>
               )}
@@ -273,7 +277,7 @@ export const TopicListPage: React.FC = () => {
               {topic.name}
             </h3>
             <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
-              {topic.description || 'Chủ đề từ vựng cá nhân.'}
+              {topic.description || (language === 'en' ? 'Custom vocabulary topic.' : 'Chủ đề từ vựng cá nhân.')}
             </p>
           </Link>
         </div>
@@ -281,9 +285,11 @@ export const TopicListPage: React.FC = () => {
         {/* Progress & Meta */}
         <div className="mt-5 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-content-muted">{stats.total} từ vựng</span>
+            <span className="font-semibold text-content-muted">
+              {stats.total} {language === 'en' ? 'words' : 'từ vựng'}
+            </span>
             <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              {stats.remembered}/{stats.total} đã thuộc ({percent}%)
+              {stats.remembered}/{stats.total} {language === 'en' ? 'mastered' : 'đã thuộc'} ({percent}%)
             </span>
           </div>
 
@@ -301,7 +307,7 @@ export const TopicListPage: React.FC = () => {
               className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-accent/20 bg-accent/5 px-3 text-xs font-bold text-accent-strong transition hover:bg-accent hover:text-accent-contrast active:scale-98"
             >
               <Play className="size-3 fill-current" />
-              <span>Luyện tập ngay</span>
+              <span>{language === 'en' ? 'Practice now' : 'Luyện tập ngay'}</span>
             </Link>
           </div>
         </div>
@@ -312,31 +318,35 @@ export const TopicListPage: React.FC = () => {
   return (
     <div className="space-y-8 pb-16">
       {/* Sổ tay từ vựng của tôi - Hero Banner */}
-      <div className="relative overflow-hidden rounded-3xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-6 shadow-xs transition-all sm:p-7">
+      <div id="tour-vocab-hero" className="relative overflow-hidden rounded-3xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-6 shadow-xs transition-all sm:p-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1 text-xs font-black text-accent-strong">
               <BookMarked className="size-3.5" />
-              <span>Sổ tay từ vựng cá nhân</span>
+              <span>{language === 'en' ? 'Personal Vocabulary Notebook' : 'Sổ tay từ vựng cá nhân'}</span>
             </div>
             <h2 className="text-xl font-black text-content sm:text-2xl">
-              Sổ tay từ vựng của tôi ({mySavedCount} từ đã lưu)
+              {language === 'en'
+                ? `My Vocabulary Notebook (${mySavedCount} words saved)`
+                : `Sổ tay từ vựng của tôi (${mySavedCount} từ đã lưu)`}
             </h2>
             <p className="max-w-2xl text-xs sm:text-sm font-normal leading-relaxed text-content-muted">
-              Toàn bộ từ vựng bạn đã bôi đen tra cứu bằng AI khi đọc bài thi, luyện tập hoặc tự bổ sung. Ôn tập lại ngay với 5 chế độ học tương tác thông minh để nhớ lâu và phản xạ nhanh!
+              {language === 'en'
+                ? 'All words you looked up with AI while taking tests, reading TOEIC passages, or added yourself. Review now with 5 interactive study modes to memorize faster!'
+                : 'Toàn bộ từ vựng bạn đã bôi đen tra cứu bằng AI khi đọc bài thi, luyện tập hoặc tự bổ sung. Ôn tập lại ngay với 5 chế độ học tương tác thông minh để nhớ lâu và phản xạ nhanh!'}
             </p>
 
             <div className="flex flex-wrap items-center gap-2.5 pt-1">
               <div className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-content">
-                <span className="text-content-muted">Tổng:</span>
-                <strong className="font-bold">{mySavedCount} từ</strong>
+                <span className="text-content-muted">{language === 'en' ? 'Total:' : 'Tổng:'}</span>
+                <strong className="font-bold">{mySavedCount} {language === 'en' ? 'words' : 'từ'}</strong>
               </div>
               <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                 <CheckCircle2 className="size-3.5" />
-                <span>{myRememberedCount} đã thuộc ({myPercent}%)</span>
+                <span>{myRememberedCount} {language === 'en' ? 'mastered' : 'đã thuộc'} ({myPercent}%)</span>
               </div>
               <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <span>{myNeedReviewCount} cần ôn luyện</span>
+                <span>{myNeedReviewCount} {language === 'en' ? 'need review' : 'cần ôn luyện'}</span>
               </div>
             </div>
           </div>
@@ -347,7 +357,7 @@ export const TopicListPage: React.FC = () => {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-accent px-6 text-sm font-bold text-accent-contrast shadow-md shadow-accent/20 transition hover:bg-accent/90 active:scale-98"
             >
               <Play className="size-4 fill-current" />
-              <span>Học sổ tay của tôi</span>
+              <span>{language === 'en' ? 'Study my notebook' : 'Học sổ tay của tôi'}</span>
             </Link>
             <button
               type="button"
@@ -355,7 +365,7 @@ export const TopicListPage: React.FC = () => {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-5 text-sm font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover active:scale-98"
             >
               <Plus className="size-4" />
-              <span>Thêm từ mới</span>
+              <span>{language === 'en' ? 'Add new word' : 'Thêm từ mới'}</span>
             </button>
           </div>
         </div>
@@ -365,8 +375,8 @@ export const TopicListPage: React.FC = () => {
       <div className="space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           {/* Category Tabs */}
-          <div className="flex flex-wrap items-center gap-2">
-            {CATEGORY_TABS.map((tab) => {
+          <div id="tour-vocab-categories" className="flex flex-wrap items-center gap-2">
+            {categoryTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeCategory === tab.id;
               return (
@@ -388,34 +398,40 @@ export const TopicListPage: React.FC = () => {
           </div>
 
           {/* Search Input */}
-          <div className="relative w-full lg:max-w-xs">
+          <div id="tour-vocab-search" className="relative w-full lg:max-w-xs">
             <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="min-h-10 w-full rounded-2xl border border-line bg-surface pl-10 pr-4 text-xs font-medium text-content outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15"
-              placeholder="Tìm theo tên bộ từ vựng..."
+              placeholder={language === 'en' ? 'Search vocabulary sets...' : 'Tìm theo tên bộ từ vựng...'}
             />
           </div>
         </div>
       </div>
 
       {/* Main Grid: System Vocabulary Sets */}
-      <section className="space-y-4">
+      <section id="tour-vocab-grid" className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black text-content sm:text-xl">
-              Các Bộ Từ Vựng Hệ Thống ({filteredSets.length} bộ)
+              {language === 'en'
+                ? `System Vocabulary Sets (${filteredSets.length} sets)`
+                : `Các Bộ Từ Vựng Hệ Thống (${filteredSets.length} bộ)`}
             </h2>
             <p className="text-xs text-content-muted">
-              Nhấp vào bất kỳ bộ từ vựng nào để chọn Unit và luyện tập với 5 chế độ trực quan
+              {language === 'en'
+                ? 'Click on any vocabulary set to select units and practice with 5 interactive modes'
+                : 'Nhấp vào bất kỳ bộ từ vựng nào để chọn Unit và luyện tập với 5 chế độ trực quan'}
             </p>
           </div>
         </div>
 
         {filteredSets.length === 0 ? (
           <div className="rounded-3xl border border-line bg-surface py-12 text-center">
-            <p className="text-sm font-bold text-content-muted">Không tìm thấy bộ từ vựng nào phù hợp với bộ lọc.</p>
+            <p className="text-sm font-bold text-content-muted">
+              {language === 'en' ? 'No vocabulary sets match the filter.' : 'Không tìm thấy bộ từ vựng nào phù hợp với bộ lọc.'}
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -463,7 +479,9 @@ export const TopicListPage: React.FC = () => {
                     </h3>
                     <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
                       {set.description ||
-                        `Toàn bộ từ vựng chọn lọc thuộc bộ ${set.name} chia theo các bài học chuyên sâu.`}
+                        (language === 'en'
+                          ? `Curated vocabulary from ${set.name} structured into in-depth units.`
+                          : `Toàn bộ từ vựng chọn lọc thuộc bộ ${set.name} chia theo các bài học chuyên sâu.`)}
                     </p>
                   </div>
 
@@ -471,17 +489,17 @@ export const TopicListPage: React.FC = () => {
                     <div className="flex items-center gap-2 text-xs font-medium text-content-muted">
                       <span className="inline-flex items-center gap-1">
                         <BookOpen className="size-3.5 text-accent" />
-                        <strong className="font-bold text-content">{set.total_tests}</strong> bài
+                        <strong className="font-bold text-content">{set.total_tests}</strong> {language === 'en' ? 'units' : 'bài'}
                       </span>
                       <span className="text-line">·</span>
                       <span className="inline-flex items-center gap-1">
                         <Layers className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <strong className="font-bold text-content">{set.total_words}</strong> từ
+                        <strong className="font-bold text-content">{set.total_words}</strong> {language === 'en' ? 'words' : 'từ'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1 text-xs font-bold text-accent-strong group-hover:translate-x-0.5 transition-transform">
-                      <span>Học ngay</span>
+                      <span>{language === 'en' ? 'Study Now' : 'Học ngay'}</span>
                       <ChevronRight className="size-4" />
                     </div>
                   </div>
@@ -496,8 +514,14 @@ export const TopicListPage: React.FC = () => {
       <section className="pt-6 border-t border-line">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-black text-content sm:text-xl">Bộ từ vựng cá nhân của bạn</h2>
-            <p className="text-xs text-content-muted">Các nhóm từ bạn tự tạo để phân loại và ôn tập theo nhu cầu riêng</p>
+            <h2 className="text-lg font-black text-content sm:text-xl">
+              {language === 'en' ? 'Your Personal Vocabulary Sets' : 'Bộ từ vựng cá nhân của bạn'}
+            </h2>
+            <p className="text-xs text-content-muted">
+              {language === 'en'
+                ? 'Custom vocabulary groups you created for personalized review'
+                : 'Các nhóm từ bạn tự tạo để phân loại và ôn tập theo nhu cầu riêng'}
+            </p>
           </div>
 
           <button
@@ -509,7 +533,7 @@ export const TopicListPage: React.FC = () => {
             className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover"
           >
             <Plus className="size-3.5" />
-            <span>Tạo bộ mới</span>
+            <span>{language === 'en' ? 'Create Set' : 'Tạo bộ mới'}</span>
           </button>
         </div>
 
@@ -522,7 +546,7 @@ export const TopicListPage: React.FC = () => {
                   <BookMarked className="size-5" />
                 </span>
                 <span className="rounded-full border border-accent/30 bg-accent/15 px-2.5 py-0.5 text-[10px] font-extrabold text-accent-strong">
-                  Mặc định
+                  {language === 'en' ? 'Default' : 'Mặc định'}
                 </span>
               </div>
 
@@ -531,19 +555,23 @@ export const TopicListPage: React.FC = () => {
                 className="mt-3.5 block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
               >
                 <h3 className="truncate text-base font-extrabold text-content group-hover:text-accent-strong transition-colors">
-                  Sổ tay từ vựng của tôi
+                  {language === 'en' ? 'My Vocabulary Notebook' : 'Sổ tay từ vựng của tôi'}
                 </h3>
                 <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
-                  Kho từ vựng cá nhân bạn đã tra cứu AI, lưu từ đề thi và bài đọc TOEIC.
+                  {language === 'en'
+                    ? 'Your personal repository of words looked up via AI and saved from TOEIC tests.'
+                    : 'Kho từ vựng cá nhân bạn đã tra cứu AI, lưu từ đề thi và bài đọc TOEIC.'}
                 </p>
               </Link>
             </div>
 
             <div className="mt-5 space-y-2.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-content-muted">{mySavedCount} từ vựng</span>
+                <span className="font-semibold text-content-muted">
+                  {mySavedCount} {language === 'en' ? 'words' : 'từ vựng'}
+                </span>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {myRememberedCount}/{mySavedCount} đã thuộc ({myPercent}%)
+                  {myRememberedCount}/{mySavedCount} {language === 'en' ? 'mastered' : 'đã thuộc'} ({myPercent}%)
                 </span>
               </div>
 
@@ -560,7 +588,9 @@ export const TopicListPage: React.FC = () => {
                   className="flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-accent px-3 text-xs font-bold text-accent-contrast transition hover:bg-accent/90 active:scale-98 shadow-xs"
                 >
                   <Play className="size-3 fill-current" />
-                  <span>Học sổ tay ({mySavedCount} từ)</span>
+                  <span>
+                    {language === 'en' ? `Study Notebook (${mySavedCount} words)` : `Học sổ tay (${mySavedCount} từ)`}
+                  </span>
                 </Link>
               </div>
             </div>
@@ -579,9 +609,11 @@ export const TopicListPage: React.FC = () => {
               <Plus className="size-5 stroke-[2.5]" />
             </span>
             <span className="mt-3 block text-sm font-extrabold text-content group-hover:text-accent-strong transition-colors">
-              Tạo bộ từ vựng mới
+              {language === 'en' ? 'Create New Set' : 'Tạo bộ từ vựng mới'}
             </span>
-            <span className="mt-1 block text-xs text-content-muted">Gom các từ cần ôn theo sở thích</span>
+            <span className="mt-1 block text-xs text-content-muted">
+              {language === 'en' ? 'Organize words you want to review' : 'Gom các từ cần ôn theo sở thích'}
+            </span>
           </button>
 
           {visiblePersonalTopics.map((topic) => (
@@ -608,8 +640,12 @@ export const TopicListPage: React.FC = () => {
 
         {deleting && (
           <ConfirmModal
-            title="Xoá chủ đề?"
-            description={`Chủ đề “${deleting.name}” sẽ bị xoá. Các từ bên trong vẫn được giữ trong Sổ tay từ vựng của bạn.`}
+            title={language === 'en' ? 'Delete topic?' : 'Xoá chủ đề?'}
+            description={
+              language === 'en'
+                ? `Topic "${deleting.name}" will be deleted. Words inside will still be kept in your Vocabulary Notebook.`
+                : `Chủ đề “${deleting.name}” sẽ bị xoá. Các từ bên trong vẫn được giữ trong Sổ tay từ vựng của bạn.`
+            }
             onClose={() => setDeleting(null)}
             onConfirm={() => {
               vocabularyTopicService.remove(user.id, deleting.id);
@@ -621,8 +657,12 @@ export const TopicListPage: React.FC = () => {
 
         {merging && (
           <ConfirmModal
-            title="Gộp chủ đề"
-            description={`Chọn chủ đề nhận toàn bộ từ của “${merging.name}”. Chủ đề hiện tại sẽ bị xoá sau khi gộp.`}
+            title={language === 'en' ? 'Merge topics' : 'Gộp chủ đề'}
+            description={
+              language === 'en'
+                ? `Select target topic to receive all words from "${merging.name}". The current topic will be deleted after merging.`
+                : `Chọn chủ đề nhận toàn bộ từ của “${merging.name}”. Chủ đề hiện tại sẽ bị xoá sau khi gộp.`
+            }
             onClose={() => setMerging(null)}
             onConfirm={() => {
               if (!mergeTarget) return;
@@ -637,7 +677,7 @@ export const TopicListPage: React.FC = () => {
               onChange={(e) => setMergeTarget(e.target.value)}
               className="mt-4 min-h-11 w-full rounded-2xl border border-line bg-surface-elevated px-3 text-sm text-content outline-none focus:border-accent"
             >
-              <option value="">Chọn chủ đề đích</option>
+              <option value="">{language === 'en' ? 'Select target topic' : 'Chọn chủ đề đích'}</option>
               {personalTopics
                 .filter((topic) => topic.id !== merging.id)
                 .map((topic) => (

@@ -4,7 +4,8 @@ import { X } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 import { BrandName } from '../common/BrandName';
 import { useAuth } from '../../context/AuthContext';
-import { getNavigationForRole } from '../../config/navigation';
+import { useLanguage } from '../../context/LanguageContext';
+import { getNavigationForRole, NAV_TRANSLATION_KEYS } from '../../config/navigation';
 import { getUserRole } from '../../utils/rbac';
 import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -17,6 +18,7 @@ interface MobileNavigationProps {
 
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const role = getUserRole(user);
   const location = useLocation();
   const navigationRole = role === 'admin' && location.pathname.startsWith('/admin') ? 'admin' : 'student';
@@ -62,6 +64,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onCl
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
+            const label = NAV_TRANSLATION_KEYS[item.path] ? t(NAV_TRANSLATION_KEYS[item.path]) : item.label;
+            const isFeatureDisabledForAdmin = navigationRole === 'admin' && Boolean(item.featureKey && !isFeatureEnabled(item.featureKey));
             const isComingSoon = navigationRole === 'admin'
               ? getStatus(item.path)?.status === 'coming_soon'
               : Boolean(item.featureKey && !isFeatureEnabled(item.featureKey));
@@ -80,12 +84,16 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onCl
               >
                 <Icon className="w-5 h-5 shrink-0" />
                 <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                  <span className="truncate">{item.label}</span>
-                  {isComingSoon && (
+                  <span className="truncate">{label}</span>
+                  {isFeatureDisabledForAdmin ? (
+                    <span className="shrink-0 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:border-red-900/50 dark:bg-red-500/10 dark:text-red-300">
+                      Đã tắt
+                    </span>
+                  ) : isComingSoon ? (
                     <span className="shrink-0 rounded-full border border-brand/25 bg-brand/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent-strong">
                       Sắp có
                     </span>
-                  )}
+                  ) : null}
                 </span>
               </NavLink>
             );

@@ -485,7 +485,8 @@ def get_study_attempt_detail(
                    p.passage_text, p.passage_text_2, p.passage_text_3,
                    p.transcript, p.audio_url AS passage_audio_url,
                    p.image_url AS passage_image_url, p.passage_text_vi_html,
-                   p.passage_text_2_vi_html, p.passage_text_3_vi_html
+                   p.passage_text_2_vi_html, p.passage_text_3_vi_html,
+                   p.passage_sentence_pairs
             FROM questions q
             LEFT JOIN tests t ON t.id = q.test_id
             LEFT JOIN passages p ON p.id = q.passage_id AND p.test_id = q.test_id
@@ -541,6 +542,7 @@ def get_study_attempt_detail(
                 question.get("passage_text_2_vi_html"),
                 question.get("passage_text_3_vi_html"),
             ] if value),
+            "passageSentencePairs": parse_json(question.get("passage_sentence_pairs"), None),
             "transcript": question.get("transcript") or "",
             "audioUrl": question.get("audio_url") or question.get("passage_audio_url"),
             "imageUrl": question.get("image_url") or question.get("passage_image_url"),

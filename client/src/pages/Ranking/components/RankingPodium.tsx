@@ -4,6 +4,7 @@ import { Award, CheckCircle2, Crown, Flame, Medal, Target, Trophy } from 'lucide
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
 import { RankingPodiumSkeleton } from './RankingPageSkeleton';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface RankingPodiumProps {
   members: LeaderboardMember[];
@@ -14,6 +15,7 @@ interface RankingPodiumProps {
 
 interface TierConfig {
   label: string;
+  labelEn: string;
   badgeBg: string;
   badgeBorder: string;
   badgeText: string;
@@ -33,6 +35,7 @@ interface TierConfig {
 const TIER_CONFIGS: Record<1 | 2 | 3, TierConfig> = {
   1: {
     label: '#1 QUÁN QUÂN',
+    labelEn: '#1 CHAMPION',
     badgeBg: 'bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500',
     badgeBorder: 'border-amber-200/90 dark:border-amber-300/40',
     badgeText: 'text-amber-950 font-black',
@@ -50,6 +53,7 @@ const TIER_CONFIGS: Record<1 | 2 | 3, TierConfig> = {
   },
   2: {
     label: '#2 Á QUÂN 1',
+    labelEn: '#2 RUNNER-UP 1',
     badgeBg: 'bg-gradient-to-r from-slate-400 via-slate-300 to-slate-400',
     badgeBorder: 'border-slate-200 dark:border-slate-400/40',
     badgeText: 'text-slate-900 font-black',
@@ -67,6 +71,7 @@ const TIER_CONFIGS: Record<1 | 2 | 3, TierConfig> = {
   },
   3: {
     label: '#3 Á QUÂN 2',
+    labelEn: '#3 RUNNER-UP 2',
     badgeBg: 'bg-gradient-to-r from-amber-700 via-orange-600 to-amber-700',
     badgeBorder: 'border-amber-600/60 dark:border-amber-600/40',
     badgeText: 'text-amber-50 font-black',
@@ -89,6 +94,7 @@ const PodiumCard: React.FC<{
   member?: LeaderboardMember;
   isCurrent?: boolean;
 }> = ({ rank, member, isCurrent = false }) => {
+  const { language } = useLanguage();
   const config = TIER_CONFIGS[rank];
   const isWinner = rank === 1;
 
@@ -116,12 +122,12 @@ const PodiumCard: React.FC<{
           ) : (
             <Award className="size-3.5 text-amber-50" />
           )}
-          <span>{config.label}</span>
+          <span>{language === 'en' ? config.labelEn : config.label}</span>
         </span>
 
         {isCurrent && (
           <span className="rounded-md bg-brand px-2 py-0.5 text-[10px] font-black text-brand-ink uppercase shadow-sm animate-pulse">
-            BẠN
+            {language === 'en' ? 'YOU' : 'BẠN'}
           </span>
         )}
       </div>
@@ -205,14 +211,14 @@ const PodiumCard: React.FC<{
           <div className="mt-2.5 grid w-full grid-cols-2 gap-2">
             <div className="flex items-center justify-center gap-1.5 rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-2 py-1.5 shadow-2xs">
               <Flame className="size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
-              <span className="text-[11px] font-bold text-content-muted">Chuỗi:</span>
+              <span className="text-[11px] font-bold text-content-muted">{language === 'en' ? 'Streak:' : 'Chuỗi:'}</span>
               <span className="text-xs font-black tabular-nums text-content">
                 {formatRankingValue(member, 'streakDays')}
               </span>
             </div>
             <div className="flex items-center justify-center gap-1.5 rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-2 py-1.5 shadow-2xs">
               <Target className="size-3.5 text-emerald-500 shrink-0" aria-hidden="true" />
-              <span className="text-[11px] font-bold text-content-muted">Đúng:</span>
+              <span className="text-[11px] font-bold text-content-muted">{language === 'en' ? 'Accuracy:' : 'Đúng:'}</span>
               <span className="text-xs font-black tabular-nums text-content">
                 {formatRankingValue(member, 'accuracyRate')}
               </span>
@@ -224,8 +230,10 @@ const PodiumCard: React.FC<{
           <span className="grid size-14 place-items-center rounded-2xl border border-dashed border-line bg-canvas">
             <Medal className="size-6 text-content-muted" aria-hidden="true" />
           </span>
-          <p className="mt-3 text-xs font-bold text-content">Vị trí đang chờ bạn</p>
-          <p className="mt-0.5 text-[11px] text-content-muted">Luyện tập ngay để bước lên bục vinh quang!</p>
+          <p className="mt-3 text-xs font-bold text-content">{language === 'en' ? 'Spot awaits you' : 'Vị trí đang chờ bạn'}</p>
+          <p className="mt-0.5 text-[11px] text-content-muted">
+            {language === 'en' ? 'Practice now to climb onto the podium!' : 'Luyện tập ngay để bước lên bục vinh quang!'}
+          </p>
         </div>
       )}
 
@@ -244,14 +252,18 @@ const PodiumCard: React.FC<{
 
 export const RankingPodium: React.FC<RankingPodiumProps> = ({
   members,
-  title = 'Top 3 Chiến Binh Dẫn Đầu',
+  title,
   currentUserId,
   loading = false,
 }) => {
+  const { language } = useLanguage();
+
   if (loading) {
     return <RankingPodiumSkeleton />;
   }
 
+  const defaultTitle = language === 'en' ? 'Top 3 Champions' : 'Top 3 Chiến Binh Dẫn Đầu';
+  const displayTitle = title || defaultTitle;
   const first = members[0];
   const second = members[1];
   const third = members[2];
@@ -266,13 +278,15 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/60 bg-amber-50/80 px-3 py-1 text-[11px] font-black text-amber-800 shadow-2xs dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-200">
             <Crown className="size-3.5 text-amber-500" />
-            <span>BẢNG VINH DANH DANH DỰ</span>
+            <span>{language === 'en' ? 'HALL OF FAME' : 'BẢNG VINH DANH DANH DỰ'}</span>
           </div>
           <h2 className="mt-1.5 text-lg font-black tracking-tight text-content sm:text-xl">
-            {title}
+            {displayTitle}
           </h2>
           <p className="mt-0.5 text-xs font-semibold text-content-muted">
-            Ba học viên xuất sắc và kiên trì nhất, ghi dấu ấn trên bảng vàng thành tích
+            {language === 'en'
+              ? 'Top three outstanding and persistent learners making their mark'
+              : 'Ba học viên xuất sắc và kiên trì nhất, ghi dấu ấn trên bảng vàng thành tích'}
           </p>
         </div>
 
@@ -280,9 +294,9 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
           <Trophy className="size-5 text-amber-500" />
           <div className="text-right">
             <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700/80 dark:text-amber-300/80">
-              Vinh danh
+              {language === 'en' ? 'Honor' : 'Vinh danh'}
             </div>
-            <div className="text-xs font-black">Top 3 Xuất Sắc</div>
+            <div className="text-xs font-black">{language === 'en' ? 'Top 3 Champions' : 'Top 3 Xuất Sắc'}</div>
           </div>
         </div>
       </div>

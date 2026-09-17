@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Bookmark, Check, ListChecks, X } from 'lucide-react';
@@ -10,7 +10,8 @@ interface QuestionDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   questions: Question[];
-  currentIndex: number;
+  currentIndex?: number;
+  currentQuestionIds?: string[];
   onSelectQuestion: (index: number) => void;
   userAnswers: Record<string, ChoiceId>;
   flaggedQuestions?: Record<string, boolean>;
@@ -26,6 +27,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   onClose,
   questions,
   currentIndex,
+  currentQuestionIds,
   onSelectQuestion,
   userAnswers,
   flaggedQuestions = {},
@@ -35,6 +37,45 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
   const reduceMotion = useReducedMotion();
+  const currentTileRef = useRef<HTMLButtonElement | null>(null);
+
+  const currentIdSet = useMemo(() => {
+    if (currentQuestionIds && currentQuestionIds.length > 0) {
+      return new Set(currentQuestionIds);
+    }
+    if (currentIndex !== undefined && questions[currentIndex]) {
+      return new Set([questions[currentIndex].id]);
+    }
+    return new Set<string>();
+  }, [currentQuestionIds, currentIndex, questions]);
+
+  const activeQuestions = useMemo(() => {
+    return questions.filter((q) => currentIdSet.has(q.id));
+  }, [questions, currentIdSet]);
+
+  const activeRangeLabel = useMemo(() => {
+    if (activeQuestions.length === 0) return null;
+    const firstNum = activeQuestions[0].questionNumber;
+    const lastNum = activeQuestions[activeQuestions.length - 1].questionNumber;
+    if (activeQuestions.length === 1) {
+      return english ? `Q${firstNum}` : `Câu ${firstNum}`;
+    }
+    return english ? `Q${firstNum}–${lastNum}` : `Câu ${firstNum}–${lastNum}`;
+  }, [activeQuestions, english]);
+
+  const firstCurrentId = activeQuestions[0]?.id;
+
+  useEffect(() => {
+    if (isOpen && currentTileRef.current) {
+      const timer = setTimeout(() => {
+        currentTileRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 220);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -133,9 +174,16 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                     <ListChecks className="size-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-extrabold text-content">
-                      {english ? 'Question Navigator' : 'Danh sách câu hỏi'}
-                    </h2>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-extrabold text-content">
+                        {english ? 'Question Navigator' : 'Danh sách câu hỏi'}
+                      </h2>
+                      {activeRangeLabel && (
+                        <span className="inline-flex items-center rounded-md bg-brand px-2 py-0.5 text-[11px] font-black text-brand-ink shadow-xs">
+                          {activeRangeLabel}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs font-medium text-content-muted">
                       {english
                         ? `${answeredCount}/${questions.length} answered (${completionPercent}%)`
@@ -194,7 +242,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                     {filteredQuestions.map(({ question, index }) => {
                       const answered = Boolean(userAnswers[question.id]);
                       const flagged = Boolean(flaggedQuestions[question.id]);
-                      const isCurrent = index === currentIndex;
+                      const isCurrent = currentIdSet.has(question.id);
                       const isChecked = checkedQuestionIds ? checkedQuestionIds.has(question.id) : false;
                       const isCorrect = isChecked && answered && userAnswers[question.id] === question.correctAnswer;
                       const isWrong = isChecked && (!answered || userAnswers[question.id] !== question.correctAnswer);
@@ -203,8 +251,18 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                         'relative flex aspect-square flex-col items-center justify-center rounded-xl text-xs font-extrabold transition-all duration-150 cursor-pointer select-none';
 
                       if (isCurrent) {
-                        tileStyle +=
-                          ' border-2 border-brand bg-brand text-brand-ink shadow-md ring-2 ring-brand-500/30 scale-105 z-10';
+                        if (isChecked) {
+                          if (isCorrect) {
+                            tileStyle +=
+                              ' border-2 border-brand bg-emerald-100 text-emerald-900 ring-2 ring-brand-500/40 dark:bg-emerald-950/80 dark:text-emerald-200 font-black z-10 shadow-xs';
+                          } else {
+                            tileStyle +=
+                              ' border-2 border-brand bg-rose-100 text-rose-900 ring-2 ring-brand-500/40 dark:bg-rose-950/80 dark:text-rose-200 font-black z-10 shadow-xs';
+                          }
+                        } else {
+                          tileStyle +=
+                            ' border-2 border-brand bg-brand text-brand-ink shadow-sm ring-2 ring-brand-500/30 font-black z-10';
+                        }
                       } else if (flagged) {
                         tileStyle +=
                           ' border border-amber-500 bg-amber-500 text-white shadow-xs';
@@ -227,6 +285,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                       return (
                         <button
                           key={question.id}
+                          ref={question.id === firstCurrentId ? currentTileRef : undefined}
                           type="button"
                           onClick={() => {
                             onSelectQuestion(index);
@@ -235,19 +294,19 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                           className={tileStyle}
                           title={english ? `Question ${question.questionNumber}` : `Câu ${question.questionNumber}`}
                         >
-                          <span>{question.questionNumber}</span>
+                          <span className="leading-none">{question.questionNumber}</span>
 
-                          {!isCurrent && !flagged && isChecked && isCorrect && (
-                            <Check className="mt-0.5 size-3 stroke-[3] text-emerald-700 dark:text-emerald-400" />
+                          {isChecked && isCorrect && (
+                            <Check className={`mt-0.5 size-3 stroke-[3] ${isCurrent ? 'text-emerald-800 dark:text-emerald-300' : 'text-emerald-700 dark:text-emerald-400'}`} />
                           )}
-                          {!isCurrent && !flagged && isChecked && isWrong && (
-                            <X className="mt-0.5 size-3 stroke-[3] text-rose-700 dark:text-rose-400" />
+                          {isChecked && isWrong && (
+                            <X className={`mt-0.5 size-3 stroke-[3] ${isCurrent ? 'text-rose-800 dark:text-rose-300' : 'text-rose-700 dark:text-rose-400'}`} />
                           )}
-                          {!isCurrent && !flagged && !isChecked && answered && (
-                            <Check className="mt-0.5 size-3 stroke-[3] text-brand-600 dark:text-brand-400" />
+                          {!isChecked && answered && (
+                            <Check className={`mt-0.5 size-3 stroke-[3] ${isCurrent ? 'text-brand-ink/85' : 'text-brand-600 dark:text-brand-400'}`} />
                           )}
                           {flagged && (
-                            <Bookmark className="absolute top-0.5 right-0.5 size-2.5 fill-current" />
+                            <Bookmark className={`absolute top-0.5 right-0.5 size-2.5 fill-current ${isCurrent && !isChecked ? 'text-brand-ink' : isCurrent && isChecked ? 'text-amber-500' : 'text-white'}`} />
                           )}
                         </button>
                       );

@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle2, Flame, Target } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface RankingListRowProps {
   member: LeaderboardMember;
@@ -14,6 +15,8 @@ export const RankingListRow: React.FC<RankingListRowProps> = ({
   rank,
   isCurrent,
 }) => {
+  const { language } = useLanguage();
+
   return (
     <article
       className={`group flex flex-col items-stretch gap-3 rounded-xl border p-3 transition-all duration-150 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 ${
@@ -43,26 +46,37 @@ export const RankingListRow: React.FC<RankingListRowProps> = ({
 
             {isCurrent && (
               <span className="shrink-0 rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-black text-brand-ink">
-                BẠN
+                {language === 'en' ? 'YOU' : 'BẠN'}
               </span>
             )}
           </div>
 
-          <p className="mt-0.5 text-xs font-semibold text-content-muted">Khoá {member.cohortCode}</p>
+          <p className="mt-0.5 text-xs font-semibold text-content-muted">
+            {language === 'en' ? `Class ${member.cohortCode}` : `Khoá ${member.cohortCode}`}
+          </p>
         </div>
       </div>
 
       <dl className="grid w-full shrink-0 grid-cols-3 gap-2 border-t border-line/80 pt-2 text-right sm:w-auto sm:gap-5 sm:border-0 sm:pt-0">
         <div>
-          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted"><Flame className="size-3 text-amber-500" aria-hidden="true" /><span>Chuỗi</span></dt>
+          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted">
+            <Flame className="size-3 text-amber-500" aria-hidden="true" />
+            <span>{language === 'en' ? 'Streak' : 'Chuỗi'}</span>
+          </dt>
           <dd className="mt-0.5 text-xs font-black tabular-nums text-content sm:text-sm">{formatRankingValue(member, 'streakDays')}</dd>
         </div>
         <div>
-          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted"><CheckCircle2 className="size-3 text-brand-600 dark:text-brand-300" aria-hidden="true" /><span>Đã làm</span></dt>
+          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted">
+            <CheckCircle2 className="size-3 text-brand-600 dark:text-brand-300" aria-hidden="true" />
+            <span>{language === 'en' ? 'Solved' : 'Đã làm'}</span>
+          </dt>
           <dd className="mt-0.5 text-xs font-black tabular-nums text-content sm:text-sm">{formatRankingValue(member, 'totalQuestions')}</dd>
         </div>
         <div>
-          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted"><Target className="size-3" aria-hidden="true" /><span>Chính xác</span></dt>
+          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted">
+            <Target className="size-3" aria-hidden="true" />
+            <span>{language === 'en' ? 'Accuracy' : 'Chính xác'}</span>
+          </dt>
           <dd className="mt-0.5 text-xs font-black tabular-nums text-content sm:text-sm">{formatRankingValue(member, 'accuracyRate')}</dd>
         </div>
       </dl>

@@ -113,7 +113,10 @@ export const storage = {
   deleteTestHistory(testId: string) {
     try {
       const history = this.getTestHistory();
-      const remaining = history.filter((result) => String(result.testId) !== String(testId));
+      const targetStr = String(testId).trim().toLowerCase();
+      const remaining = history.filter(
+        (result) => String(result.testId || '').trim().toLowerCase() !== targetStr,
+      );
       localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));
       return history.length - remaining.length;
     } catch (e) {
@@ -125,9 +128,9 @@ export const storage = {
   deleteSingleAttempt(attemptId: string) {
     try {
       const history = this.getTestHistory();
-      const targetStr = String(attemptId);
+      const targetStr = String(attemptId).trim().toLowerCase();
       const remaining = history.filter((result) => {
-        const currentId = String(result.attemptId || (result as any).id || '');
+        const currentId = String(result.attemptId || (result as any).id || '').trim().toLowerCase();
         return currentId !== targetStr;
       });
       localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));

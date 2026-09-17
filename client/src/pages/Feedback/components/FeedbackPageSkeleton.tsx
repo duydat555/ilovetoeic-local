@@ -1,15 +1,17 @@
 import React from 'react';
 import { BoneyardSkeleton } from '../../../components/common/BoneyardSkeleton';
+import { useLanguage } from '../../../context/LanguageContext';
 
 export const FeedbackPageSkeleton: React.FC = () => {
+  const { t, language } = useLanguage();
   return (
     <div
-      aria-label="Đang tải trang góp ý"
+      aria-label={language === 'en' ? 'Loading feedback page' : 'Đang tải trang góp ý'}
       aria-busy="true"
       role="status"
       className="mx-auto max-w-6xl space-y-8 pb-16 px-4 sm:px-6"
     >
-      <span className="sr-only">Đang tải biểu mẫu và lịch sử góp ý...</span>
+      <span className="sr-only">{t('feedback.loadingSkeleton')}</span>
 
       {/* Header Skeleton */}
       <div className="space-y-3">

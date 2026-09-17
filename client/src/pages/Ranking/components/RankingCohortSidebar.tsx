@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { CheckCircle2, Flame, Target, UsersRound } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, sortRankingMembers, studentFullName } from './rankingUi';
+import { useLanguage } from '../../../context/LanguageContext';
 
 interface RankingCohortSidebarProps {
   members: LeaderboardMember[];
@@ -20,6 +21,8 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
   members,
   userCohortCode,
 }) => {
+  const { language } = useLanguage();
+
   const cohorts = useMemo<CohortGroup[]>(() => {
     const grouped = new Map<string, LeaderboardMember[]>();
     members.forEach((member) => {
@@ -41,20 +44,26 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
       right.totalQuestions - left.totalQuestions
       || right.streakDays - left.streakDays
       || right.accuracyRate - left.accuracyRate
-      || left.cohortCode.localeCompare(right.cohortCode, 'vi', { numeric: true })
+      || left.cohortCode.localeCompare(right.cohortCode, language === 'en' ? 'en' : 'vi', { numeric: true })
     ));
-  }, [members]);
+  }, [members, language]);
 
   return (
     <section className="flex flex-col rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
       <div className="border-b border-line pb-3.5">
-        <h2 className="text-base font-black text-content">Xếp hạng giữa các khoá</h2>
-        <p className="mt-1 text-xs text-content-muted">Top 3 học sinh có tổng số câu đã làm cao nhất của mỗi khoá</p>
+        <h2 className="text-base font-black text-content">
+          {language === 'en' ? 'Inter-Class Rankings' : 'Xếp hạng giữa các khoá'}
+        </h2>
+        <p className="mt-1 text-xs text-content-muted">
+          {language === 'en' ? 'Top 3 learners by total questions completed in each class' : 'Top 3 học sinh có tổng số câu đã làm cao nhất của mỗi khoá'}
+        </p>
       </div>
 
       <div className="mt-4 space-y-3">
         {cohorts.length === 0 && (
-          <p className="rounded-xl border border-dashed border-line bg-canvas px-4 py-8 text-center text-xs font-semibold text-content-muted">Chưa có dữ liệu xếp hạng giữa các khoá.</p>
+          <p className="rounded-xl border border-dashed border-line bg-canvas px-4 py-8 text-center text-xs font-semibold text-content-muted">
+            {language === 'en' ? 'No inter-class ranking data yet.' : 'Chưa có dữ liệu xếp hạng giữa các khoá.'}
+          </p>
         )}
         {cohorts.map((cohort, cohortIndex) => {
           const isOwnClass = Boolean(userCohortCode && cohort.cohortCode.toLowerCase() === userCohortCode.toLowerCase());
@@ -64,11 +73,20 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface text-xs font-black text-brand-700 shadow-sm dark:text-brand-300">#{cohortIndex + 1}</span>
                   <div className="min-w-0">
-                    <h3 className="truncate text-sm font-black text-content">Khoá {cohort.cohortCode}</h3>
-                    <p className="flex items-center gap-1 text-[10px] font-semibold text-content-muted"><UsersRound className="size-3" aria-hidden="true" />{cohort.members.length} học viên</p>
+                    <h3 className="truncate text-sm font-black text-content">
+                      {language === 'en' ? `Class ${cohort.cohortCode}` : `Khoá ${cohort.cohortCode}`}
+                    </h3>
+                    <p className="flex items-center gap-1 text-[10px] font-semibold text-content-muted">
+                      <UsersRound className="size-3" aria-hidden="true" />
+                      {cohort.members.length} {language === 'en' ? 'learners' : 'học viên'}
+                    </p>
                   </div>
                 </div>
-                {isOwnClass && <span className="shrink-0 rounded-md bg-brand px-1.5 py-0.5 text-[9px] font-black text-brand-ink">KHOÁ TÔI</span>}
+                {isOwnClass && (
+                  <span className="shrink-0 rounded-md bg-brand px-1.5 py-0.5 text-[9px] font-black text-brand-ink">
+                    {language === 'en' ? 'MY CLASS' : 'KHOÁ TÔI'}
+                  </span>
+                )}
               </header>
 
               <ol className="mt-3 space-y-2" aria-label={`Top 3 khoá ${cohort.cohortCode}`}>

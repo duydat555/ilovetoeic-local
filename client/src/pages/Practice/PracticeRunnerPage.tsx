@@ -33,6 +33,7 @@ import { EvidencePanel } from '../../components/common/EvidencePanel';
 import { FormattedReadingExplanation } from '../../components/common/FormattedReadingExplanation';
 import { QuestionHeader } from '../../components/common/QuestionHeader';
 import { InterleavedTranscript } from '../../components/common/InterleavedTranscript';
+import { InterleavedPassage } from '../../components/common/InterleavedPassage';
 import { PassageContent } from '../../components/common/PassageContent';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
@@ -50,6 +51,7 @@ import { createClientId } from '../../utils/id';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
+import { soundFX } from '../../utils/soundEffects';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
 
@@ -330,6 +332,16 @@ export const PracticeRunnerPage: React.FC = () => {
     const nextChecked = new Set(checkedGroupIds);
     nextChecked.add(currentGroup.id);
     setCheckedGroupIds(nextChecked);
+
+    const isAllCorrect = currentGroup.questions.every(
+      (q) => userAnswers[q.id] === q.correctAnswer
+    );
+    if (isAllCorrect) {
+      soundFX.playCorrect();
+    } else {
+      soundFX.playWrong();
+    }
+
     setCheckingAnswers(false);
   };
 
@@ -395,6 +407,9 @@ export const PracticeRunnerPage: React.FC = () => {
       goToGroup(safeGroupIndex + 1);
     } else {
       setShowSummary(true);
+      if (questions.length > 0 && correctCount / questions.length >= 0.7) {
+        soundFX.playComplete();
+      }
       void savePracticeHistory();
     }
   };
@@ -758,31 +773,32 @@ export const PracticeRunnerPage: React.FC = () => {
                       )}
                       {currentGroup.passageText && (
                         <div className="toeic-passage-panel">
-                          <AnnotatablePassage
-                            passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
-                            html={currentGroup.passageText}
-                            annotations={currentAnnotations}
-                            enabled={annotatorEnabled}
-                            onAdd={addAnnotation}
-                          />
-                        </div>
-                      )}
-                      {showTranslation && currentGroup.passageText && (
-                        <div className="toeic-passage-panel">
-                          <div className="mb-3 flex items-center gap-2 border-b border-line pb-2 text-xs font-extrabold text-accent-strong">
-                            <Languages className="size-4" /> Bản dịch tiếng Việt
-                          </div>
-                          <PassageContent
-                            html={
-                              currentGroup.passageTranslationFormatStatus === 'done'
-                                && currentGroup.passageTranslationHtml
-                                ? currentGroup.passageTranslationHtml
-                                : currentGroup.passageTranslation
-                                || 'Bản dịch cho đoạn văn này đang được cập nhật.'
-                            }
-                          />
+                          {showTranslation ? (
+                            <InterleavedPassage
+                              passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                              passageText={currentGroup.passageText}
+                              passageSentencePairs={currentGroup.passageSentencePairs || currentGroup.questions[0]?.passageSentencePairs}
+                              passageTranslation={
+                                currentGroup.passageTranslationFormatStatus === 'done'
+                                  && currentGroup.passageTranslationHtml
+                                  ? currentGroup.passageTranslationHtml
+                                  : currentGroup.passageTranslation
+                                  || currentGroup.questions[0]?.passageTranslation
+                                  || ''
+                              }
+                            />
+                          ) : (
+                            <AnnotatablePassage
+                              passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                              html={currentGroup.passageText}
+                              annotations={currentAnnotations}
+                              enabled={annotatorEnabled}
+                              onAdd={addAnnotation}
+                            />
+                          )}
+
                           {currentGroup.keyVocabulary && currentGroup.keyVocabulary.length > 0 && (
-                            <div className="mt-3.5 border-t border-line pt-3">
+                            <div className="mt-4 border-t border-line pt-3.5">
                               <div className="mb-2 flex items-center justify-between text-xs font-extrabold text-accent-strong">
                                 <span className="flex items-center gap-1.5">
                                   <BookMarked className="size-3.5 text-amber-500" />
@@ -829,7 +845,7 @@ export const PracticeRunnerPage: React.FC = () => {
                   {currentGroup.questions.map((question) => {
                     const selectedAnswer = userAnswers[question.id];
                     return (
-                      <article key={question.id} className="surface overflow-hidden rounded-2xl">
+                      <article key={question.id} id={`practice-question-${question.id}`} className="surface overflow-hidden rounded-2xl">
                         <QuestionHeader
                           questionNumber={question.questionNumber}
                           partId={question.partId}
@@ -966,68 +982,54 @@ export const PracticeRunnerPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto space-y-4 pr-1.5">
               {(currentGroup.audioUrl || currentGroup.passageText || currentGroup.imageUrl || currentGroup.transcript) && (
                 <section className="surface rounded-2xl p-5 space-y-4">
-                  {currentGroup.transcript && (
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setShowTranscript((value) => !value)}
-                        disabled={!currentGroupChecked}
-                        aria-pressed={showTranscript}
-                        aria-controls="shared-transcript"
-                        title={currentGroupChecked ? 'Bật hoặc tắt transcript' : 'Transcript mở sau khi kiểm tra đáp án'}
-                        className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${showTranscript
-                          ? 'bg-brand text-brand-ink'
-                          : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
-                          }`}
-                      >
-                        <Headphones className="size-4" /> {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
-                      </button>
+                  {(currentGroup.transcript || currentGroup.passageText) && (
+                    <div className="flex justify-end gap-2">
+                      {currentGroup.passageText && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTranslation((value) => !value)}
+                          aria-pressed={showTranslation}
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] ${showTranslation
+                            ? 'bg-brand text-brand-ink'
+                            : 'bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200'
+                            }`}
+                        >
+                          <Languages className="size-4" /> {showTranslation ? 'Ẩn bản dịch' : 'Xem bản dịch'}
+                        </button>
+                      )}
+                      {currentGroup.transcript && (
+                        <button
+                          type="button"
+                          onClick={() => setShowTranscript((value) => !value)}
+                          disabled={!currentGroupChecked}
+                          aria-pressed={showTranscript}
+                          aria-controls="shared-transcript"
+                          title={currentGroupChecked ? 'Bật hoặc tắt transcript' : 'Transcript mở sau khi kiểm tra đáp án'}
+                          className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${showTranscript
+                            ? 'bg-brand text-brand-ink'
+                            : 'bg-slate-100 text-slate-700 hover:bg-brand-50 hover:text-brand-700 dark:bg-surface-elevated dark:text-content-muted dark:hover:bg-brand-950/40 dark:hover:text-brand-200'
+                            }`}
+                        >
+                          <Headphones className="size-4" /> {showTranscript ? 'Ẩn transcript' : 'Hiện transcript'}
+                        </button>
+                      )}
                     </div>
                   )}
                   {currentGroup.audioUrl && (
                     <AudioPlayer autoPlay audioUrl={currentGroup.audioUrl} />
                   )}
                   {showTranscript && currentGroupChecked && currentGroup.transcript && (
-                    <section id="shared-transcript" className="space-y-4 rounded-2xl border border-brand-200 bg-brand-50/55 p-4 dark:border-brand-900 dark:bg-brand-950/20">
-                      <div>
-                        <div className="flex items-center gap-2 text-sm font-extrabold text-slate-950 dark:text-content">
-                          <Headphones className="size-4 text-brand-600 dark:text-brand-300" /> Transcript dùng chung
-                        </div>
-                        {typeof currentGroup.transcript === 'string' && currentGroup.transcript.includes('<') ? (
-                          <div className="mt-2.5">
-                            <PassageContent html={cleanTranscriptSpacing(currentGroup.transcript)} className="text-sm leading-7 text-slate-700 dark:text-content-muted" />
-                          </div>
-                        ) : (
-                          <p className="mt-2.5 whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-content-muted">
-                            {cleanTranscriptSpacing(currentGroup.transcript)}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Dịch nghĩa tiếng Việt của Transcript */}
-                      {Boolean(
-                        currentGroup.passageTranslation ||
+                    <InterleavedTranscript
+                      transcript={currentGroup.transcript}
+                      translation={
                         currentGroup.passageTranslationHtml ||
+                        currentGroup.passageTranslation ||
                         currentGroup.questions[0]?.passageTranslation ||
-                        currentGroup.questions[0]?.questionTranslation
-                      ) && (
-                          <div className="border-t border-brand-200/60 pt-3 dark:border-brand-900/60">
-                            <div className="mb-2 flex items-center gap-2 text-xs font-extrabold text-brand-700 dark:text-brand-300">
-                              <Languages className="size-4 text-brand-600 dark:text-brand-300" /> Dịch nghĩa tiếng Việt
-                            </div>
-                            <PassageContent
-                              html={cleanTranscriptSpacing(
-                                currentGroup.passageTranslationHtml ||
-                                currentGroup.passageTranslation ||
-                                currentGroup.questions[0]?.passageTranslation ||
-                                currentGroup.questions[0]?.questionTranslation ||
-                                ''
-                              )}
-                              className="text-sm leading-7 text-slate-700 dark:text-content-muted"
-                            />
-                          </div>
-                        )}
-                    </section>
+                        currentGroup.questions[0]?.questionTranslation ||
+                        ''
+                      }
+                      partId={currentGroup.partId}
+                    />
                   )}
                   {currentGroup.imageUrl && (
                     <QuestionImage
@@ -1037,13 +1039,29 @@ export const PracticeRunnerPage: React.FC = () => {
                   )}
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
-                      <AnnotatablePassage
-                        passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
-                        html={currentGroup.passageText}
-                        annotations={currentAnnotations}
-                        enabled={annotatorEnabled}
-                        onAdd={addAnnotation}
-                      />
+                      {showTranslation ? (
+                        <InterleavedPassage
+                          passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                          passageText={currentGroup.passageText}
+                          passageSentencePairs={currentGroup.passageSentencePairs || currentGroup.questions[0]?.passageSentencePairs}
+                          passageTranslation={
+                            currentGroup.passageTranslationFormatStatus === 'done'
+                              && currentGroup.passageTranslationHtml
+                              ? currentGroup.passageTranslationHtml
+                              : currentGroup.passageTranslation
+                              || currentGroup.questions[0]?.passageTranslation
+                              || ''
+                          }
+                        />
+                      ) : (
+                        <AnnotatablePassage
+                          passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                          html={currentGroup.passageText}
+                          annotations={currentAnnotations}
+                          enabled={annotatorEnabled}
+                          onAdd={addAnnotation}
+                        />
+                      )}
                     </div>
                   )}
                 </section>
@@ -1052,7 +1070,7 @@ export const PracticeRunnerPage: React.FC = () => {
               {currentGroup.questions.map((question) => {
                 const selectedAnswer = userAnswers[question.id];
                 return (
-                  <article key={question.id} className="surface overflow-hidden rounded-2xl">
+                  <article key={question.id} id={`practice-question-${question.id}`} className="surface overflow-hidden rounded-2xl">
                     <QuestionHeader
                       questionNumber={question.questionNumber}
                       partId={question.partId}
@@ -1190,11 +1208,20 @@ export const PracticeRunnerPage: React.FC = () => {
         onClose={() => setShowQuestionDrawer(false)}
         questions={questions}
         currentIndex={currentGroup.questions[0] ? questions.findIndex((q) => q.id === currentGroup.questions[0].id) : 0}
+        currentQuestionIds={currentGroup.questions.map((q) => q.id)}
         onSelectQuestion={(idx) => {
           const targetQ = questions[idx];
           if (targetQ) {
             const targetGrpIdx = groups.findIndex((g) => g.questions.some((q) => q.id === targetQ.id));
-            if (targetGrpIdx >= 0) goToGroup(targetGrpIdx);
+            if (targetGrpIdx >= 0) {
+              goToGroup(targetGrpIdx);
+              setTimeout(() => {
+                document.getElementById(`practice-question-${targetQ.id}`)?.scrollIntoView({
+                  behavior: 'smooth',
+                  block: 'start',
+                });
+              }, 120);
+            }
           }
         }}
         userAnswers={userAnswers}

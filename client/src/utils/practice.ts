@@ -1,4 +1,4 @@
-import { PassageFormatStatus, Question } from '../types';
+import { PassageFormatStatus, Question, StructuredSentencePair } from '../types';
 
 export interface PracticeGroup {
   id: string;
@@ -11,6 +11,7 @@ export interface PracticeGroup {
   passageTranslation?: string;
   passageTranslationHtml?: string;
   passageTranslationFormatStatus?: PassageFormatStatus;
+  passageSentencePairs?: StructuredSentencePair[];
   transcript?: string;
   keyVocabulary?: { word: string; meaning: string }[];
 }
@@ -73,6 +74,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
       previous.passageTranslation ||= question.passageTranslation;
       previous.passageTranslationHtml ||= question.passageTranslationHtml;
       previous.passageTranslationFormatStatus ||= question.passageTranslationFormatStatus;
+      previous.passageSentencePairs ||= question.passageSentencePairs;
       previous.transcript ||= question.transcript;
       previous.keyVocabulary = mergeKeyVocab(previous.keyVocabulary, question.keyVocabulary);
       continue;
@@ -89,6 +91,7 @@ export const buildPracticeGroups = (questions: Question[]): PracticeGroup[] => {
       passageTranslation: question.passageTranslation,
       passageTranslationHtml: question.passageTranslationHtml,
       passageTranslationFormatStatus: question.passageTranslationFormatStatus,
+      passageSentencePairs: question.passageSentencePairs,
       transcript: question.transcript,
       keyVocabulary: question.keyVocabulary,
     });

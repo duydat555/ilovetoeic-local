@@ -442,12 +442,12 @@ export const backendService = {
       impactCounts: { ...response.data.impactCounts, classes: {} },
     };
   },
-  async updateGlobalFeature(featureKey: FeatureKey, enabled: boolean, confirmed = false) {
+  async updateGlobalFeature(featureKey: FeatureKey, enabled: boolean, confirmed = true) {
     return authFetch<{ data: { enabled: boolean; changed: boolean } }>(`/features/global/${encodeURIComponent(featureKey)}`, {
       method: 'PUT', body: JSON.stringify({ enabled, confirmed }),
     });
   },
-  async updateClassFeature(_classId: string, _featureKey: FeatureKey, _enabled: boolean, _confirmed = false) {
+  async updateClassFeature(_classId: string, _featureKey: FeatureKey, _enabled: boolean, _confirmed = true) {
     throw new Error('Phạm vi lớp học đã được gỡ bỏ.');
   },
   async getAdminFeatureStatuses() {

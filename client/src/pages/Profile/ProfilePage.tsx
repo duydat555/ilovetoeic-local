@@ -18,6 +18,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { DICEBEAR_STYLES, getDiceBearAvatar, getRandomSeed } from '../../utils/avatar';
 import { compressImageToFullHD } from '../../utils/imageCompressor';
 
@@ -26,20 +27,20 @@ type Message = {
   text: string;
 } | null;
 
-const getErrorMessage = (reason: unknown) => {
-  const message = reason instanceof Error ? reason.message : 'Đã xảy ra lỗi. Vui lòng thử lại.';
+const getErrorMessage = (reason: unknown, language: string) => {
+  const message = reason instanceof Error ? reason.message : (language === 'en' ? 'An error occurred. Please try again.' : 'Đã xảy ra lỗi. Vui lòng thử lại.');
   const normalized = message.toLocaleLowerCase('en');
   if (normalized.includes('email address') && normalized.includes('invalid')) {
-    return 'Địa chỉ email không hợp lệ.';
+    return language === 'en' ? 'Invalid email address.' : 'Địa chỉ email không hợp lệ.';
   }
   if (normalized.includes('already registered') || normalized.includes('already been registered')) {
-    return 'Email này đã được sử dụng bởi tài khoản khác.';
+    return language === 'en' ? 'This email is already in use by another account.' : 'Email này đã được sử dụng bởi tài khoản khác.';
   }
   if (normalized.includes('password should be')) {
-    return 'Mật khẩu mới chưa đáp ứng yêu cầu bảo mật.';
+    return language === 'en' ? 'New password does not meet security requirements.' : 'Mật khẩu mới chưa đáp ứng yêu cầu bảo mật.';
   }
   if (normalized.includes('new password should be different')) {
-    return 'Mật khẩu mới phải khác mật khẩu hiện tại.';
+    return language === 'en' ? 'New password must be different from current password.' : 'Mật khẩu mới phải khác mật khẩu hiện tại.';
   }
   return message;
 };
@@ -49,6 +50,7 @@ const DiceBearAvatarSelector: React.FC<{
   userName: string;
   onSelectAvatar: (url: string) => void;
 }> = ({ currentAvatar, userName, onSelectAvatar }) => {
+  const { language } = useLanguage();
   const [selectedStyle, setSelectedStyle] = useState('avataaars');
   const [seed, setSeed] = useState(userName || 'student');
 
@@ -72,14 +74,14 @@ const DiceBearAvatarSelector: React.FC<{
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-line dark:bg-surface/50">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
         <span className="text-xs font-bold text-slate-700 dark:text-content">
-          Hoặc chọn Avatar mẫu từ DiceBear
+          {language === 'en' ? 'Or choose a preset Avatar from DiceBear' : 'Hoặc chọn Avatar mẫu từ DiceBear'}
         </span>
         <button
           type="button"
           onClick={handleRandomize}
           className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1 text-xs font-bold text-brand-600 hover:bg-brand-100 dark:bg-brand-500/10 dark:text-brand-300 transition"
         >
-          <Shuffle className="size-3.5" /> Tạo ngẫu nhiên
+          <Shuffle className="size-3.5" /> {language === 'en' ? 'Randomize' : 'Tạo ngẫu nhiên'}
         </button>
       </div>
 
@@ -114,7 +116,7 @@ const DiceBearAvatarSelector: React.FC<{
                   ? 'border-brand bg-brand-50 ring-2 ring-brand-500/30 dark:bg-brand-500/10'
                   : 'border-slate-200 bg-white hover:border-brand-300 dark:border-line dark:bg-surface-elevated'
               }`}
-              title={`Chọn avatar ${presetSeed}`}
+              title={language === 'en' ? `Choose avatar ${presetSeed}` : `Chọn avatar ${presetSeed}`}
             >
               <img src={avatarUrl} alt="" className="size-full rounded-lg object-cover" />
               {isSelected && (
@@ -132,6 +134,7 @@ const DiceBearAvatarSelector: React.FC<{
 
 export const ProfilePage: React.FC = () => {
   const { user, updateProfile, updatePassword } = useAuth();
+  const { t, language } = useLanguage();
   const [name, setName] = useState('');
   const [familyMiddleName, setFamilyMiddleName] = useState('');
   const [email, setEmail] = useState('');
@@ -176,7 +179,7 @@ export const ProfilePage: React.FC = () => {
       setAvatar(result.dataUrl);
     } catch (err) {
       console.error('[!] Avatar upload error:', err);
-      const errMsg = err instanceof Error ? err.message : 'Không thể tải ảnh lên.';
+      const errMsg = err instanceof Error ? err.message : (language === 'en' ? 'Unable to upload image.' : 'Không thể tải ảnh lên.');
       setProfileMessage({ type: 'error', text: errMsg });
     } finally {
       setUploading(false);
@@ -200,11 +203,15 @@ export const ProfilePage: React.FC = () => {
       setProfileMessage({
         type: 'success',
         text: result.emailConfirmationRequired
-          ? 'Thông tin đã cập nhật. Hãy kiểm tra hộp thư mới để xác nhận thay đổi email.'
-          : 'Thông tin cá nhân đã được cập nhật thành công.',
+          ? (language === 'en'
+            ? 'Profile updated. Please check your new inbox to confirm email changes.'
+            : 'Thông tin đã cập nhật. Hãy kiểm tra hộp thư mới để xác nhận thay đổi email.')
+          : (language === 'en'
+            ? 'Profile information updated successfully.'
+            : 'Thông tin cá nhân đã được cập nhật thành công.'),
       });
     } catch (reason) {
-      setProfileMessage({ type: 'error', text: getErrorMessage(reason) });
+      setProfileMessage({ type: 'error', text: getErrorMessage(reason, language) });
     } finally {
       setProfileSaving(false);
     }
@@ -215,15 +222,24 @@ export const ProfilePage: React.FC = () => {
     setPasswordMessage(null);
 
     if (newPassword.length < 8) {
-      setPasswordMessage({ type: 'error', text: 'Mật khẩu mới phải có ít nhất 8 ký tự.' });
+      setPasswordMessage({
+        type: 'error',
+        text: language === 'en' ? 'New password must be at least 8 characters.' : 'Mật khẩu mới phải có ít nhất 8 ký tự.',
+      });
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({ type: 'error', text: 'Mật khẩu xác nhận không khớp.' });
+      setPasswordMessage({
+        type: 'error',
+        text: language === 'en' ? 'Confirmation password does not match.' : 'Mật khẩu xác nhận không khớp.',
+      });
       return;
     }
     if (currentPassword && currentPassword === newPassword) {
-      setPasswordMessage({ type: 'error', text: 'Mật khẩu mới phải khác mật khẩu hiện tại.' });
+      setPasswordMessage({
+        type: 'error',
+        text: language === 'en' ? 'New password must be different from current password.' : 'Mật khẩu mới phải khác mật khẩu hiện tại.',
+      });
       return;
     }
 
@@ -233,9 +249,12 @@ export const ProfilePage: React.FC = () => {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setPasswordMessage({ type: 'success', text: 'Mật khẩu đã được cập nhật thành công.' });
+      setPasswordMessage({
+        type: 'success',
+        text: language === 'en' ? 'Password has been updated successfully.' : 'Mật khẩu đã được cập nhật thành công.',
+      });
     } catch (reason) {
-      setPasswordMessage({ type: 'error', text: getErrorMessage(reason) });
+      setPasswordMessage({ type: 'error', text: getErrorMessage(reason, language) });
     } finally {
       setPasswordSaving(false);
     }
@@ -253,11 +272,11 @@ export const ProfilePage: React.FC = () => {
       />
 
       {/* Header Profile Section */}
-      <section className="flex flex-col items-center gap-6 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:p-8 sm:text-left dark:border-line dark:bg-surface-elevated">
+      <section id="tour-profile-avatar" className="flex flex-col items-center gap-6 rounded-3xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:flex-row sm:p-8 sm:text-left dark:border-line dark:bg-surface-elevated">
         <div
           className="relative group cursor-pointer"
           onClick={() => fileInputRef.current?.click()}
-          title="Bấm để thay đổi ảnh đại diện"
+          title={language === 'en' ? 'Click to change profile picture' : 'Bấm để thay đổi ảnh đại diện'}
         >
           <img
             src={avatar || user.avatar || getDiceBearAvatar(user.name)}
@@ -281,10 +300,10 @@ export const ProfilePage: React.FC = () => {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2 pt-2 sm:justify-start">
             <span className="rounded-full bg-brand-500/10 px-3 py-1 text-xs font-bold text-brand-600 dark:text-brand-300">
-              Điểm hiện tại: {user.currentScore}
+              {language === 'en' ? `Current score: ${user.currentScore}` : `Điểm hiện tại: ${user.currentScore}`}
             </span>
             <span className="flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400">
-              <Flame className="size-3.5 fill-amber-500" /> {user.streakDays} ngày liên tiếp
+              <Flame className="size-3.5 fill-amber-500" /> {language === 'en' ? `${user.streakDays} days streak` : `${user.streakDays} ngày liên tiếp`}
             </span>
           </div>
         </div>
@@ -296,19 +315,21 @@ export const ProfilePage: React.FC = () => {
           className="inline-flex items-center gap-2 rounded-2xl bg-brand px-4 py-2.5 text-xs font-extrabold text-brand-ink shadow-md transition hover:bg-brand-hover active:scale-95 disabled:opacity-50"
         >
           {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          {uploading ? 'Đang tải ảnh...' : 'Chọn ảnh mới'}
+          {uploading
+            ? (language === 'en' ? 'Uploading...' : 'Đang tải ảnh...')
+            : (language === 'en' ? 'Choose Photo' : 'Chọn ảnh mới')}
         </button>
       </section>
 
       {/* Main Profile Info Section */}
-      <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
+      <section id="tour-profile-info" className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
         <div className="flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-line">
           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
             <UserRound className="size-[18px]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-content">Thông tin cá nhân</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Thông tin này được đồng bộ với tài khoản của bạn.</p>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-content">{t('profile.title')}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">{t('profile.subtitle')}</p>
           </div>
         </div>
 
@@ -330,7 +351,9 @@ export const ProfilePage: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-1">
             <label>
               <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
-                {user.role === 'admin' ? 'Họ và tên' : 'Tên và khóa'}
+                {user.role === 'admin'
+                  ? (language === 'en' ? 'Full Name' : 'Họ và tên')
+                  : (language === 'en' ? 'Name & Class' : 'Tên và khóa')}
               </span>
               <div className="relative">
                 <UserRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -341,14 +364,16 @@ export const ProfilePage: React.FC = () => {
                   required
                   maxLength={80}
                   autoComplete="name"
-                  placeholder={user.role === 'admin' ? 'Họ và tên' : 'Đạt_K38'}
+                  placeholder={user.role === 'admin' ? (language === 'en' ? 'Full Name' : 'Họ và tên') : 'Đạt_K38'}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
                 />
               </div>
             </label>
             {user.role !== 'admin' && (
               <label>
-                <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Họ và tên đệm</span>
+                <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                  {language === 'en' ? 'Middle & Family Name' : 'Họ và tên đệm'}
+                </span>
                 <div className="relative">
                   <UserRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -356,14 +381,14 @@ export const ProfilePage: React.FC = () => {
                     value={familyMiddleName}
                     onChange={(event) => setFamilyMiddleName(event.target.value)}
                     maxLength={100}
-                    placeholder="Nguyễn Văn"
+                    placeholder={language === 'en' ? 'e.g. Nguyen' : 'Nguyễn Văn'}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
                   />
                 </div>
               </label>
             )}
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Email</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">{t('profile.email')}</span>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -384,9 +409,11 @@ export const ProfilePage: React.FC = () => {
             onSelectAvatar={(selectedUrl) => setAvatar(selectedUrl)}
           />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
+          <div id="tour-profile-target" className="grid grid-cols-1 gap-4 sm:grid-cols-2 pt-2">
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Mục tiêu điểm TOEIC</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                {t('profile.targetScore')}
+              </span>
               <div className="relative">
                 <Target className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <select
@@ -401,7 +428,9 @@ export const ProfilePage: React.FC = () => {
               </div>
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Ngày thi dự kiến</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                {t('profile.examDate')}
+              </span>
               <div className="relative">
                 <Calendar className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -420,22 +449,23 @@ export const ProfilePage: React.FC = () => {
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-6 text-xs font-bold text-brand-ink shadow-md shadow-brand-600/20 transition hover:bg-brand-hover active:scale-[.99] disabled:cursor-wait disabled:opacity-70"
           >
             {profileSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-            {profileSaving ? 'Đang lưu...' : 'Lưu thông tin'}
+            {profileSaving ? t('common.saving') : t('profile.saveProfile')}
           </button>
         </form>
       </section>
 
       {/* Password Section */}
-      <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
+      <section id="tour-profile-password" className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8 dark:border-line dark:bg-surface-elevated">
         <div className="flex items-start gap-3 border-b border-slate-100 pb-4 dark:border-line">
           <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-300">
             <ShieldCheck className="size-[18px]" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-content">Mật khẩu & bảo mật</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-content">{t('profile.securityTitle')}</h2>
             <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
-              Tài khoản email cần nhập mật khẩu hiện tại. Nếu bạn chỉ đăng nhập bằng Google và chưa có mật khẩu,
-              có thể để trống ô này để đặt mật khẩu lần đầu.
+              {language === 'en'
+                ? 'Email accounts require your current password. If you signed in via Google and do not have a password yet, leave this field blank to set one for the first time.'
+                : 'Tài khoản email cần nhập mật khẩu hiện tại. Nếu bạn chỉ đăng nhập bằng Google và chưa có mật khẩu, có thể để trống ô này để đặt mật khẩu lần đầu.'}
             </p>
           </div>
         </div>
@@ -455,7 +485,9 @@ export const ProfilePage: React.FC = () => {
 
         <form onSubmit={handlePasswordSave} className="space-y-4">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Mật khẩu hiện tại</span>
+            <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+              {t('profile.currentPassword')}
+            </span>
             <div className="relative">
               <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
               <input
@@ -463,13 +495,13 @@ export const ProfilePage: React.FC = () => {
                 value={currentPassword}
                 onChange={(event) => setCurrentPassword(event.target.value)}
                 autoComplete="current-password"
-                placeholder="Bỏ trống nếu tài khoản chỉ đăng nhập Google"
+                placeholder={language === 'en' ? 'Leave blank if signed in with Google only' : 'Bỏ trống nếu tài khoản chỉ đăng nhập Google'}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-11 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
               />
               <button
                 type="button"
                 onClick={() => setShowPasswords((current) => !current)}
-                aria-label={showPasswords ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPasswords ? (language === 'en' ? 'Hide password' : 'Ẩn mật khẩu') : (language === 'en' ? 'Show password' : 'Hiện mật khẩu')}
                 className="absolute right-2.5 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-surface-hover dark:hover:text-white"
               >
                 {showPasswords ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -479,7 +511,9 @@ export const ProfilePage: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Mật khẩu mới</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                {t('profile.newPassword')}
+              </span>
               <input
                 type={showPasswords ? 'text' : 'password'}
                 value={newPassword}
@@ -487,12 +521,14 @@ export const ProfilePage: React.FC = () => {
                 required
                 minLength={8}
                 autoComplete="new-password"
-                placeholder="Tối thiểu 8 ký tự"
+                placeholder={language === 'en' ? 'At least 8 characters' : 'Tối thiểu 8 ký tự'}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
               />
             </label>
             <label>
-              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">Xác nhận mật khẩu mới</span>
+              <span className="mb-1.5 block text-xs font-bold text-slate-700 dark:text-content-muted">
+                {t('profile.confirmPassword')}
+              </span>
               <input
                 type={showPasswords ? 'text' : 'password'}
                 value={confirmPassword}
@@ -500,8 +536,8 @@ export const ProfilePage: React.FC = () => {
                 required
                 minLength={8}
                 autoComplete="new-password"
-                placeholder="Nhập lại mật khẩu mới"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-slate-800 dark:focus:ring-brand-500/10"
+                placeholder={language === 'en' ? 'Repeat new password' : 'Nhập lại mật khẩu mới'}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
               />
             </label>
           </div>
@@ -512,7 +548,7 @@ export const ProfilePage: React.FC = () => {
             className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 text-xs font-bold text-white shadow-md transition hover:bg-slate-800 active:scale-[.99] disabled:cursor-wait disabled:opacity-70 dark:bg-brand dark:text-brand-ink dark:hover:bg-brand-hover"
           >
             {passwordSaving ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-            {passwordSaving ? 'Đang cập nhật...' : 'Cập nhật mật khẩu'}
+            {passwordSaving ? (language === 'en' ? 'Updating...' : 'Đang cập nhật...') : t('profile.changePassword')}
           </button>
         </form>
       </section>

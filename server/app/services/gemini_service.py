@@ -108,6 +108,8 @@ class GeminiTranslationService:
         self._flush_task: Optional[asyncio.Task] = None
         self._local_hit_counts: Dict[str, Dict[int, int]] = {"community": {}, "invalid": {}}
         self._local_pending_inflections: set = set()
+        self._in_flight: Dict[str, asyncio.Future] = {}
+        self._single_flight_locks: Dict[Any, asyncio.Lock] = {}
         self.stats = {
             "total_requests": 0,
             "passage_cache_hits": 0,
@@ -382,6 +384,101 @@ class GeminiTranslationService:
                 except Exception:
                     pass
             self._redis_clients.clear()
+
+    def _get_single_flight_lock(self) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        lock = self._single_flight_locks.get(loop)
+        if lock is None:
+            lock = asyncio.Lock()
+            self._single_flight_locks[loop] = lock
+        return lock
+
+    async def execute_single_flight(self, key: str, coroutine_factory) -> Dict[str, Any]:
+        """Single-Flight / Request Coalescing.
+        Ensures only 1 concurrent caller executes the backend operation for `key`.
+        Local followers await the same in-flight Future.
+        Cross-worker followers await the result in Redis with distributed lock.
+        """
+        loop = asyncio.get_running_loop()
+        sf_lock = self._get_single_flight_lock()
+
+        # Step 1: In-process single-flight check
+        async with sf_lock:
+            if key in self._in_flight:
+                fut = self._in_flight[key]
+                is_local_leader = False
+            else:
+                fut = loop.create_future()
+                self._in_flight[key] = fut
+                is_local_leader = True
+
+        # If in-process follower, await leader's future
+        if not is_local_leader:
+            try:
+                result = await asyncio.wait_for(asyncio.shield(fut), timeout=10.0)
+                if isinstance(result, dict):
+                    res_copy = dict(result)
+                    res_copy["coalesced"] = True
+                    return res_copy
+                return result
+            except (asyncio.TimeoutError, Exception):
+                # Leader failed or timed out: fall through and attempt to execute directly
+                pass
+
+        # Step 2: Cross-worker single-flight check via Redis
+        redis_client = await self.get_redis()
+        lock_key = f"locks:gemini:{key}"
+        lock_token = f"worker_{uuid.uuid4().hex[:8]}"
+        acquired_redis_lock = False
+
+        if redis_client:
+            try:
+                acquired_redis_lock = bool(await redis_client.set(lock_key, lock_token, nx=True, px=10000))
+            except Exception:
+                acquired_redis_lock = True
+
+            if not acquired_redis_lock:
+                # Another worker is the global leader. Poll Redis cache for result.
+                poll_interval = 0.08
+                max_polls = 75  # ~6.0 seconds
+                for _ in range(max_polls):
+                    await asyncio.sleep(poll_interval)
+                    cached = await self._get_from_redis_cache(key)
+                    if cached:
+                        if not fut.done():
+                            fut.set_result(cached)
+                        async with sf_lock:
+                            self._in_flight.pop(key, None)
+                        cached_copy = dict(cached)
+                        cached_copy["coalesced"] = True
+                        return cached_copy
+
+                try:
+                    acquired_redis_lock = bool(await redis_client.set(lock_key, lock_token, nx=True, px=10000))
+                except Exception:
+                    acquired_redis_lock = True
+
+        # Step 3: Execute the operation as Leader
+        try:
+            result = await coroutine_factory()
+            if not fut.done():
+                fut.set_result(result)
+            return result
+        except Exception as exc:
+            if not fut.done():
+                fut.set_exception(exc)
+            raise exc
+        finally:
+            async with sf_lock:
+                self._in_flight.pop(key, None)
+            if acquired_redis_lock and redis_client:
+                try:
+                    val = await redis_client.get(lock_key)
+                    if val == lock_token:
+                        await redis_client.delete(lock_key)
+                except Exception:
+                    pass
+
 
     @staticmethod
     def _compute_hash(text: str, src_lang: str, target_lang: str, context: str = "") -> str:
@@ -937,70 +1034,71 @@ class GeminiTranslationService:
             asyncio.create_task(self._save_to_redis_cache(context_hash, res, ttl=7 * 86400))
             return res
 
-        # Tier 4: Gemini API fallback with Concurrency Semaphore
-        if not self.client:
-            self.stats["errors"] += 1
-            error = (
-                "Máy chủ chưa cài google-genai. Hãy chạy pip install -r requirements.txt."
-                if genai is None
-                else "GEMINI_API_KEY chưa được cấu hình trên máy chủ."
-            )
-            return {
-                "source_text": clean_text,
-                "error": error,
-                "cached": False,
-                "cache_source": "error",
-            }
-
-        async with self.semaphore:
-            self.stats["gemini_api_calls"] += 1
-            try:
-                result = await asyncio.to_thread(
-                    self._call_gemini_api,
-                    clean_text,
-                    src_lang,
-                    target_lang,
-                    context,
-                )
-            except Exception as error:
+        # Tier 4: Gemini API fallback with Request Coalescing (Single-Flight)
+        async def _execute_gemini_call():
+            if not self.client:
                 self.stats["errors"] += 1
-                error_type = type(error).__name__
-                error_message = str(error)
-                self.stats["last_error"] = {
-                    "type": error_type,
-                    "message": error_message[:500],
-                }
-                print(f"[!] Gemini API exception ({error_type}): {error_message}")
+                error = (
+                    "Máy chủ chưa cài google-genai. Hãy chạy pip install -r requirements.txt."
+                    if genai is None
+                    else "GEMINI_API_KEY chưa được cấu hình trên máy chủ."
+                )
                 return {
                     "source_text": clean_text,
-                    "error": self._friendly_error(error),
+                    "error": error,
                     "cached": False,
                     "cache_source": "error",
                 }
 
-        result.update({
-            "source_lang": src_lang,
-            "target_lang": target_lang,
-            "cached": False,
-            "cache_source": "gemini_api",
-        })
-        self._save_to_memory_cache(context_hash, result)
-        word_type = result.get("word_type", "vocabulary")
-        asyncio.create_task(self._save_to_redis_cache(context_hash, result, ttl=30 * 86400 if word_type == "vocabulary" else 7 * 86400))
+            async with self.semaphore:
+                self.stats["gemini_api_calls"] += 1
+                try:
+                    res = await asyncio.to_thread(
+                        self._call_gemini_api,
+                        clean_text,
+                        src_lang,
+                        target_lang,
+                        context,
+                    )
+                except Exception as error:
+                    self.stats["errors"] += 1
+                    error_type = type(error).__name__
+                    error_message = str(error)
+                    self.stats["last_error"] = {
+                        "type": error_type,
+                        "message": error_message[:500],
+                    }
+                    print(f"[!] Gemini API exception ({error_type}): {error_message}")
+                    return {
+                        "source_text": clean_text,
+                        "error": self._friendly_error(error),
+                        "cached": False,
+                        "cache_source": "error",
+                    }
 
-        # CHỈ lưu vào community_translations khi là từ vựng học tập hợp lệ ("vocabulary")
-        if word_type == "vocabulary":
-            asyncio.create_task(self._save_community_translation(clean_text, context_hash, result, context))
-            # Phrases (collocations, idioms) or generic context safely cache the base word-only key
-            if (is_phrase or is_generic_context) and context_hash != word_only_hash:
-                self._save_to_memory_cache(word_only_hash, result)
-                asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
-                asyncio.create_task(self._save_community_translation(clean_text, word_only_hash, result, ""))
-        else:
-            # Ghi nhớ vào bảng invalid_selections để nhận diện chuỗi này là tên riêng/chuỗi rác mà không ô nhiễm từ điển
-            asyncio.create_task(self._save_invalid_selection(clean_text, word_type, result.get("translated_text", "")))
+            res.update({
+                "source_lang": src_lang,
+                "target_lang": target_lang,
+                "cached": False,
+                "cache_source": "gemini_api",
+            })
+            self._save_to_memory_cache(context_hash, res)
+            word_type = res.get("word_type", "vocabulary")
+            asyncio.create_task(self._save_to_redis_cache(context_hash, res, ttl=30 * 86400 if word_type == "vocabulary" else 7 * 86400))
 
-        return result
+            # CHỈ lưu vào community_translations khi là từ vựng học tập hợp lệ ("vocabulary")
+            if word_type == "vocabulary":
+                asyncio.create_task(self._save_community_translation(clean_text, context_hash, res, context))
+                if (is_phrase or is_generic_context) and context_hash != word_only_hash:
+                    self._save_to_memory_cache(word_only_hash, res)
+                    asyncio.create_task(self._save_to_redis_cache(word_only_hash, res, ttl=30 * 86400))
+                    asyncio.create_task(self._save_community_translation(clean_text, word_only_hash, res, ""))
+            else:
+                asyncio.create_task(self._save_invalid_selection(clean_text, word_type, res.get("translated_text", "")))
+
+            return res
+
+        return await self.execute_single_flight(context_hash, _execute_gemini_call)
 
     async def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
         """
@@ -1186,49 +1284,52 @@ class GeminiTranslationService:
             asyncio.create_task(self._save_to_redis_cache(word_only_hash, system_detail, ttl=7 * 86400))
             return system_detail
 
-        if not self.client:
-            self.stats["errors"] += 1
-            return {
-                "source_text": clean_text,
-                "section": section,
-                "error": "Gemini API chưa được cấu hình trên máy chủ.",
-                "cache_source": "error",
-            }
-
-        async with self.semaphore:
-            self.stats["gemini_api_calls"] += 1
-            self.stats["dictionary_detail_calls"] += 1
-            try:
-                result = await asyncio.to_thread(
-                    self._call_gemini_detail,
-                    clean_text,
-                    section,
-                    context,
-                )
-            except Exception as error:
+        async def _execute_gemini_detail_call():
+            if not self.client:
                 self.stats["errors"] += 1
-                self.stats["last_error"] = {
-                    "type": type(error).__name__,
-                    "message": str(error)[:500],
-                }
                 return {
                     "source_text": clean_text,
                     "section": section,
-                    "error": self._friendly_error(error),
+                    "error": "Gemini API chưa được cấu hình trên máy chủ.",
                     "cache_source": "error",
                 }
 
-        result.update({
-            "source_text": clean_text,
-            "section": section,
-            "cached": False,
-            "cache_source": "gemini_api",
-        })
-        self._save_to_memory_cache(text_hash, result)
-        self._save_to_memory_cache(word_only_hash, result)
-        asyncio.create_task(self._save_to_redis_cache(text_hash, result, ttl=30 * 86400))
-        asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
-        return result
+            async with self.semaphore:
+                self.stats["gemini_api_calls"] += 1
+                self.stats["dictionary_detail_calls"] += 1
+                try:
+                    res = await asyncio.to_thread(
+                        self._call_gemini_detail,
+                        clean_text,
+                        section,
+                        context,
+                    )
+                except Exception as error:
+                    self.stats["errors"] += 1
+                    self.stats["last_error"] = {
+                        "type": type(error).__name__,
+                        "message": str(error)[:500],
+                    }
+                    return {
+                        "source_text": clean_text,
+                        "section": section,
+                        "error": self._friendly_error(error),
+                        "cache_source": "error",
+                    }
+
+            res.update({
+                "source_text": clean_text,
+                "section": section,
+                "cached": False,
+                "cache_source": "gemini_api",
+            })
+            self._save_to_memory_cache(text_hash, res)
+            self._save_to_memory_cache(word_only_hash, res)
+            asyncio.create_task(self._save_to_redis_cache(text_hash, res, ttl=30 * 86400))
+            asyncio.create_task(self._save_to_redis_cache(word_only_hash, res, ttl=30 * 86400))
+            return res
+
+        return await self.execute_single_flight(text_hash, _execute_gemini_detail_call)
 
     @staticmethod
     def _friendly_error(error: Exception) -> str:

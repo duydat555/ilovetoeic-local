@@ -5,6 +5,7 @@ import threading
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote, unquote
 
 import asyncio
@@ -479,10 +480,31 @@ class Database:
         results = self.fetch_all(query, params, use_cache=use_cache)
         return results[0] if results else None
 
+    def _invalidate_cache(self, query: str, invalidate: Any = True):
+        if not invalidate:
+            return
+        if isinstance(invalidate, str) and invalidate.upper() != "ALL":
+            self.invalidate_cache_for_table(invalidate)
+            return
+        m = re.search(r'(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+[`"]?([a-zA-Z0-9_]+)[`"]?', query, re.IGNORECASE)
+        if m:
+            self.invalidate_cache_for_table(m.group(1))
+        else:
+            self.query_ram_cache.clear()
+
+    def invalidate_cache_for_table(self, table_name: str = ""):
+        """Targeted cache invalidation: only clears cache keys containing table_name."""
+        if not table_name:
+            self.query_ram_cache.clear()
+            return
+        tbl = table_name.lower()
+        keys_to_remove = [k for k in self.query_ram_cache if tbl in k.lower()]
+        for k in keys_to_remove:
+            self.query_ram_cache.pop(k, None)
+
     def execute(self, query, params=(), invalidate_cache=True):
         self.require_connection()
-        if invalidate_cache:
-            self.query_ram_cache.clear()
+        self._invalidate_cache(query, invalidate_cache)
         mysql_query = query.replace("?", "%s")
         with self.connection() as conn:
             with conn.cursor() as cursor:
@@ -491,8 +513,7 @@ class Database:
 
     def executemany(self, query, params, invalidate_cache=True):
         self.require_connection()
-        if invalidate_cache:
-            self.query_ram_cache.clear()
+        self._invalidate_cache(query, invalidate_cache)
         mysql_query = query.replace("?", "%s")
         with self.connection() as conn:
             with conn.cursor() as cursor:
@@ -536,8 +557,7 @@ class Database:
         return results[0] if results else None
 
     async def async_execute(self, query, params=(), invalidate_cache=True):
-        if invalidate_cache:
-            self.query_ram_cache.clear()
+        self._invalidate_cache(query, invalidate_cache)
 
         if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
             return await asyncio.to_thread(self.execute, query, params, invalidate_cache)
@@ -554,8 +574,7 @@ class Database:
             return await asyncio.to_thread(self.execute, query, params, invalidate_cache)
 
     async def async_executemany(self, query, params, invalidate_cache=True):
-        if invalidate_cache:
-            self.query_ram_cache.clear()
+        self._invalidate_cache(query, invalidate_cache)
 
         if not getattr(config, "USE_ASYNC_MYSQL_DRIVER", True) or asyncmy is None:
             return await asyncio.to_thread(self.executemany, query, params, invalidate_cache)

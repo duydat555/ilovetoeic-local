@@ -67,5 +67,6 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_PASSWORD = os.getenv("REDIS_PASSWORD") or None
 REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 L0_CACHE_MAX_SIZE = int(os.getenv("L0_CACHE_MAX_SIZE", "1000"))
+HIT_COUNT_FLUSH_INTERVAL = int(os.getenv("HIT_COUNT_FLUSH_INTERVAL", "60"))
 
 

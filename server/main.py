@@ -26,10 +26,20 @@ from app.routers import (
     listening,
 )
 
+from contextlib import asynccontextmanager
+from app.services.gemini_service import gemini_service
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    gemini_service.start_background_flush_task()
+    yield
+    await gemini_service.shutdown()
+
 app = FastAPI(
     title="TOEIC Practice REST API Server",
     description="REST API Server cho Website/App Học TOEIC dùng MySQL",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Enable GZip Compression (Giảm dung lượng response truyền qua LAN/Internet)

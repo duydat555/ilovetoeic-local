@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import re
+import uuid
 from collections import OrderedDict
 from typing import Any, Dict, List, Literal, Optional, Tuple
 
@@ -102,9 +103,11 @@ class GeminiTranslationService:
             if genai and config.GEMINI_API_KEY
             else None
         )
-        self._redis_client: Optional[Any] = None
-        self._redis_ready: bool = False
-        self._init_redis_sync()
+        self._redis_clients: Dict[Any, Any] = {}
+        self._redis_ready: bool = getattr(config, "REDIS_ENABLED", True) and (aioredis is not None)
+        self._flush_task: Optional[asyncio.Task] = None
+        self._local_hit_counts: Dict[str, Dict[int, int]] = {"community": {}, "invalid": {}}
+        self._local_pending_inflections: set = set()
         self.stats = {
             "total_requests": 0,
             "passage_cache_hits": 0,
@@ -123,36 +126,47 @@ class GeminiTranslationService:
             "last_error": None,
         }
 
-    def _init_redis_sync(self):
+    async def get_redis(self):
         if not getattr(config, "REDIS_ENABLED", True) or aioredis is None:
-            self._redis_ready = False
-            return
+            return None
         try:
-            self._redis_client = aioredis.Redis(
-                host=config.REDIS_HOST,
-                port=config.REDIS_PORT,
-                db=config.REDIS_DB,
-                password=config.REDIS_PASSWORD,
-                decode_responses=True,
-                socket_connect_timeout=1.5,
-                socket_timeout=1.5,
-                max_connections=50,
-            )
-            self._redis_ready = True
-        except Exception as err:
-            print(f"[!] Redis async init error: {err}")
-            self._redis_ready = False
-            self._redis_client = None
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return None
+
+        client = self._redis_clients.get(loop)
+        if client is None:
+            try:
+                client = aioredis.Redis(
+                    host=config.REDIS_HOST,
+                    port=config.REDIS_PORT,
+                    db=config.REDIS_DB,
+                    password=config.REDIS_PASSWORD,
+                    decode_responses=True,
+                    socket_connect_timeout=1.5,
+                    socket_timeout=1.5,
+                    max_connections=50,
+                )
+                self._redis_clients[loop] = client
+                self._redis_ready = True
+            except Exception as err:
+                print(f"[!] Redis init error: {err}")
+                self._redis_ready = False
+                return None
+        return client
 
     @property
     def is_redis_ready(self) -> bool:
-        return self._redis_ready and self._redis_client is not None
+        if not getattr(config, "REDIS_ENABLED", True) or aioredis is None:
+            return False
+        return self._redis_ready
 
     async def _redis_get(self, key: str) -> Optional[Dict[str, Any]]:
-        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+        client = await self.get_redis()
+        if not client:
             return None
         try:
-            raw = await self._redis_client.get(key)
+            raw = await client.get(key)
             if raw:
                 self._redis_ready = True
                 return json.loads(raw)
@@ -161,11 +175,12 @@ class GeminiTranslationService:
         return None
 
     async def _redis_set(self, key: str, data: Dict[str, Any], ttl: int = 7 * 86400) -> bool:
-        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+        client = await self.get_redis()
+        if not client:
             return False
         try:
             serialized = json.dumps(data, ensure_ascii=False)
-            await self._redis_client.set(key, serialized, ex=ttl)
+            await client.set(key, serialized, ex=ttl)
             self._redis_ready = True
             return True
         except Exception as err:
@@ -179,10 +194,11 @@ class GeminiTranslationService:
         return await self._redis_set(f"translate:word:{text_hash}", data, ttl=ttl)
 
     async def _get_passage_from_redis(self, passage_id: str) -> Optional[Dict[str, Any]]:
-        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+        client = await self.get_redis()
+        if not client:
             return None
         try:
-            raw_dict = await self._redis_client.hgetall(f"translate:passage:{passage_id}")
+            raw_dict = await client.hgetall(f"translate:passage:{passage_id}")
             if raw_dict:
                 self._redis_ready = True
                 return {k: json.loads(v) for k, v in raw_dict.items()}
@@ -191,14 +207,14 @@ class GeminiTranslationService:
         return None
 
     async def _save_passage_to_redis(self, passage_id: str, word_map: Dict[str, Any]) -> bool:
-        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True) or not word_map:
+        client = await self.get_redis()
+        if not client or not word_map:
             return False
         try:
-            pipe = self._redis_client.pipeline()
+            pipe = client.pipeline()
             mapping = {w: json.dumps(data, ensure_ascii=False) for w, data in word_map.items()}
             pipe.hset(f"translate:passage:{passage_id}", mapping=mapping)
             pipe.expire(f"translate:passage:{passage_id}", 24 * 3600)
-            # Also pre-warm individual words into Redis shared cache
             for w, data in word_map.items():
                 w_hash = self._compute_hash(w, "en", "vi", "")
                 pipe.set(f"translate:word:{w_hash}", json.dumps(data, ensure_ascii=False), ex=7 * 86400)
@@ -208,6 +224,164 @@ class GeminiTranslationService:
         except Exception as err:
             self._redis_ready = False
             return False
+
+    async def record_hit_count(self, table_type: str, record_id: int):
+        """Buffer hit count increment in Redis hash.
+        Falls back to local in-memory counter if Redis is unavailable.
+        """
+        client = await self.get_redis()
+        if client:
+            try:
+                await client.hincrby(f"hit_counts:{table_type}", str(record_id), 1)
+                self._redis_ready = True
+                return
+            except Exception:
+                self._redis_ready = False
+
+        counts = self._local_hit_counts.setdefault(table_type, {})
+        counts[record_id] = counts.get(record_id, 0) + 1
+
+    async def buffer_dynamic_inflection(self, inflected_form: str, lemma_word: str):
+        """Buffer dynamic inflection in Redis set.
+        Falls back to local in-memory set if Redis is unavailable.
+        """
+        client = await self.get_redis()
+        if client:
+            try:
+                await client.sadd("pending:word_inflections", f"{inflected_form}\t{lemma_word}")
+                self._redis_ready = True
+                return
+            except Exception:
+                self._redis_ready = False
+
+        self._local_pending_inflections.add((inflected_form, lemma_word))
+
+    async def flush_all_buffered_writes(self):
+        """Flush hit counts and pending inflections to MySQL in batch."""
+        await self.flush_hit_counts()
+        await self.flush_dynamic_inflections()
+
+    async def flush_hit_counts(self):
+        client = await self.get_redis()
+
+        for table_type, db_table in [("community", "community_translations"), ("invalid", "invalid_selections")]:
+            items_to_flush: List[Tuple[int, int]] = []
+
+            # 1. Drain from Redis atomically using RENAME
+            if client:
+                main_key = f"hit_counts:{table_type}"
+                flushing_key = f"hit_counts:{table_type}:flushing:{uuid.uuid4().hex[:8]}"
+                try:
+                    await client.rename(main_key, flushing_key)
+                    raw_data = await client.hgetall(flushing_key)
+                    if raw_data:
+                        for rid_str, cnt_str in raw_data.items():
+                            try:
+                                items_to_flush.append((int(cnt_str), int(rid_str)))
+                            except (ValueError, TypeError):
+                                pass
+                    await client.delete(flushing_key)
+                except Exception as err:
+                    err_msg = str(err).lower()
+                    if "no such key" not in err_msg:
+                        try:
+                            await client.delete(flushing_key)
+                        except Exception:
+                            pass
+
+            # 2. Drain from local memory buffer
+            local_map = self._local_hit_counts.get(table_type, {})
+            if local_map:
+                for rid, cnt in list(local_map.items()):
+                    items_to_flush.append((cnt, rid))
+                local_map.clear()
+
+            # 3. Batch update into MySQL via async_executemany
+            if items_to_flush:
+                try:
+                    await db.async_executemany(
+                        f"UPDATE {db_table} SET hit_count = hit_count + ? WHERE id = ?",
+                        items_to_flush,
+                        invalidate_cache=False,
+                    )
+                except Exception as db_err:
+                    print(f"[!] Hit count batch flush error for {db_table}: {db_err}")
+
+    async def flush_dynamic_inflections(self):
+        items_to_insert: List[Tuple[str, str, str]] = []
+        client = await self.get_redis()
+
+        if client:
+            flushing_key = f"pending:word_inflections:flushing:{uuid.uuid4().hex[:8]}"
+            try:
+                await client.rename("pending:word_inflections", flushing_key)
+                raw_members = await client.smembers(flushing_key)
+                if raw_members:
+                    for item in raw_members:
+                        if isinstance(item, bytes):
+                            item = item.decode("utf-8")
+                        parts = item.split("\t")
+                        if len(parts) == 2:
+                            items_to_insert.append((parts[0], parts[1], "DYNAMIC"))
+                await client.delete(flushing_key)
+            except Exception as err:
+                err_msg = str(err).lower()
+                if "no such key" not in err_msg:
+                    try:
+                        await client.delete(flushing_key)
+                    except Exception:
+                        pass
+
+        if self._local_pending_inflections:
+            for inflected, lemma in list(self._local_pending_inflections):
+                items_to_insert.append((inflected, lemma, "DYNAMIC"))
+            self._local_pending_inflections.clear()
+
+        if items_to_insert:
+            try:
+                await db.async_executemany(
+                    "INSERT IGNORE INTO word_inflections (inflected_form, lemma_word, inflection_type) VALUES (?, ?, ?)",
+                    items_to_insert,
+                    invalidate_cache=False,
+                )
+            except Exception as db_err:
+                print(f"[!] Dynamic inflections flush error: {db_err}")
+
+    def start_background_flush_task(self):
+        if self._flush_task is None or self._flush_task.done():
+            try:
+                loop = asyncio.get_running_loop()
+                self._flush_task = loop.create_task(self._periodic_flush_loop())
+            except RuntimeError:
+                pass
+
+    async def _periodic_flush_loop(self):
+        interval = getattr(config, "HIT_COUNT_FLUSH_INTERVAL", 60)
+        while True:
+            try:
+                await asyncio.sleep(interval)
+                await self.flush_all_buffered_writes()
+            except asyncio.CancelledError:
+                break
+            except Exception as err:
+                print(f"[!] Background flush error: {err}")
+
+    async def shutdown(self):
+        if self._flush_task:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
+            self._flush_task = None
+        await self.flush_all_buffered_writes()
+        if hasattr(self, "_redis_clients"):
+            for client in list(self._redis_clients.values()):
+                try:
+                    await client.aclose()
+                except Exception:
+                    pass
+            self._redis_clients.clear()
 
     @staticmethod
     def _compute_hash(text: str, src_lang: str, target_lang: str, context: str = "") -> str:
@@ -349,14 +523,7 @@ class GeminiTranslationService:
                 for cand in candidate_lemmas:
                     record = await self._fetch_system_vocab_row(cand)
                     if record:
-                        try:
-                            await db.async_execute(
-                                "INSERT IGNORE INTO word_inflections (inflected_form, lemma_word, inflection_type) VALUES (?, ?, ?)",
-                                (clean_word, cand, "DYNAMIC"),
-                                invalidate_cache=False,
-                            )
-                        except Exception:
-                            pass
+                        await self.buffer_dynamic_inflection(clean_word, cand)
                         return record, cand, "inflection"
             except Exception as err:
                 print(f"[!] lemminflect runtime lookup error: {err}")
@@ -506,8 +673,8 @@ class GeminiTranslationService:
             "cache_source": "community_translations",
         }
 
-    @staticmethod
     async def _get_community_translation(
+        self,
         word: str,
         context_hash: str,
         allow_phrase_fallback: bool = False,
@@ -535,14 +702,7 @@ class GeminiTranslationService:
                 )
 
             if record:
-                try:
-                    await db.async_execute(
-                        "UPDATE community_translations SET hit_count = hit_count + 1 WHERE id = ?",
-                        (record["id"],),
-                        invalidate_cache=False,
-                    )
-                except Exception:
-                    pass
+                await self.record_hit_count("community", record["id"])
                 return record
         except Exception as error:
             print(f"[!] MySQL community_translations read failed: {error}")
@@ -652,8 +812,7 @@ class GeminiTranslationService:
             print(f"[!] MySQL translation_cache sync failed: {error}")
             return False
 
-    @staticmethod
-    async def _get_invalid_selection(word: str) -> Optional[Dict[str, Any]]:
+    async def _get_invalid_selection(self, word: str) -> Optional[Dict[str, Any]]:
         clean_w = word.strip().lower()[:100]
         try:
             record = await db.async_fetch_one(
@@ -662,14 +821,7 @@ class GeminiTranslationService:
                 use_cache=False,
             )
             if record:
-                try:
-                    await db.async_execute(
-                        "UPDATE invalid_selections SET hit_count = hit_count + 1 WHERE id = ?",
-                        (record["id"],),
-                        invalidate_cache=False,
-                    )
-                except Exception:
-                    pass
+                await self.record_hit_count("invalid", record["id"])
                 return record
         except Exception as error:
             print(f"[!] MySQL invalid_selections read failed: {error}")

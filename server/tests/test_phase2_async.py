@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app import config
 from app.services.gemini_service import gemini_service
 from main import app

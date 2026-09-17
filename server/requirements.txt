@@ -8,4 +8,5 @@ google-genai>=2.0.0
 beautifulsoup4>=4.12.3
 redis>=5.0.0
 asyncmy>=0.2.14
+gunicorn>=21.0.0; sys_platform != 'win32'
 

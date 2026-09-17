@@ -6,41 +6,68 @@
 
 ## 1. Tổng quan Kiến trúc Phân tầng
 
-Hệ thống xử lý tra cứu từ vựng và dịch thuật theo ngữ cảnh được thiết kế dựa trên nguyên lý **bảo vệ tài nguyên AI (AI Shielding)** và **tiệm cận độ trễ 0ms**:
+Hệ thống xử lý tra cứu từ vựng và dịch thuật theo ngữ cảnh được thiết kế dựa trên nguyên lý **bảo vệ tài nguyên AI (AI Shielding)**, **khả năng scale hàng nghìn người dùng đồng thời**, và **tiệm cận độ trễ 0ms**:
 
 ```
-[Request] -> [Tầng 1: RAM Cache (<0.1ms)]
-                 | (miss)
-             [Tầng 2: MySQL System Vocabulary (2-4ms)]
-                 | (miss)
-             [Tầng 3: Community Translations Cache (3-8ms)]
-                 | (miss)
-             [Tầng 3.5: Invalid Selections Memory (2-4ms)]
-                 | (miss)
-             [Tầng 4: Gemini LLM Fallback (800ms - 1.5s)]
-                 |
-             [Async Writeback vào DB & RAM Cache]
+[Request từ Frontend / Batch]
+           │
+           ▼
+[Tầng 0: Local In-Memory LRU Cache (< 0.01ms)]
+           │ (miss)
+           ▼
+[Tầng 1: Redis Distributed Shared Cache (< 1-2ms)]
+           │ (miss)
+           ▼
+[Tầng 2: MySQL System Vocabulary & Inflections via asyncmy (1-3ms)]
+           │ (miss)
+           ▼
+[Tầng 3: Community Translations Cache via asyncmy (2-4ms)]
+           │ (miss)
+           ▼
+[Tầng 3.5: Invalid Selections Memory via asyncmy (1-3ms)]
+           │ (miss)
+           ▼
+[Tầng 4: AI Protection Gateway]
+    ├── 1. Circuit Breaker (Fast-Fail < 5ms khi AI gián đoạn)
+    ├── 2. Sliding-Window Rate Limiter (Max 30 req/min/IP)
+    └── 3. Single-Flight Request Coalescing (In-Process + Redis Distributed Lock)
+           │ (Chỉ 1 request duy nhất được gọi ra ngoài)
+           ▼
+[Google Gemini 2.5/3.5 Flash Lite API (800ms - 1.2s)]
+           │
+           ▼
+[Write-Behind Buffer (Redis HINCRBY / SADD) ──► Định kỳ 60s Batch Flush vào MySQL]
 ```
 
 ---
 
 ## 2. Chi tiết Hoạt động của Từng Tầng (Deep Dive Tiers)
 
-### Tầng 1: In-Memory LRU RAM Cache (Độ trễ < 0.1ms)
+### Tầng 0: Local In-Memory LRU RAM Cache (Độ trễ < 0.01ms)
 
-- **Cấu trúc dữ liệu:** `collections.OrderedDict[str, Dict[str, Any]]` được khai báo trong [`gemini_service.py`](file:///C:/android-server/toeic-website/server/app/services/gemini_service.py) với tên `self.memory_cache`.
-- **Dung lượng tối đa:** Được khống chế bởi `config.RAM_CACHE_MAX_SIZE` (mặc định 10,000 mục).
-- **Thuật toán đào thải (Eviction Policy):** Least Recently Used (LRU).
-  - Khi có Cache Hit: Gọi `self.memory_cache.move_to_end(text_hash)` để đưa mục được truy cập về cuối hàng đợi.
-  - Khi Cache đầy (`len >= max_ram_cache_size`): Gọi `self.memory_cache.popitem(last=False)` để xóa mục ít sử dụng nhất ở đầu hàng đợi.
+- **Cấu trúc dữ liệu:** `collections.OrderedDict[str, Dict[str, Any]]` trong [`gemini_service.py`](file:///C:/android-server/toeic-website/server/app/services/gemini_service.py) (`self.memory_cache`).
+- **Dung lượng tối đa:** Khống chế bởi `config.L0_CACHE_MAX_SIZE` (mặc định 1,000 mục trên mỗi worker process).
+- **Thuật toán đào thải:** Least Recently Used (LRU) thuần túy in-process. Phục hồi ngay lập tức không tốn I/O hay socket call.
 - **Cơ chế Hashing kép (Dual Hash Keys):**
   - **Context Hash:** SHA-256(`text:src_lang:target_lang:context`). Đảm bảo một từ khi xuất hiện ở hai ngữ cảnh khác nhau có thể được lưu trữ và dịch nghĩa chuẩn xác theo từng ngữ cảnh.
-  - **Word-Only Hash:** SHA-256(`text:src_lang:target_lang:`). Sử dụng cho trường hợp ngữ cảnh tổng quát (`context` rỗng hoặc là `"toeic"`, `"general"`, `"default"`).
-  - Khi tra cứu trong RAM, nếu `context_hash` bị trượt (miss) và ngữ cảnh đang ở chế độ tổng quát, hệ thống sẽ tra cứu tiếp `word_only_hash` trước khi chuyển sang Tầng 2.
+  - **Word-Only Hash:** SHA-256(`text:src_lang:target_lang:`). Dành cho ngữ cảnh tổng quát (`context` rỗng hoặc là `"toeic"`, `"general"`, `"default"`).
 
 ---
 
-### Tầng 2: MySQL System Vocabulary & Phân giải Biến thể (Độ trễ 2-4ms)
+### Tầng 1: Redis Distributed Shared Cache (Độ trễ < 1-2ms)
+
+- **Công nghệ:** `redis.asyncio` không khóa event loop.
+- **Mục đích:** Chia sẻ toàn bộ bản dịch và từ điển qua tất cả các Gunicorn worker processes và các container/VPS khác nhau.
+- **Khóa Redis:** `translate:word:{hash}` (hỗ trợ cả context_hash và word_only_hash).
+- **TTL tối ưu:**
+  - Từ vựng hợp lệ (`vocabulary`): **30 ngày** (`30 * 86400`).
+  - Chuỗi rác / nhãn trắc nghiệm (`invalid_selection`): **7 ngày** (`7 * 86400`).
+  - Từ vựng nạp trước bài đọc (`translate:passage:{passage_id}`): **24 giờ** (`86400`).
+- **Tự động phục hồi:** Khi L0 Miss nhưng L1 Hit, kết quả lập tức được nạp ngược lại vào L0 của worker hiện tại để các lần tra cứu tiếp theo đạt độ trễ 0ms.
+
+---
+
+### Tầng 2: MySQL System Vocabulary & Phân giải Biến thể qua `asyncmy` (Độ trễ 1-3ms)
 
 Tầng 2 khai thác bảng từ vựng hệ thống [`system_vocabulary_words`](file:///C:/android-server/toeic-website/server/migrations/20260907_01_add_system_vocabulary.sql) gồm hơn 20,000 từ vựng TOEIC/Oxford/IELTS chuẩn đã được biên soạn sẵn phiên âm quốc tế (IPA US/UK), định nghĩa, ví dụ song ngữ, collocations và họ từ.
 
@@ -112,12 +139,12 @@ Khi từ vựng hoặc cụm từ không nằm trong bộ từ vựng tĩnh củ
        SELECT * FROM community_translations WHERE word = ? ORDER BY hit_count DESC LIMIT 1
        ```
      - Bản ghi có `hit_count` cao nhất (được nhiều người tra cứu nhất) sẽ được chọn.
-  3. **Tự động tăng tần suất:** Khi hit bản ghi, hệ thống thực hiện `UPDATE community_translations SET hit_count = hit_count + 1 WHERE id = ?`.
-  4. **Tương thích ngược (Backward Compatibility):** Nếu không tìm thấy trong `community_translations`, hệ thống kiểm tra bảng cũ `translation_cache` theo `hash`.
+   3. **Đệm tần suất ghi nền (Write-Behind Buffering):** Khi hit bản ghi, hệ thống không gọi `UPDATE` trực tiếp vào MySQL mà gọi `await self._increment_hit_count("community", rec["id"])` để đẩy vào Redis hash `hit_counts:community` trong < 0.2ms.
+   4. **Tương thích ngược (Backward Compatibility):** Nếu không tìm thấy trong `community_translations`, hệ thống kiểm tra bảng cũ `translation_cache` theo `hash`.
 
 ---
 
-### Tầng 3.5: Invalid Selections & Proper Nouns Memory (Độ trễ 2-4ms)
+### Tầng 3.5: Invalid Selections & Proper Nouns Memory (Độ trễ 1-3ms)
 
 Trong quá trình làm bài thi, người dùng thường bôi đen nhầm các chuỗi không phải từ vựng tiếng Anh thông dụng:
 - Tên riêng người hoặc tổ chức: *"Wilson"*, *"Partyon"*, *"Westchester"*.
@@ -128,56 +155,52 @@ Trong quá trình làm bài thi, người dùng thường bôi đen nhầm các 
 Nếu không có Tầng 3.5, mỗi khi học sinh bôi đen các chuỗi này, hệ thống sẽ liên tục gọi API Gemini làm lãng phí quota và tăng độ trễ.
 - **Bảng lưu trữ:** [`invalid_selections`](file:///C:/android-server/toeic-website/server/migrations/20260909_04_add_invalid_selections.sql).
 - **Hoạt động:**
-  - Tra cứu: `SELECT * FROM invalid_selections WHERE word = ? LIMIT 1`.
+  - Tra cứu: `SELECT * FROM invalid_selections WHERE word = ? LIMIT 1` (qua `asyncmy`).
   - Nếu tồn tại, trả về ngay cấu trúc phản hồi với `word_type` tương ứng (`"proper_noun"` hoặc `"invalid_selection"`), `part_of_speech="proper noun"`, không sinh ví dụ hay từ đồng nghĩa.
-  - Cập nhật tăng `hit_count`.
+  - Cập nhật tăng `hit_count` qua Redis hash buffer: `await self._increment_hit_count("invalid", invalid_record["id"])`.
 
 ---
 
-### Tầng 4: Gemini LLM Fallback (Độ trễ 800ms - 1.5s)
+### Tầng 4: AI Protection Gateway & Gemini LLM Fallback (Độ trễ 800ms - 1.2s)
 
-Chỉ khi cả 4 tầng trên đều Miss, request mới được chuyển đến LLM Google Gemini.
+Chỉ khi cả 4 tầng trên đều Miss, request mới được chuyển đến Tầng 4. Tầng này được bao bọc bởi 3 lớp bảo vệ chặt chẽ:
 
-#### 1. Kiểm soát Concurrency bằng `asyncio.Semaphore`
-```python
-self.semaphore = asyncio.Semaphore(config.MAX_GEMINI_CONCURRENCY)
-```
-- Ngăn chặn tình trạng đồng thời bắn hàng chục request tới Google API làm cạn kiệt Rate Limit hoặc dính lỗi HTTP 429 (`RESOURCE_EXHAUSTED`).
-- Các request vượt ngưỡng sẽ xếp hàng chờ thay vì bị từ chối ngay.
+#### 1. Bộ ngắt mạch Circuit Breaker & Fallback Suy giảm Nhẹ (< 5ms)
+- **Kiểm tra trạng thái:** Trước khi kích hoạt bất kỳ tác vụ nào, hệ thống kiểm tra `can_attempt()`:
+  - Nếu mạch đang `OPEN` (do trước đó gặp 5 lỗi liên tiếp từ AI): Hệ thống **không gọi Gemini** mà chuyển thẳng sang `_degraded_fallback(clean_text)` trả về kết quả gần đúng từ vựng hoặc dạng biến thể trong < 5ms.
+  - Trạng thái `HALF_OPEN`: Cho phép 1 canary request thử nghiệm sau 30s cooldown để tự động phục hồi về `CLOSED`.
 
-#### 2. Tối ưu hóa Tham số Gọi Model
-- **Model:** `config.GEMINI_MODEL` (mặc định `gemini-2.5-flash` / `gemini-3.5-flash-lite`).
-- **Temperature:** `0.15` (giữ độ chính xác từ điển, chống ảo giác).
-- **Thinking Level:** `thinking_config=types.ThinkingConfig(thinking_level="minimal")` - tắt bỏ phần suy nghĩ nội bộ kéo dài 4-6 giây của kiến trúc reasoning mới, đưa thời gian phản hồi về dưới 1 giây.
-- **Structured Output:** Ép cấu trúc chặt chẽ thông qua Pydantic `response_schema=GeminiWordResult`.
+#### 2. Gom cụm yêu cầu đồng thời (Single-Flight Request Coalescing)
+- Sử dụng `execute_single_flight(context_hash, _execute_gemini_call)`:
+  - **Trong worker:** 50 requests đồng thời cho cùng 1 từ chỉ sinh ra đúng 1 cuộc gọi Leader; 49 requests Followers cùng await kết quả từ Leader Future.
+  - **Xuyên worker:** Redis distributed lock `locks:gemini:{key}` đảm bảo giữa nhiều worker tiến trình cũng chỉ có duy nhất 1 worker gọi API.
 
-#### 3. Prompt Kỹ nghệ Phân loại Ngữ cảnh
-Prompt yêu cầu model phân loại rõ ràng 3 nhóm:
-1. `vocabulary`: Từ vựng phổ thông phù hợp để học.
-2. `proper_noun`: Tên người, thương hiệu, địa danh.
-3. `invalid_selection`: Chuỗi gõ sai, dính chữ, nhãn trắc nghiệm.
+#### 3. Giới hạn tần suất trượt (Sliding-Window Rate Limiting)
+- Được kiểm tra ngay bên trong Leader execution: tối đa 30 lượt tra từ mới/phút/IP.
+- Vượt ngưỡng sẽ trả về HTTP 429 kèm `Retry-After`. Toàn bộ các request hit cache Tầng 1, 2, 3 hoàn toàn không bị ảnh hưởng.
+
+#### 4. Khống chế Concurrency & Tối ưu hóa Model
+- `asyncio.Semaphore(config.MAX_GEMINI_CONCURRENCY)` (mặc định 5).
+- Model: `config.GEMINI_MODEL` (`gemini-2.5-flash` / `gemini-3.5-flash-lite`).
+- Temperature: `0.15`.
+- Thinking: `thinking_config=types.ThinkingConfig(thinking_level="minimal")` (triệt tiêu internal reasoning latency).
+- Structured Output: `response_schema=GeminiWordResult`.
 
 ---
 
-## 3. Quy trình Ghi nền Bất đồng bộ (Asynchronous Background Writeback)
+## 3. Quy trình Ghi nền Đệm Hàng loạt (Write-Behind Buffering & Atomic Flush)
 
-Khi Gemini trả về kết quả, Backend không bắt Client phải chờ việc ghi cơ sở dữ liệu hoàn tất mà thực hiện tách luồng:
+Khi Gemini trả về kết quả, Backend không ghi tuần tự vào MySQL để tránh giữ lock:
 
-1. Format dữ liệu và lưu ngay vào `self.memory_cache` (Tầng 1).
-2. Tạo tác vụ nền bằng `asyncio.create_task()`:
-   ```python
-   word_type = result.get("word_type", "vocabulary")
-   if word_type == "vocabulary":
-       # Lưu vào community_translations
-       asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
-       if (is_phrase or is_generic_context) and context_hash != word_only_hash:
-           self._save_to_memory_cache(word_only_hash, result)
-           asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
-   else:
-       # Ghi nhận vào invalid_selections để cách ly khỏi từ điển chính
-       asyncio.create_task(asyncio.to_thread(self._save_invalid_selection, clean_text, word_type, result.get("translated_text", "")))
-   ```
-3. Trả ngay HTTP Response 200 về Client.
+1. **Lưu cache tức thì:** Đưa vào L0 Local LRU và L1 Redis Shared Cache (`set` với TTL 30 ngày).
+2. **Ghi nhận từ điển cộng đồng:**
+   - Nếu `word_type == "vocabulary"`: Lưu bản dịch vào `community_translations`.
+   - Nếu là từ rác: Lưu vào `invalid_selections`.
+3. **Bộ đệm Write-Behind (Write-Behind Buffer):**
+   - Bộ đếm lượt xem (`hit_count`) và biến thể mới (`word_inflections`) được lưu tạm trên Redis.
+   - Định kỳ mỗi 60 giây, một background task chạy ngầm tổng hợp toàn bộ các thay đổi và thực thi câu lệnh SQL hàng loạt (`async_executemany`) với `invalidate_cache=False`.
+   - Khi server shutdown, sự kiện lifespan sẽ flush toàn bộ dữ liệu tồn đọng trong Redis vào MySQL, triệt tiêu 100% rủi ro mất dữ liệu.
+
 
 ---
 

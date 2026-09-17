@@ -1,0 +1,35 @@
+[Unit]
+Description=TOEICMaster FastAPI Backend Service
+After=network.target mysql.service redis-server.service
+Wants=mysql.service redis-server.service
+
+[Service]
+Type=notify
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/toeic-website/server
+Environment="PATH=/var/www/toeic-website/server/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin"
+EnvironmentFile=/var/www/toeic-website/server/.env
+
+# Gunicorn Multi-worker Execution with Uvicorn Workers
+ExecStart=/var/www/toeic-website/server/.venv/bin/gunicorn -c gunicorn_conf.py main:app
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Graceful process restart & recovery
+Restart=always
+RestartSec=3s
+KillMode=mixed
+TimeoutStopSec=30s
+
+# Resource Constraints & Production Safety (VPS 2GB Swap Protection)
+LimitNOFILE=65535
+MemoryMax=1500M
+MemoryHigh=1200M
+
+# Security Sandboxing
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

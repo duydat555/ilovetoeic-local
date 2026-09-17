@@ -19,6 +19,11 @@ try:
 except ImportError:
     lemminflect = None
 
+try:
+    import redis.asyncio as aioredis
+except ImportError:
+    aioredis = None
+
 from app import config
 from app.db import db
 
@@ -89,18 +94,25 @@ class GeminiTranslationService:
     def __init__(self):
         self.memory_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
         self.passage_vocabulary_cache: OrderedDict[str, Dict[str, Any]] = OrderedDict()
-        self.max_ram_cache_size = config.RAM_CACHE_MAX_SIZE
+        self.max_l0_cache_size = getattr(config, "L0_CACHE_MAX_SIZE", 1000)
+        self.max_ram_cache_size = self.max_l0_cache_size
         self.semaphore = asyncio.Semaphore(config.MAX_GEMINI_CONCURRENCY)
         self.client = (
             genai.Client(api_key=config.GEMINI_API_KEY)
             if genai and config.GEMINI_API_KEY
             else None
         )
+        self._redis_client: Optional[Any] = None
+        self._redis_ready: bool = False
+        self._init_redis_sync()
         self.stats = {
             "total_requests": 0,
             "passage_cache_hits": 0,
+            "passage_redis_hits": 0,
             "passage_prewarms": 0,
             "memory_cache_hits": 0,
+            "l0_local_hits": 0,
+            "redis_hit_count": 0,
             "direct_system_hits": 0,
             "system_vocabulary_hits": 0,
             "inflection_table_hits": 0,
@@ -110,6 +122,92 @@ class GeminiTranslationService:
             "errors": 0,
             "last_error": None,
         }
+
+    def _init_redis_sync(self):
+        if not getattr(config, "REDIS_ENABLED", True) or aioredis is None:
+            self._redis_ready = False
+            return
+        try:
+            self._redis_client = aioredis.Redis(
+                host=config.REDIS_HOST,
+                port=config.REDIS_PORT,
+                db=config.REDIS_DB,
+                password=config.REDIS_PASSWORD,
+                decode_responses=True,
+                socket_connect_timeout=1.5,
+                socket_timeout=1.5,
+                max_connections=50,
+            )
+            self._redis_ready = True
+        except Exception as err:
+            print(f"[!] Redis async init error: {err}")
+            self._redis_ready = False
+            self._redis_client = None
+
+    @property
+    def is_redis_ready(self) -> bool:
+        return self._redis_ready and self._redis_client is not None
+
+    async def _redis_get(self, key: str) -> Optional[Dict[str, Any]]:
+        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+            return None
+        try:
+            raw = await self._redis_client.get(key)
+            if raw:
+                self._redis_ready = True
+                return json.loads(raw)
+        except Exception as err:
+            self._redis_ready = False
+        return None
+
+    async def _redis_set(self, key: str, data: Dict[str, Any], ttl: int = 7 * 86400) -> bool:
+        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+            return False
+        try:
+            serialized = json.dumps(data, ensure_ascii=False)
+            await self._redis_client.set(key, serialized, ex=ttl)
+            self._redis_ready = True
+            return True
+        except Exception as err:
+            self._redis_ready = False
+            return False
+
+    async def _get_from_redis_cache(self, text_hash: str) -> Optional[Dict[str, Any]]:
+        return await self._redis_get(f"translate:word:{text_hash}")
+
+    async def _save_to_redis_cache(self, text_hash: str, data: Dict[str, Any], ttl: int = 7 * 86400) -> bool:
+        return await self._redis_set(f"translate:word:{text_hash}", data, ttl=ttl)
+
+    async def _get_passage_from_redis(self, passage_id: str) -> Optional[Dict[str, Any]]:
+        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True):
+            return None
+        try:
+            raw_dict = await self._redis_client.hgetall(f"translate:passage:{passage_id}")
+            if raw_dict:
+                self._redis_ready = True
+                return {k: json.loads(v) for k, v in raw_dict.items()}
+        except Exception as err:
+            self._redis_ready = False
+        return None
+
+    async def _save_passage_to_redis(self, passage_id: str, word_map: Dict[str, Any]) -> bool:
+        if not self._redis_client or not getattr(config, "REDIS_ENABLED", True) or not word_map:
+            return False
+        try:
+            pipe = self._redis_client.pipeline()
+            mapping = {w: json.dumps(data, ensure_ascii=False) for w, data in word_map.items()}
+            pipe.hset(f"translate:passage:{passage_id}", mapping=mapping)
+            pipe.expire(f"translate:passage:{passage_id}", 24 * 3600)
+            # Also pre-warm individual words into Redis shared cache
+            for w, data in word_map.items():
+                w_hash = self._compute_hash(w, "en", "vi", "")
+                pipe.set(f"translate:word:{w_hash}", json.dumps(data, ensure_ascii=False), ex=7 * 86400)
+            await pipe.execute()
+            self._redis_ready = True
+            return True
+        except Exception as err:
+            self._redis_ready = False
+            return False
 
     @staticmethod
     def _compute_hash(text: str, src_lang: str, target_lang: str, context: str = "") -> str:
@@ -121,6 +219,7 @@ class GeminiTranslationService:
             return None
         self.memory_cache.move_to_end(text_hash)
         self.stats["memory_cache_hits"] += 1
+        self.stats["l0_local_hits"] += 1
         return {
             **self.memory_cache[text_hash],
             "cached": True,
@@ -128,9 +227,14 @@ class GeminiTranslationService:
         }
 
     def _save_to_memory_cache(self, text_hash: str, data: Dict[str, Any]) -> None:
-        if len(self.memory_cache) >= self.max_ram_cache_size:
+        if len(self.memory_cache) >= self.max_l0_cache_size:
             self.memory_cache.popitem(last=False)
         self.memory_cache[text_hash] = data
+
+    def _save_to_passage_memory_cache(self, passage_id: str, word_map: Dict[str, Any]) -> None:
+        if len(self.passage_vocabulary_cache) >= 50:
+            self.passage_vocabulary_cache.popitem(last=False)
+        self.passage_vocabulary_cache[passage_id] = word_map
 
     def _format_system_vocabulary_record(
         self,
@@ -600,12 +704,27 @@ class GeminiTranslationService:
         context_hash = self._compute_hash(clean_text, src_lang, target_lang, context)
         word_only_hash = self._compute_hash(clean_text, src_lang, target_lang, "")
 
-        # Tier 1: In-Memory RAM Cache (check context hash, then word-only hash if generic)
+        # Tier 1 (L0): In-Memory RAM Cache (check context hash, then word-only hash if generic)
         memory_result = self._get_from_memory_cache(context_hash)
         if not memory_result and is_generic_context:
             memory_result = self._get_from_memory_cache(word_only_hash)
         if memory_result:
             return memory_result
+
+        # Tier 1 (L1): Redis Shared Cache (distributed across all workers/instances)
+        redis_result = await self._get_from_redis_cache(context_hash)
+        if not redis_result and is_generic_context:
+            redis_result = await self._get_from_redis_cache(word_only_hash)
+        if redis_result:
+            self.stats["redis_hit_count"] += 1
+            self._save_to_memory_cache(context_hash, redis_result)
+            if is_generic_context:
+                self._save_to_memory_cache(word_only_hash, redis_result)
+            return {
+                **redis_result,
+                "cached": True,
+                "cache_source": "redis",
+            }
 
         # Tier 2: Local MySQL System Vocabulary + Lemmatization (ultra-fast 2-4ms lookup)
         if src_lang == "en" and target_lang == "vi":
@@ -617,6 +736,8 @@ class GeminiTranslationService:
                     self.stats["direct_system_hits"] += 1
                 self._save_to_memory_cache(context_hash, system_result)
                 self._save_to_memory_cache(word_only_hash, system_result)
+                asyncio.create_task(self._save_to_redis_cache(context_hash, system_result, ttl=7 * 86400))
+                asyncio.create_task(self._save_to_redis_cache(word_only_hash, system_result, ttl=7 * 86400))
                 return system_result
 
         # Tier 3: MySQL community_translations (Self-Healing Cache with strict context keying)
@@ -633,14 +754,17 @@ class GeminiTranslationService:
             self.stats["community_translation_hits"] += 1
             result = self._format_community_translation_result(community_result, clean_text)
             self._save_to_memory_cache(context_hash, result)
+            asyncio.create_task(self._save_to_redis_cache(context_hash, result, ttl=30 * 86400))
             if is_generic_context or is_phrase:
                 self._save_to_memory_cache(word_only_hash, result)
+                asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
             return result
 
         # Tier 3.5: MySQL invalid_selections (chuỗi đã biết là rác/tên riêng đã được ghi nhớ)
         invalid_record = await asyncio.to_thread(self._get_invalid_selection, clean_text)
         if invalid_record:
             self.stats["memory_cache_hits"] += 1
+            self.stats["l0_local_hits"] += 1
             w_type = invalid_record.get("word_type") or "invalid_selection"
             default_txt = "Tên riêng" if w_type == "proper_noun" else "Lựa chọn không hợp lệ"
             res = {
@@ -656,6 +780,7 @@ class GeminiTranslationService:
                 "cache_source": "invalid_selections",
             }
             self._save_to_memory_cache(context_hash, res)
+            asyncio.create_task(self._save_to_redis_cache(context_hash, res, ttl=7 * 86400))
             return res
 
         # Tier 4: Gemini API fallback with Concurrency Semaphore
@@ -706,14 +831,16 @@ class GeminiTranslationService:
             "cache_source": "gemini_api",
         })
         self._save_to_memory_cache(context_hash, result)
-
         word_type = result.get("word_type", "vocabulary")
+        asyncio.create_task(self._save_to_redis_cache(context_hash, result, ttl=30 * 86400 if word_type == "vocabulary" else 7 * 86400))
+
         # CHỈ lưu vào community_translations khi là từ vựng học tập hợp lệ ("vocabulary")
         if word_type == "vocabulary":
             asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, context_hash, result, context))
             # Phrases (collocations, idioms) or generic context safely cache the base word-only key
             if (is_phrase or is_generic_context) and context_hash != word_only_hash:
                 self._save_to_memory_cache(word_only_hash, result)
+                asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
                 asyncio.create_task(asyncio.to_thread(self._save_community_translation, clean_text, word_only_hash, result, ""))
         else:
             # Ghi nhớ vào bảng invalid_selections để nhận diện chuỗi này là tên riêng/chuỗi rác mà không ô nhiễm từ điển
@@ -721,17 +848,18 @@ class GeminiTranslationService:
 
         return result
 
-    def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
+    async def get_passage_vocabulary(self, passage_id: str) -> Dict[str, Any]:
         """
         Pre-warms and retrieves vocabulary for a passage by passage_id.
-        Extracts all English tokens, performs batch queries against system vocabulary
-        and word inflections, pre-populates memory cache, and returns a dict mapping
+        First checks L0 local memory, then L1 Redis shared cache.
+        If missed, extracts all English tokens, performs batch queries against system vocabulary
+        and word inflections, pre-populates L0 and L1 Redis caches, and returns a dict mapping
         normalized words to formatted WordTranslation objects.
         """
         if not passage_id:
             return {"passage_id": passage_id, "words": {}}
 
-        # Check in-memory passage cache first
+        # 1. Check in-memory L0 passage cache first
         if passage_id in self.passage_vocabulary_cache:
             self.stats["passage_cache_hits"] += 1
             self.passage_vocabulary_cache.move_to_end(passage_id)
@@ -740,9 +868,29 @@ class GeminiTranslationService:
                 "words": self.passage_vocabulary_cache[passage_id],
                 "count": len(self.passage_vocabulary_cache[passage_id]),
                 "cached": True,
+                "cache_source": "memory",
             }
 
-        passage = db.fetch_one(
+        # 2. Check L1 Redis shared cache (cross-worker / cross-instance)
+        redis_passage = await self._get_passage_from_redis(passage_id)
+        if redis_passage:
+            self.stats["passage_redis_hits"] += 1
+            self._save_to_passage_memory_cache(passage_id, redis_passage)
+            # Pre-warm local L0 word cache
+            for w, formatted in redis_passage.items():
+                w_hash = self._compute_hash(w, "en", "vi", "")
+                self._save_to_memory_cache(w_hash, formatted)
+            return {
+                "passage_id": passage_id,
+                "words": redis_passage,
+                "count": len(redis_passage),
+                "cached": True,
+                "cache_source": "redis",
+            }
+
+        # 3. Fallback: Query MySQL database
+        passage = await asyncio.to_thread(
+            db.fetch_one,
             """
             SELECT id, passage_text, passage_text_2, passage_text_3, transcript
             FROM passages
@@ -750,7 +898,7 @@ class GeminiTranslationService:
             LIMIT 1
             """,
             (passage_id,),
-            use_cache=True,
+            True,
         )
         if not passage:
             return {"passage_id": passage_id, "words": {}}
@@ -774,7 +922,8 @@ class GeminiTranslationService:
 
         # 1. Batch query direct matches in system_vocabulary_words
         format_strings = ",".join(["?"] * len(words))
-        direct_rows = db.fetch_all(
+        direct_rows = await asyncio.to_thread(
+            db.fetch_all,
             f"""
             SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
                    example_en, example_vi, example_toeic, audio_us, audio_uk, 
@@ -784,7 +933,7 @@ class GeminiTranslationService:
             ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
             """,
             tuple(words),
-            use_cache=True,
+            True,
         )
 
         for row in direct_rows:
@@ -792,7 +941,7 @@ class GeminiTranslationService:
             if w not in word_map:
                 formatted = self._format_system_vocabulary_record(row, w)
                 word_map[w] = formatted
-                # Pre-warm general memory cache
+                # Pre-warm general L0 memory cache
                 w_hash = self._compute_hash(w, "en", "vi", "")
                 self._save_to_memory_cache(w_hash, formatted)
 
@@ -801,17 +950,19 @@ class GeminiTranslationService:
         # 2. Batch query inflections for missing words
         if missing:
             inf_fmts = ",".join(["?"] * len(missing))
-            inf_rows = db.fetch_all(
+            inf_rows = await asyncio.to_thread(
+                db.fetch_all,
                 f"SELECT inflected_form, lemma_word FROM word_inflections WHERE inflected_form IN ({inf_fmts})",
                 tuple(missing),
-                use_cache=True,
+                True,
             )
             inf_dict = {r["inflected_form"].lower(): r["lemma_word"].lower() for r in inf_rows}
             lemmas_to_fetch = sorted(list(set(inf_dict.values())))
 
             if lemmas_to_fetch:
                 lem_fmts = ",".join(["?"] * len(lemmas_to_fetch))
-                lemma_rows = db.fetch_all(
+                lemma_rows = await asyncio.to_thread(
+                    db.fetch_all,
                     f"""
                     SELECT word, ipa, cefr, part_of_speech, meaning_vi, definition_en, 
                            example_en, example_vi, example_toeic, audio_us, audio_uk, 
@@ -821,7 +972,7 @@ class GeminiTranslationService:
                     ORDER BY (set_id IN ('1e3e6ebb-26a1-52f6-bdc5-1d743722fae2', '21793dec-3c53-4e8b-923a-72a2a3bf491a')) DESC, order_index ASC
                     """,
                     tuple(lemmas_to_fetch),
-                    use_cache=True,
+                    True,
                 )
                 lemma_record_map = {r["word"].lower(): r for r in lemma_rows}
 
@@ -829,14 +980,15 @@ class GeminiTranslationService:
                     if lemma in lemma_record_map and inf_word not in word_map:
                         formatted = self._format_system_vocabulary_record(lemma_record_map[lemma], inf_word, lemma)
                         word_map[inf_word] = formatted
-                        # Pre-warm general memory cache
+                        # Pre-warm general L0 memory cache
                         w_hash = self._compute_hash(inf_word, "en", "vi", "")
                         self._save_to_memory_cache(w_hash, formatted)
 
-        # Cache in LRU
-        if len(self.passage_vocabulary_cache) >= 200:
-            self.passage_vocabulary_cache.popitem(last=False)
-        self.passage_vocabulary_cache[passage_id] = word_map
+        # Cache in L0 LRU
+        self._save_to_passage_memory_cache(passage_id, word_map)
+
+        # Cache in L1 Redis (both passage hash map and individual word keys)
+        asyncio.create_task(self._save_passage_to_redis(passage_id, word_map))
 
         return {
             "passage_id": passage_id,
@@ -856,9 +1008,22 @@ class GeminiTranslationService:
         text_hash = self._compute_hash(clean_text, "en", "vi", detail_context)
         word_only_hash = self._compute_hash(clean_text, "en", "vi", f"dictionary-detail:{section}")
 
+        # L0 memory cache check
         memory_result = self._get_from_memory_cache(text_hash) or self._get_from_memory_cache(word_only_hash)
         if memory_result:
             return memory_result
+
+        # L1 Redis shared cache check
+        redis_result = await self._get_from_redis_cache(text_hash) or await self._get_from_redis_cache(word_only_hash)
+        if redis_result:
+            self.stats["redis_hit_count"] += 1
+            self._save_to_memory_cache(text_hash, redis_result)
+            self._save_to_memory_cache(word_only_hash, redis_result)
+            return {
+                **redis_result,
+                "cached": True,
+                "cache_source": "redis",
+            }
 
         # System vocabulary detail lookup
         system_detail = await asyncio.to_thread(self._lookup_system_vocabulary_detail, clean_text, section)
@@ -867,6 +1032,8 @@ class GeminiTranslationService:
             self.stats["system_vocabulary_hits"] += 1
             self._save_to_memory_cache(text_hash, system_detail)
             self._save_to_memory_cache(word_only_hash, system_detail)
+            asyncio.create_task(self._save_to_redis_cache(text_hash, system_detail, ttl=7 * 86400))
+            asyncio.create_task(self._save_to_redis_cache(word_only_hash, system_detail, ttl=7 * 86400))
             return system_detail
 
         if not self.client:
@@ -909,6 +1076,8 @@ class GeminiTranslationService:
         })
         self._save_to_memory_cache(text_hash, result)
         self._save_to_memory_cache(word_only_hash, result)
+        asyncio.create_task(self._save_to_redis_cache(text_hash, result, ttl=30 * 86400))
+        asyncio.create_task(self._save_to_redis_cache(word_only_hash, result, ttl=30 * 86400))
         return result
 
     @staticmethod
@@ -1152,7 +1321,9 @@ Keep every item concise and accurate for a Vietnamese learner.
     def get_cache_stats(self) -> Dict[str, Any]:
         local_hits = (
             self.stats.get("passage_cache_hits", 0)
+            + self.stats.get("passage_redis_hits", 0)
             + self.stats.get("memory_cache_hits", 0)
+            + self.stats.get("redis_hit_count", 0)
             + self.stats.get("direct_system_hits", 0)
             + self.stats.get("inflection_table_hits", 0)
             + self.stats.get("community_translation_hits", 0)
@@ -1179,9 +1350,14 @@ Keep every item concise and accurate for a Vietnamese learner.
             "metrics": self.stats,
             "hit_rate_percent": round((local_hits / total) * 100, 2) if total else 0.0,
             "gemini_offload_percent": round((local_hits / total) * 100, 2) if total else 0.0,
+            "l0_cache_current_size": len(self.memory_cache),
+            "l0_cache_max_capacity": self.max_l0_cache_size,
             "ram_cache_current_size": len(self.memory_cache),
             "ram_cache_max_capacity": self.max_ram_cache_size,
             "passage_cache_current_size": len(self.passage_vocabulary_cache),
+            "redis_connected": self.is_redis_ready,
+            "redis_hit_count": self.stats.get("redis_hit_count", 0),
+            "l0_local_hits": self.stats.get("l0_local_hits", 0),
             "word_inflections_count": inflections_count,
             "community_translations_count": community_count,
             "invalid_selections_count": invalid_count,

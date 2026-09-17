@@ -81,7 +81,7 @@ async def translate_detail(req: TranslationDetailRequest):
 async def get_passage_vocabulary(passage_id: str):
     if not passage_id or not passage_id.strip():
         raise HTTPException(status_code=400, detail="passage_id không được để trống.")
-    return await asyncio.to_thread(gemini_service.get_passage_vocabulary, passage_id.strip())
+    return await gemini_service.get_passage_vocabulary(passage_id.strip())
 
 @router.get("/cache-stats", summary="Thống kê hiệu quả bộ nhớ Cache & Tải hệ thống")
 def get_cache_stats():

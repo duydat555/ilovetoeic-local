@@ -1,8 +1,9 @@
 import logging
 import time
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.db import db
+from app.security import get_current_user
 from app.services.cache_service import cache_service
 
 logger = logging.getLogger("practice_router")
@@ -330,3 +331,76 @@ def get_test_part(test_id: str, part_num: int, response: Response):
     _L0_TIMESTAMPS[cache_key] = now
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
     return result
+
+
+@router.get("/practice-by-level/stats")
+def get_user_level_stats(
+    user=Depends(get_current_user),
+):
+    """Retrieve precomputed Part levels and Average Level for the current user."""
+    user_id = user["id"]
+    cache_key = f"user:level_stats:{user_id}"
+
+    # 1. Redis cache lookup (< 1ms)
+    try:
+        cached = cache_service.get(cache_key)
+        if cached is not None:
+            return cached
+    except Exception as err:
+        logger.warning(f"Error reading Redis level stats for {user_id}: {err}")
+
+    # 2. Query user_level_stats
+    rows = db.fetch_all(
+        "SELECT part, max_level_achieved FROM user_level_stats WHERE user_id = ? ORDER BY part ASC",
+        (user_id,),
+        use_cache=False,
+    )
+
+    # 3. Lazy backfill if user_level_stats is empty for this user
+    if not rows:
+        db.execute(
+            """
+            INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+            SELECT user_id, part, MAX(level), NOW()
+            FROM test_attempts
+            WHERE user_id = ?
+              AND mode = 'practice'
+              AND accuracy_rate >= 70
+              AND level IS NOT NULL
+              AND part IS NOT NULL
+            GROUP BY user_id, part
+            ON DUPLICATE KEY UPDATE
+                max_level_achieved = VALUES(max_level_achieved),
+                updated_at = NOW()
+            """,
+            (user_id,),
+        )
+        rows = db.fetch_all(
+            "SELECT part, max_level_achieved FROM user_level_stats WHERE user_id = ? ORDER BY part ASC",
+            (user_id,),
+            use_cache=False,
+        )
+
+    parts = [
+        {"part": int(r["part"]), "max_level": int(r["max_level_achieved"])}
+        for r in rows
+    ]
+    avg_level = (
+        round(sum(p["max_level"] for p in parts) / len(parts), 2)
+        if parts
+        else None
+    )
+
+    data = {
+        "success": True,
+        "parts": parts,
+        "average_level": avg_level,
+    }
+
+    # 4. Cache in Redis
+    try:
+        cache_service.set(cache_key, data, ttl_seconds=86400)
+    except Exception as err:
+        logger.warning(f"Error saving Redis level stats for {user_id}: {err}")
+
+    return data

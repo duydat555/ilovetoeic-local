@@ -61,6 +61,7 @@ export const PracticeByLevelPage: React.FC = () => {
   );
   const [counts, setCounts] = useState<CountMap>(createFallbackCounts);
   const [attempts, setAttempts] = useState<StudyAttempt[]>([]);
+  const [levelStats, setLevelStats] = useState<{ average_level: number | null; parts: Array<{ part: number; max_level: number }> } | null>(null);
   const [wrongCounts, setWrongCounts] = useState<Record<string, number>>({});
   const [deleteScope, setDeleteScope] = useState<DeleteHistoryScope | null>(null);
   const [deletingWrong, setDeletingWrong] = useState(false);
@@ -73,10 +74,11 @@ export const PracticeByLevelPage: React.FC = () => {
     let active = true;
     const loadPageData = async () => {
       setIsLoading(true);
-      const [countResult, historyResult, wrongResult] = await Promise.allSettled([
+      const [countResult, historyResult, wrongResult, statsResult] = await Promise.allSettled([
         apiService.getPracticeLevelSummary(),
         user ? backendService.getStudyHistory(user.id) : Promise.resolve([]),
         user ? backendService.getWrongQuestions('level') : Promise.resolve([]),
+        user ? backendService.getPracticeLevelStats() : Promise.resolve(null),
       ]);
       if (!active) return;
 
@@ -95,6 +97,9 @@ export const PracticeByLevelPage: React.FC = () => {
         setUsingFallback(true);
       }
 
+      if (statsResult.status === 'fulfilled' && statsResult.value) {
+        setLevelStats(statsResult.value);
+      }
       if (historyResult.status === 'fulfilled' && Array.isArray(historyResult.value)) {
         setAttempts(historyResult.value);
       }
@@ -164,9 +169,12 @@ export const PracticeByLevelPage: React.FC = () => {
     .sort((a, b) => a.part - b.part), [completedByPart]);
 
   const averageLevel = useMemo(() => {
+    if (levelStats?.average_level !== undefined && levelStats.average_level !== null) {
+      return levelStats.average_level;
+    }
     if (currentPartLevels.length === 0) return null;
     return currentPartLevels.reduce((total, item) => total + item.level, 0) / currentPartLevels.length;
-  }, [currentPartLevels]);
+  }, [levelStats, currentPartLevels]);
 
   const visibleParts = PRACTICE_LEVEL_PARTS.filter((part) => part.skill === skill);
 

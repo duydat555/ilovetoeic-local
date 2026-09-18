@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.db import db
 from app.notifications import create_notification
+from app.services.cache_service import cache_service
 from app.security import (
     active_streak_days,
     get_current_user,
@@ -172,6 +173,7 @@ def _handle_study_attempt_side_effects(
     attempt_id: str,
     mode: str,
     part: Optional[int],
+    level: Optional[int],
     test_name: Optional[str],
     metadata: dict,
     correct_answers: int,
@@ -225,6 +227,23 @@ def _handle_study_attempt_side_effects(
         user["current_score"] = new_score
     except Exception as exc:
         logger.warning(f"Failed to update user score/streak in background for {user.get('id')}: {exc}")
+
+    # If this is a qualifying level practice attempt (accuracyRate >= 70%), incrementally update user_level_stats
+    if mode == "practice" and part is not None and level is not None and accuracy_rate >= 70.0:
+        try:
+            db.execute(
+                """
+                INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+                VALUES (?, ?, ?, NOW())
+                ON DUPLICATE KEY UPDATE
+                    max_level_achieved = GREATEST(max_level_achieved, VALUES(max_level_achieved)),
+                    updated_at = NOW()
+                """,
+                (user["id"], part, level),
+            )
+            cache_service.delete(f"user:level_stats:{user['id']}")
+        except Exception as exc:
+            logger.warning(f"Failed to update user_level_stats in background for {user.get('id')}: {exc}")
 
     try:
         activity_name = test_name or metadata.get("test_name") or (
@@ -322,6 +341,7 @@ def save_study_attempt(
         attempt_id=payload.id,
         mode=payload.mode,
         part=payload.part,
+        level=level_val,
         test_name=payload.testName,
         metadata=metadata,
         correct_answers=payload.correctAnswers,
@@ -912,6 +932,32 @@ def delete_study_attempts(
                 """,
                 (user_id, user_id),
             )
+
+            # If level attempts or all attempts were deleted, refresh user_level_stats
+            if source_type in ("all", "level"):
+                if source_type == "all":
+                    cursor.execute("DELETE FROM user_level_stats WHERE user_id = %s", (user_id,))
+                elif source_type == "level" and part is not None:
+                    cursor.execute(
+                        "DELETE FROM user_level_stats WHERE user_id = %s AND part = %s",
+                        (user_id, part),
+                    )
+                    cursor.execute(
+                        """
+                        INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+                        SELECT user_id, part, MAX(level), NOW()
+                        FROM test_attempts
+                        WHERE user_id = %s AND mode = 'practice' AND part = %s AND accuracy_rate >= 70 AND level IS NOT NULL
+                        GROUP BY user_id, part
+                        """,
+                        (user_id, part),
+                    )
+
+    if source_type in ("all", "level"):
+        try:
+            cache_service.delete(f"user:level_stats:{user_id}")
+        except Exception as exc:
+            logger.warning(f"Failed to invalidate level_stats cache for {user_id}: {exc}")
 
     return {"success": True, "deletedCount": deleted_count}
 

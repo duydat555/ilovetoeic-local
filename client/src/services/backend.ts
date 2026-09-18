@@ -584,6 +584,23 @@ export const backendService = {
     }
   },
 
+  async getPracticeLevelStats(): Promise<{
+    success: boolean;
+    average_level: number | null;
+    parts: Array<{ part: number; max_level: number }>;
+  } | null> {
+    try {
+      return await authFetch<{
+        success: boolean;
+        average_level: number | null;
+        parts: Array<{ part: number; max_level: number }>;
+      }>('/practice-by-level/stats');
+    } catch (error) {
+      console.warn('[!] Không thể tải thống kê Level từ MySQL:', error);
+      return null;
+    }
+  },
+
   async getStudySummary() {
     return authFetch<{
       totalQuestions: number;

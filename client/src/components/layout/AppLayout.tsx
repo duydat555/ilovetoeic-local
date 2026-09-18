@@ -107,7 +107,7 @@ export const AppLayout: React.FC = () => {
           ref={mainRef}
           className={
             isTestRunnerPage
-              ? 'relative flex-1 w-full max-w-[1540px] mx-auto p-1.5 sm:p-2.5 h-[calc(100vh-72px)] overflow-hidden flex flex-col'
+              ? 'relative flex-1 w-full max-w-[1540px] mx-auto p-1.5 sm:p-2.5 h-[calc(100dvh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden flex flex-col'
               : 'relative flex-1 w-full max-w-[1540px] mx-auto p-3 sm:p-4 md:p-5 overflow-x-hidden overflow-y-auto'
           }
         >

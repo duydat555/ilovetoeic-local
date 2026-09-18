@@ -164,14 +164,14 @@ export const ActiveTimeTracker: React.FC = () => {
         }}
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.97 }}
-        className="flex items-center gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-xs font-extrabold text-emerald-700 shadow-xs transition-colors duration-200 hover:bg-emerald-500/20 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300 sm:text-sm"
+        className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-extrabold text-emerald-700 shadow-xs transition-colors duration-200 hover:bg-emerald-500/20 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-300 sm:text-sm shrink-0"
         aria-label={`Thời gian hoạt động hôm nay: ${formatShortTime(seconds)}`}
       >
-        <span className="relative flex size-2.5 items-center justify-center">
+        <span className="relative flex size-2 sm:size-2.5 items-center justify-center shrink-0">
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+          <span className="relative inline-flex size-1.5 sm:size-2 rounded-full bg-emerald-500" />
         </span>
-        <Clock className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+        <Clock className="size-3 sm:size-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
         <span className="inline-flex items-center gap-0.5">
           <span>{formatShortTime(seconds)}</span>
         </span>

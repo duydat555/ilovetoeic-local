@@ -85,15 +85,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between gap-4 border-b border-line bg-surface/80 px-4 backdrop-blur-2xl transition-colors duration-300 md:px-7">
+    <header className="sticky top-0 z-30 flex h-14 sm:h-[72px] items-center justify-between gap-1.5 sm:gap-4 border-b border-line bg-surface/80 px-2.5 sm:px-4 backdrop-blur-2xl transition-colors duration-300 md:px-7">
       {/* Mobile Menu Trigger & Search */}
-      <div className="flex items-center gap-3 flex-1 max-w-md">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 sm:flex-1 sm:max-w-md">
         <button
           onClick={onOpenMobileMenu}
           aria-label="Mở menu di động"
-          className="rounded-lg p-2 text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content md:hidden"
+          className="rounded-lg p-1.5 sm:p-2 text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content md:hidden shrink-0"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="size-5 sm:size-6" />
         </button>
 
         <div id="tour-search" className="relative w-full hidden sm:block group">
@@ -107,17 +107,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
       </div>
 
       {/* Header Actions */}
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex items-center gap-1 sm:gap-2.5 md:gap-3.5 shrink-0">
         {/* Streak Counter */}
         {user && !isAdminArea && (
           <div
             id="tour-streak"
-            className="flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 shadow-sm dark:text-amber-400 sm:text-sm"
+            className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-bold text-amber-600 shadow-xs dark:text-amber-400 sm:text-sm shrink-0"
             role="status"
             aria-live="polite"
             title={`${t('header.streakTitle')}: ${user.streakDays} ${t('header.streakDays')}`}
           >
-            <Flame className="w-4 h-4 fill-amber-500 text-amber-500" />
+            <Flame className="size-3.5 sm:size-4 fill-amber-500 text-amber-500 shrink-0" />
             <span className="inline-flex items-center gap-1">
               <AnimatePresence initial={false} mode="popLayout">
                 <motion.span
@@ -135,33 +135,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           </div>
         )}
 
-        {/* Active Session Time Tracker */}
+        {/* Active Session Time Tracker - ẩn trên màn hình siêu hẹp (<400px) để không che các nút chức năng */}
         {user && (
-          <div id="tour-active-time">
+          <div id="tour-active-time" className="hidden min-[400px]:block shrink-0">
             <ActiveTimeTracker />
           </div>
         )}
 
-        {/* Quick Tour Guide Button */}
+        {/* Quick Tour Guide Button - Chỉ hiển thị trên tablet/desktop, mobile có trong menu tài khoản */}
         <motion.button
           id="tour-help-button"
           onClick={() => startWebsiteTour({ type: 'auto', force: true })}
           whileTap={{ scale: 0.9 }}
           aria-label={t('header.helpTitle')}
           title={t('header.helpTitle')}
-          className="grid size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content"
+          className="hidden md:grid size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content shrink-0"
         >
           <HelpCircle className="size-5" />
         </motion.button>
 
-        {/* Language Switcher */}
+        {/* Language Switcher - Tối ưu kích thước trên mobile chống tràn và che khuất */}
         <motion.button
           id="tour-language-toggle"
           onClick={toggleLanguage}
           whileTap={{ scale: 0.92 }}
           aria-label={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
           title={language === 'vi' ? 'Switch to English' : 'Chuyển sang Tiếng Việt'}
-          className="flex h-9 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-2.5 text-xs font-bold text-content transition-all duration-200 hover:border-brand/40 hover:bg-surface-hover"
+          className="flex h-8 sm:h-9 items-center justify-center gap-1 rounded-xl border border-line bg-surface px-1.5 sm:px-2.5 text-[11px] sm:text-xs font-bold text-content transition-all duration-200 hover:border-brand/40 hover:bg-surface-hover shrink-0"
         >
           <span className={`transition-colors ${language === 'vi' ? 'font-black text-accent-strong' : 'font-semibold text-content-muted'}`}>
             VI
@@ -179,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
           whileTap={{ scale: 0.9 }}
           aria-label={isDarkMode ? t('header.themeLight') : t('header.themeDark')}
           aria-pressed={isDarkMode}
-          className="grid size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content"
+          className="grid size-8 sm:size-10 place-items-center rounded-xl text-content-muted transition-colors duration-300 hover:bg-surface-hover hover:text-content shrink-0"
         >
           <AnimatePresence initial={false} mode="wait">
             <motion.span
@@ -190,14 +190,14 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
               transition={{ duration: 0.2, ease: 'easeInOut' }}
             >
               {isDarkMode
-                ? <Sun className="size-5 text-amber-400" />
-                : <Moon className="size-5 text-slate-600" />}
+                ? <Sun className="size-4 sm:size-5 text-amber-400" />
+                : <Moon className="size-4 sm:size-5 text-slate-600" />}
             </motion.span>
           </AnimatePresence>
         </motion.button>
 
         {/* Notification Dropdown */}
-        <div id="tour-notifications" className="relative" ref={notificationsMenuRef}>
+        <div id="tour-notifications" className="relative shrink-0" ref={notificationsMenuRef}>
           <button
             onClick={() => {
               setShowNotifications(!showNotifications);
@@ -206,9 +206,9 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             aria-label={unreadCount > 0 ? `Thông báo, ${unreadCount} chưa đọc` : 'Thông báo'}
             aria-expanded={showNotifications}
             aria-controls="header-notification-panel"
-            className={`relative rounded-xl p-2.5 transition-colors duration-200 hover:bg-surface-hover hover:text-content ${showNotifications ? 'bg-surface-hover text-content' : 'text-content-muted'}`}
+            className={`relative flex size-8 sm:size-10 items-center justify-center rounded-xl p-1.5 sm:p-2.5 transition-colors duration-200 hover:bg-surface-hover hover:text-content ${showNotifications ? 'bg-surface-hover text-content' : 'text-content-muted'}`}
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="size-4 sm:size-5" />
             <AnimatePresence initial={false}>
               {unreadCount > 0 && (
                 <motion.span
@@ -217,7 +217,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.6 }}
                   transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="absolute -right-0.5 -top-0.5 grid min-h-4 min-w-4 place-items-center rounded-full border-2 border-surface bg-brand px-0.5 text-[9px] font-black leading-none text-brand-ink"
+                  className="absolute -right-0.5 -top-0.5 grid min-h-3.5 min-w-3.5 sm:min-h-4 sm:min-w-4 place-items-center rounded-full border-2 border-surface bg-brand px-0.5 text-[8px] sm:text-[9px] font-black leading-none text-brand-ink"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </motion.span>
@@ -233,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.985 }}
                 transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                className="fixed inset-x-3 top-[66px] z-50 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_70px_-28px_rgba(15,23,42,0.55)] dark:shadow-none sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[25rem]"
+                className="fixed inset-x-3 top-[58px] sm:top-auto z-50 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_70px_-28px_rgba(15,23,42,0.55)] dark:shadow-none sm:absolute sm:inset-x-auto sm:right-0 sm:mt-2 sm:w-[25rem]"
                 aria-label="Danh sách thông báo gần đây"
               >
                 <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3.5">
@@ -314,19 +314,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
 
         {/* User Account Menu */}
         {user ? (
-          <div id="tour-user-menu" className="relative" ref={userMenuRef}>
+          <div id="tour-user-menu" className="relative shrink-0" ref={userMenuRef}>
             <button
               onClick={() => {
                 setShowUserMenu(!showUserMenu);
                 setShowNotifications(false);
               }}
               aria-label="Menu tài khoản"
-              className="flex items-center gap-2 rounded-xl p-1 transition-colors duration-300 hover:bg-surface-hover"
+              className="flex items-center gap-1.5 sm:gap-2 rounded-xl p-0.5 sm:p-1 transition-colors duration-300 hover:bg-surface-hover shrink-0"
             >
               <img
                 src={user.avatar || getDiceBearAvatar(user.name)}
                 alt={user.name}
-                className="w-8 h-8 rounded-full object-cover ring-2 ring-brand/20"
+                className="size-7 sm:size-8 rounded-full object-cover ring-2 ring-brand/20 shrink-0"
               />
               <span className="hidden max-w-[120px] truncate text-sm font-semibold text-content lg:block">
                 {user.name}
@@ -395,7 +395,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
         ) : (
           <Link
             to="/login"
-            className="px-4 py-2 text-sm font-semibold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl transition-colors shadow-sm"
+            className="flex h-8 sm:h-9 items-center justify-center px-2.5 sm:px-4 text-xs sm:text-sm font-semibold text-brand-ink bg-brand hover:bg-brand-hover rounded-xl transition-colors shadow-xs shrink-0"
           >
             {t('header.login')}
           </Link>

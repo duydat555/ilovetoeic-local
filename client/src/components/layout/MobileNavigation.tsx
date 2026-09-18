@@ -1,10 +1,11 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Globe, Moon, Sun, X } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 import { BrandName } from '../common/BrandName';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getNavigationForRole, NAV_TRANSLATION_KEYS } from '../../config/navigation';
 import { getUserRole } from '../../utils/rbac';
 import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
@@ -18,7 +19,8 @@ interface MobileNavigationProps {
 
 export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onClose }) => {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { language, toggleLanguage, t } = useLanguage();
+  const { isDarkMode, toggleTheme } = useTheme();
   const role = getUserRole(user);
   const location = useLocation();
   const navigationRole = role === 'admin' && location.pathname.startsWith('/admin') ? 'admin' : 'student';
@@ -98,6 +100,68 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onCl
               </NavLink>
             );
           })}
+        </div>
+
+        {/* Drawer Footer: Language & Theme Controls */}
+        <div className="border-t border-line p-3.5 space-y-2.5 bg-surface/50">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-content-muted flex items-center gap-1.5">
+              <Globe className="size-3.5" />
+              <span>{language === 'vi' ? 'Ngôn ngữ' : 'Language'}</span>
+            </span>
+            <div className="flex items-center rounded-xl border border-line bg-surface p-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  if (language !== 'vi') toggleLanguage();
+                }}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  language === 'vi'
+                    ? 'bg-brand text-brand-ink shadow-xs'
+                    : 'text-content-muted hover:text-content'
+                }`}
+              >
+                Tiếng Việt
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (language !== 'en') toggleLanguage();
+                }}
+                className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${
+                  language === 'en'
+                    ? 'bg-brand text-brand-ink shadow-xs'
+                    : 'text-content-muted hover:text-content'
+                }`}
+              >
+                English
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-content-muted flex items-center gap-1.5">
+              {isDarkMode ? <Moon className="size-3.5 text-slate-400" /> : <Sun className="size-3.5 text-amber-500" />}
+              <span>{isDarkMode ? (language === 'vi' ? 'Chế độ tối' : 'Dark Mode') : (language === 'vi' ? 'Chế độ sáng' : 'Light Mode')}</span>
+            </span>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-2.5 py-1 text-xs font-bold text-content hover:bg-surface-hover transition-colors"
+            >
+              {isDarkMode ? (
+                <>
+                  <Sun className="size-3.5 text-amber-400" />
+                  <span>{language === 'vi' ? 'Sáng' : 'Light'}</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="size-3.5 text-slate-600" />
+                  <span>{language === 'vi' ? 'Tối' : 'Dark'}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </>

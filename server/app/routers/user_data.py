@@ -1,9 +1,10 @@
 import json
+import logging
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.db import db
@@ -15,6 +16,7 @@ from app.security import (
     normalize_date,
 )
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["User data"])
 
@@ -37,26 +39,35 @@ def parse_json(value, fallback):
         return fallback
 
 
-def record_practice_streak(user):
-    """Mark a day active when at least one practice answer reaches the database."""
-    today = date.today()
-    last_date = normalize_date(user.get("last_study_date"))
-    current_streak = active_streak_days(user)
-    if last_date == today:
-        streak = max(current_streak, 1)
-    elif last_date == today - timedelta(days=1):
-        streak = current_streak + 1
-    else:
-        streak = 1
-    longest = max(int(user.get("longest_streak") or 0), streak)
-    db.execute(
-        """
-        UPDATE users
-        SET streak_days = ?, longest_streak = ?, last_study_date = ?
-        WHERE id = ?
-        """,
-        (streak, longest, today, user["id"]),
-    )
+def record_practice_streak(user: dict) -> None:
+    """Mark a day active when at least one practice answer reaches the database.
+    Early-exits if the user has already recorded activity today.
+    """
+    try:
+        today = date.today()
+        last_date = normalize_date(user.get("last_study_date"))
+        if last_date == today:
+            return
+
+        current_streak = active_streak_days(user)
+        if last_date == today - timedelta(days=1):
+            streak = current_streak + 1
+        else:
+            streak = 1
+        longest = max(int(user.get("longest_streak") or 0), streak)
+        db.execute(
+            """
+            UPDATE users
+            SET streak_days = ?, longest_streak = ?, last_study_date = ?
+            WHERE id = ?
+            """,
+            (streak, longest, today, user["id"]),
+        )
+        user["last_study_date"] = today
+        user["streak_days"] = streak
+        user["longest_streak"] = longest
+    except Exception as exc:
+        logger.warning(f"Failed to record practice streak for user {user.get('id')}: {exc}")
 
 
 class StudyAttemptPayload(BaseModel):
@@ -139,10 +150,89 @@ class PracticeSessionPayload(BaseModel):
     annotations: Dict[str, Any] = Field(default_factory=dict)
 
 
+def _handle_study_attempt_side_effects(
+    user: dict,
+    attempt_id: str,
+    mode: str,
+    part: Optional[int],
+    test_name: Optional[str],
+    metadata: dict,
+    correct_answers: int,
+    total_questions: int,
+    accuracy_rate: float,
+) -> None:
+    """Execute streak update, exam score recalculation, and notification in the background."""
+    try:
+        today = date.today()
+        last_date = normalize_date(user.get("last_study_date"))
+        current_streak = active_streak_days(user)
+        if last_date == today:
+            streak = max(current_streak, 1)
+        elif last_date == today - timedelta(days=1):
+            streak = current_streak + 1
+        else:
+            streak = 1
+        longest = max(int(user.get("longest_streak") or 0), streak)
+
+        # Only the best fully answered, non-Part TOEIC exam contributes to the goal.
+        # Recalculation also clears legacy scores produced by practice/partial work.
+        score_row = db.fetch_one(
+            """
+            SELECT COALESCE(MAX(total_score), 0) AS best_score
+            FROM test_attempts
+            WHERE user_id = ?
+              AND mode = 'exam'
+              AND total_questions = 200
+              AND answered_questions = 200
+              AND part IS NULL
+              AND COALESCE(
+                  JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
+                  'false'
+              ) <> 'true'
+            """,
+            (user["id"],),
+            use_cache=False,
+        )
+        new_score = int((score_row or {}).get("best_score") or 0)
+        db.execute(
+            """
+            UPDATE users
+            SET streak_days = ?, longest_streak = ?, last_study_date = ?, current_score = ?
+            WHERE id = ?
+            """,
+            (streak, longest, today, new_score, user["id"]),
+        )
+        user["last_study_date"] = today
+        user["streak_days"] = streak
+        user["longest_streak"] = longest
+        user["current_score"] = new_score
+    except Exception as exc:
+        logger.warning(f"Failed to update user score/streak in background for {user.get('id')}: {exc}")
+
+    try:
+        activity_name = test_name or metadata.get("test_name") or (
+            f"Part {part}" if part else "bài TOEIC"
+        )
+        create_notification(
+            user["id"],
+            "achievement",
+            "Đã hoàn thành đề thi" if mode == "exam" else "Đã hoàn thành bài luyện tập",
+            (
+                f"{activity_name}: đúng {correct_answers}/{total_questions} câu, "
+                f"độ chính xác {round(accuracy_rate)}%."
+            ),
+            action_url="/history",
+            dedupe_key=f"study-attempt:{attempt_id}",
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to create notification in background for {user.get('id')}: {exc}")
+
+
 @router.put("/study-attempts/{attempt_id}")
 def save_study_attempt(
     attempt_id: str,
     payload: StudyAttemptPayload,
+    background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
 ):
     if attempt_id != payload.id:
@@ -197,59 +287,20 @@ def save_study_attempt(
             parse_datetime(payload.completedAt),
         ),
     )
-    today = date.today()
-    last_date = normalize_date(user.get("last_study_date"))
-    current_streak = active_streak_days(user)
-    if last_date == today:
-        streak = max(current_streak, 1)
-    elif last_date == today - timedelta(days=1):
-        streak = current_streak + 1
-    else:
-        streak = 1
-    longest = max(int(user.get("longest_streak") or 0), streak)
-    # Only the best fully answered, non-Part TOEIC exam contributes to the goal.
-    # Recalculation also clears legacy scores produced by practice/partial work.
-    score_row = db.fetch_one(
-        """
-        SELECT COALESCE(MAX(total_score), 0) AS best_score
-        FROM test_attempts
-        WHERE user_id = ?
-          AND mode = 'exam'
-          AND total_questions = 200
-          AND answered_questions = 200
-          AND part IS NULL
-          AND COALESCE(
-              JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
-              'false'
-          ) <> 'true'
-        """,
-        (user["id"],),
-        use_cache=False,
-    )
-    new_score = int((score_row or {}).get("best_score") or 0)
-    db.execute(
-        """
-        UPDATE users
-        SET streak_days = ?, longest_streak = ?, last_study_date = ?, current_score = ?
-        WHERE id = ?
-        """,
-        (streak, longest, today, new_score, user["id"]),
-    )
-    activity_name = payload.testName or metadata.get("test_name") or (
-        f"Part {payload.part}" if payload.part else "bài TOEIC"
-    )
-    create_notification(
-        user["id"],
-        "achievement",
-        "Đã hoàn thành đề thi" if payload.mode == "exam" else "Đã hoàn thành bài luyện tập",
-        (
-            f"{activity_name}: đúng {payload.correctAnswers}/{payload.totalQuestions} câu, "
-            f"độ chính xác {round(payload.accuracyRate)}%."
-        ),
-        action_url="/history",
-        dedupe_key=f"study-attempt:{payload.id}",
+    background_tasks.add_task(
+        _handle_study_attempt_side_effects,
+        user=user,
+        attempt_id=payload.id,
+        mode=payload.mode,
+        part=payload.part,
+        test_name=payload.testName,
+        metadata=metadata,
+        correct_answers=payload.correctAnswers,
+        total_questions=payload.totalQuestions,
+        accuracy_rate=payload.accuracyRate,
     )
     return {"success": True}
+
 
 
 @router.get("/study-attempts")
@@ -835,8 +886,10 @@ def delete_study_attempts(
 
 
 @router.put("/study-activity/questions")
+@router.post("/user-question-activity/batch")
 def save_question_activity(
     payload: QuestionActivityPayload,
+    background_tasks: BackgroundTasks,
     user=Depends(get_current_user),
 ):
     if payload.sourceType == "test" and not payload.testId:
@@ -889,7 +942,8 @@ def save_question_activity(
                     """,
                     values,
                 )
-        record_practice_streak(user)
+        if normalize_date(user.get("last_study_date")) != date.today():
+            background_tasks.add_task(record_practice_streak, user)
         return {"success": True, "saved": len(values)}
 
     question_rows = db.fetch_all(
@@ -990,7 +1044,8 @@ def save_question_activity(
                             answered_at, answered_at,
                         ),
                     )
-    record_practice_streak(user)
+    if normalize_date(user.get("last_study_date")) != date.today():
+        background_tasks.add_task(record_practice_streak, user)
     return {"success": True, "saved": len(values)}
 
 

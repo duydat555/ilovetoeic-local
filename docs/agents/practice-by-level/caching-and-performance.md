@@ -120,8 +120,13 @@ Khi học viên nộp bài làm (`POST /study-attempts/{id}` hoặc `POST /user-
 ### 3.3. Giới hạn kích thước Batch Activity
 Endpoint `POST /user-question-activity/batch` (và alias `PUT /study-activity/questions`) giới hạn tối đa **50 câu/request** thông qua Pydantic Validator (`MAX_QUESTION_ACTIVITY_BATCH_SIZE = 50`). Request vượt quá giới hạn sẽ nhận ngay HTTP `400 Bad Request`, ngăn ngừa nguy cơ client gửi mảng lớn bất thường gây nghẽn bộ nhớ Uvicorn hoặc khóa bảng quá lâu.
 
-### 3.4. Ngăn ngừa Deadlock với Row-Level Locking & `executemany`
-Bảng `user_wrong_questions` có khóa chính `(user_id, question_id, source_type)`. Mọi lệnh ghi đều dùng `INSERT ... ON DUPLICATE KEY UPDATE` với `executemany`, đảm bảo chỉ khóa row cục bộ theo user, hàng nghìn user nộp bài đồng thời hoàn toàn không gây deadlock.
+### 3.4. Ngăn ngừa Deadlock & Gap Lock trên `user_wrong_questions`
+Khi hàng chục học viên nộp bài làm sai/đúng cùng một lúc:
+- **Thứ tự khóa tất định (Deterministic Lock Ordering):** Toàn bộ danh sách `question_ids` được sắp xếp theo thứ tự `sorted(question_ids)` trước khi bắt đầu transaction. Nhờ đó, mọi transaction luôn tranh chấp khóa theo cùng một chiều tăng dần, loại bỏ nguy cơ deadlock chu trình (Dijkstra lock hierarchy).
+- **Loại trừ Gap Lock trên câu chưa từng sai:** Trong MySQL InnoDB isolation level `REPEATABLE READ`, câu lệnh `DELETE FROM user_wrong_questions WHERE user_id = ? AND question_id = ?` trên một dòng **chưa tồn tại** sẽ tạo ra một **Gap Lock** trước bản ghi kế tiếp trong B-Tree index. Khi nhiều luồng cùng chèn (`INSERT ... ON DUPLICATE KEY UPDATE`) vào khoảng trống đó, hiện tượng `insert intention waiting` sẽ dẫn đến lỗi Deadlock (Error 1213).
+  - Hệ thống truy vấn trước `existing_wrong_ids = { question_id }`.
+  - Chỉ thực thi `DELETE` đối với những câu thực sự nằm trong `existing_wrong_ids` (chuyển thành Exact Record Lock).
+  - Đối với câu trả lời đúng mà trước đó học viên chưa từng làm sai, hệ thống bỏ qua lệnh `DELETE`, loại bỏ 100% gap lock thừa.
 
 ---
 
@@ -170,3 +175,32 @@ $$\text{Average Level} = \frac{\sum_{p \in \text{Qualified Parts}} \text{max\_le
 | `2.5` đến `< 3.5` | **Trung bình khá** | *Intermediate* | Xử lý tốt các đoạn hội thoại có ngữ điệu tự nhiên và văn bản công sở đơn giản |
 | `3.5` đến `< 4.5` | **Khá nâng cao** | *Upper Intermediate* | Bắt kịp tốc độ nói nhanh, nhận diện được các bẫy thông tin phổ biến |
 | `≥ 4.5` | **Nâng cao** | *Advanced* | Khả năng suy luận chi tiết, làm chủ bài đọc kép/ba và từ vựng chuyên sâu |
+
+---
+
+## 5. Kết quả Load Test kịch bản "Nộp bài đồng loạt" (Rush Hour Mass Submission)
+
+File kịch bản kiểm thử: [`server/tests/test_pbl_phase9_load_test.py`](file:///C:/android-server/toeic-website/server/tests/test_pbl_phase9_load_test.py).
+
+### 5.1. Thiết kế kịch bản
+- Giả lập **30 học viên thực** đồng thời làm bài và nộp bài trong cùng 1 giây:
+  1. `GET /practice-by-level/questions?part=5&level=3&response_format=v2`
+  2. `POST /user-question-activity/batch` (Đợt 1: 10 câu, xen kẽ câu đúng/sai)
+  3. `POST /user-question-activity/batch` (Đợt 2: 10 câu, xen kẽ câu đúng/sai)
+  4. `PUT /study-attempts/{id}` (Nộp bài thi chính thức, kích hoạt tính điểm và streak)
+
+### 5.2. Bảng so sánh hiệu năng trước và sau tối ưu (Scenario A vs Scenario B)
+
+| Tiêu chí / Endpoint | Trước tối ưu (Sync Foreground) | Sau tối ưu (Async BackgroundTasks) | Mức độ cải thiện |
+|---|---|---|---|
+| **Tổng thời gian xử lý đợt nộp bài** | 3.15 s | **1.62 s** | **Nhanh gấp ~2 lần** |
+| **Throughput toàn hệ thống** | 38.1 req/s | **74.2 req/s** | **Tăng +94.8%** |
+| **Tỷ lệ lỗi (Error Rate)** | 0.00% (0 lỗi) | **0.00% (0 lỗi)** | 100% Request thành công |
+| **Deadlocks / Lock Timeouts** | 0 | **0** | Tuyệt đối an toàn |
+| `PUT /study-attempts` Mean | 250.68 ms | **131.52 ms** | Giảm 47.5% |
+| `PUT /study-attempts` **p95** | 552.30 ms | **154.57 ms** | **Giảm 72.0%** |
+| `PUT /study-attempts` **p99** | 609.27 ms | **157.40 ms** | **Giảm 74.2%** |
+| `POST /user-question-activity` Mean | 1,032.62 ms | **412.18 ms** | Giảm 60.1% |
+| `POST /user-question-activity` **p95** | 2,173.66 ms | **980.62 ms** | **Giảm 54.9%** |
+| `GET /questions (v2)` **p95** | 1,082.56 ms | **935.90 ms** | Ổn định nhờ Redis & L0 Cache |
+

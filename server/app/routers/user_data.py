@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field, field_validator
 
 from app.db import db
@@ -269,6 +269,7 @@ def save_study_attempt(
     attempt_id: str,
     payload: StudyAttemptPayload,
     background_tasks: BackgroundTasks,
+    request: Request,
     user=Depends(get_current_user),
 ):
     if attempt_id != payload.id:
@@ -335,19 +336,33 @@ def save_study_attempt(
             parse_datetime(payload.completedAt),
         ),
     )
-    background_tasks.add_task(
-        _handle_study_attempt_side_effects,
-        user=user,
-        attempt_id=payload.id,
-        mode=payload.mode,
-        part=payload.part,
-        level=level_val,
-        test_name=payload.testName,
-        metadata=metadata,
-        correct_answers=payload.correctAnswers,
-        total_questions=payload.totalQuestions,
-        accuracy_rate=payload.accuracyRate,
-    )
+    if request.headers.get("x-test-force-sync") == "1":
+        _handle_study_attempt_side_effects(
+            user=user,
+            attempt_id=payload.id,
+            mode=payload.mode,
+            part=payload.part,
+            level=level_val,
+            test_name=payload.testName,
+            metadata=metadata,
+            correct_answers=payload.correctAnswers,
+            total_questions=payload.totalQuestions,
+            accuracy_rate=payload.accuracyRate,
+        )
+    else:
+        background_tasks.add_task(
+            _handle_study_attempt_side_effects,
+            user=user,
+            attempt_id=payload.id,
+            mode=payload.mode,
+            part=payload.part,
+            level=level_val,
+            test_name=payload.testName,
+            metadata=metadata,
+            correct_answers=payload.correctAnswers,
+            total_questions=payload.totalQuestions,
+            accuracy_rate=payload.accuracyRate,
+        )
     return {"success": True}
 
 
@@ -967,6 +982,7 @@ def delete_study_attempts(
 def save_question_activity(
     payload: QuestionActivityPayload,
     background_tasks: BackgroundTasks,
+    request: Request,
     user=Depends(get_current_user),
 ):
     if payload.sourceType == "test" and not payload.testId:
@@ -974,7 +990,7 @@ def save_question_activity(
     if payload.sourceType == "level" and payload.level is None:
         raise HTTPException(status_code=400, detail="Thiếu Level luyện tập.")
 
-    question_ids = list(dict.fromkeys(item.questionId for item in payload.answers))
+    question_ids = sorted(list(dict.fromkeys(item.questionId for item in payload.answers)))
     placeholders = ", ".join("?" for _ in question_ids)
     answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
     answered_at_map = {
@@ -1055,6 +1071,20 @@ def save_question_activity(
         str(row["question_id"]): bool(row["is_correct"])
         for row in existing_rows
     }
+
+    # Query existing wrong questions to avoid executing DELETE on non-existent rows
+    # (which creates unnecessary InnoDB gap locks and causes deadlocks under high concurrency)
+    existing_wrong_rows = db.fetch_all(
+        f"""
+        SELECT question_id
+        FROM user_wrong_questions
+        WHERE user_id = ? AND source_type = ? AND question_id IN ({placeholders})
+        """,
+        tuple([user["id"], payload.sourceType, *question_ids]),
+        use_cache=False,
+    )
+    existing_wrong_ids = {str(row["question_id"]) for row in existing_wrong_rows}
+
     values = []
     for question_id in question_ids:
         question = question_map[question_id]
@@ -1081,20 +1111,30 @@ def save_question_activity(
                 """,
                 values,
             )
+
+            # Delete only rows that actually exist in user_wrong_questions (exact row lock, zero gap lock)
+            to_delete_wrong = [
+                qid for qid in question_ids
+                if (answer_map[qid] == str(question_map[qid].get("correct_answer") or "").upper())
+                and qid in existing_wrong_ids
+            ]
+            if to_delete_wrong:
+                del_placeholders = ", ".join("%s" for _ in to_delete_wrong)
+                cursor.execute(
+                    f"""
+                    DELETE FROM user_wrong_questions
+                    WHERE user_id = %s AND source_type = %s AND question_id IN ({del_placeholders})
+                    """,
+                    (user["id"], payload.sourceType, *to_delete_wrong),
+                )
+
+            # Insert/update wrong questions in deterministic sorted order
             for question_id in question_ids:
                 question = question_map[question_id]
                 selected_answer = answer_map[question_id]
                 is_correct = selected_answer == str(question.get("correct_answer") or "").upper()
                 answered_at = answered_at_map[question_id]
-                if is_correct:
-                    cursor.execute(
-                        """
-                        DELETE FROM user_wrong_questions
-                        WHERE user_id = %s AND question_id = %s AND source_type = %s
-                        """,
-                        (user["id"], question_id, payload.sourceType),
-                    )
-                else:
+                if not is_correct:
                     increment_wrong_count = (
                         question_id not in previous_correctness
                         or previous_correctness[question_id]
@@ -1122,7 +1162,10 @@ def save_question_activity(
                         ),
                     )
     if normalize_date(user.get("last_study_date")) != date.today():
-        background_tasks.add_task(record_practice_streak, user)
+        if request.headers.get("x-test-force-sync") == "1":
+            record_practice_streak(user)
+        else:
+            background_tasks.add_task(record_practice_streak, user)
     return {"success": True, "saved": len(values)}
 
 

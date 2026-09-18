@@ -78,6 +78,7 @@ class StudyAttemptPayload(BaseModel):
     testYear: Optional[int] = None
     mode: Literal["practice", "exam"]
     part: Optional[int] = Field(default=None, ge=1, le=7)
+    level: Optional[int] = Field(default=None, ge=1, le=5)
     totalQuestions: int = 0
     answeredQuestions: int = 0
     correctAnswers: int = 0
@@ -237,21 +238,32 @@ def save_study_attempt(
 ):
     if attempt_id != payload.id:
         raise HTTPException(status_code=400, detail="Attempt ID không khớp.")
+    level_val = payload.level
+    if level_val is None and payload.metadata:
+        raw_lvl = payload.metadata.get("selected_level") or payload.metadata.get("level")
+        if raw_lvl is not None:
+            try:
+                level_val = int(raw_lvl)
+            except (ValueError, TypeError):
+                level_val = None
+
     metadata = {
         **payload.metadata,
         **({"test_name": payload.testName} if payload.testName else {}),
         **({"test_year": payload.testYear} if payload.testYear else {}),
+        **({"selected_level": level_val} if level_val is not None else {}),
     }
     db.execute(
         """
         INSERT INTO test_attempts (
-            id, user_id, test_id, mode, part, total_questions, answered_questions,
+            id, user_id, test_id, mode, part, level, total_questions, answered_questions,
             correct_answers, accuracy_rate, time_spent_seconds, listening_correct,
             reading_correct, listening_score, reading_score, total_score, answers,
             question_ids, metadata, completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             test_id = VALUES(test_id), mode = VALUES(mode), part = VALUES(part),
+            level = VALUES(level),
             total_questions = VALUES(total_questions),
             answered_questions = VALUES(answered_questions),
             correct_answers = VALUES(correct_answers),
@@ -271,6 +283,7 @@ def save_study_attempt(
             payload.testId,
             payload.mode,
             payload.part,
+            level_val,
             payload.totalQuestions,
             payload.answeredQuestions,
             payload.correctAnswers,
@@ -403,6 +416,7 @@ def get_study_attempts(
             "testYear": row.get("test_year") or metadata.get("test_year"),
             "mode": row.get("mode") or "exam",
             "part": row.get("part"),
+            "level": row.get("level"),
             "totalQuestions": int(row.get("total_questions") or 0),
             "answeredQuestions": int(row.get("answered_questions") or 0),
             "correctAnswers": int(row.get("correct_answers") or 0),
@@ -609,6 +623,7 @@ def get_study_attempt_detail(
         "testYear": attempt.get("test_year") or metadata.get("test_year"),
         "mode": attempt.get("mode") or "exam",
         "part": attempt.get("part"),
+        "level": attempt.get("level"),
         "totalQuestions": int(attempt.get("total_questions") or 0),
         "answeredQuestions": int(attempt.get("answered_questions") or 0),
         "correctAnswers": int(attempt.get("correct_answers") or 0),
@@ -706,9 +721,9 @@ def delete_study_attempts(
             attempt_clauses.append("attempt.test_id IS NOT NULL")
     else:
         attempt_clauses.extend([
-            "JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.source')) = 'level_practice'",
-            "COALESCE(attempt.part, JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.selected_part'))) = %s",
-            "JSON_UNQUOTE(JSON_EXTRACT(attempt.metadata, '$.selected_level')) = %s",
+            "attempt.mode = 'practice'",
+            "attempt.part = %s",
+            "attempt.level = %s",
         ])
         attempt_params.extend([part, level])
     attempt_where = " AND ".join(attempt_clauses)

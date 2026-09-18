@@ -60,15 +60,15 @@ def test_practice_level_questions_redis_caching():
     assert data1["level"] == 3
 
     # Check Redis cache
-    cached = cache_service.get("practice:questions:5:3")
-    assert cached is not None, "Expected Redis key practice:questions:5:3 to exist"
+    cached = cache_service.get("practice:questions:5:3:v1")
+    assert cached is not None, "Expected Redis key practice:questions:5:3:v1 to exist"
     assert cached["part"] == 5
     assert cached["level"] == 3
     assert cached["total_questions"] == data1["total_questions"]
 
     # Clear practice caches
     clear_practice_caches()
-    assert cache_service.get("practice:questions:5:3") is None, "Expected Redis key deleted"
+    assert cache_service.get("practice:questions:5:3:v1") is None, "Expected Redis key deleted"
     print("[+] test_practice_level_questions_redis_caching passed!")
 
 

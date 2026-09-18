@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.db import db
 from app.notifications import create_notification
@@ -101,13 +101,29 @@ class QuestionActivityItem(BaseModel):
     answeredAt: Optional[str] = None
 
 
+MAX_QUESTION_ACTIVITY_BATCH_SIZE = 50
+
+
 class QuestionActivityPayload(BaseModel):
     attemptId: str = Field(min_length=1, max_length=36)
     sourceType: Literal["test", "level", "grammar"]
     testId: Optional[str] = Field(default=None, max_length=100)
     level: Optional[int] = Field(default=None, ge=1, le=5)
-    answers: List[QuestionActivityItem] = Field(min_length=1, max_length=20)
+    answers: List[QuestionActivityItem] = Field(min_length=1)
     answeredAt: str
+
+    @field_validator("answers")
+    @classmethod
+    def validate_batch_size(cls, v: List[QuestionActivityItem]) -> List[QuestionActivityItem]:
+        if len(v) > MAX_QUESTION_ACTIVITY_BATCH_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Kích thước batch vượt quá giới hạn cho phép (tối đa {MAX_QUESTION_ACTIVITY_BATCH_SIZE} câu/request). "
+                    "Vui lòng chia nhỏ danh sách câu trả lời."
+                ),
+            )
+        return v
 
 
 class VocabularyPayload(BaseModel):

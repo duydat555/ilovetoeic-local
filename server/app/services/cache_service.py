@@ -1,4 +1,4 @@
-﻿import json
+import json
 import logging
 import threading
 import time
@@ -181,6 +181,36 @@ class CacheService:
                 pass
         with self._mem_lock:
             self._fallback_mem[f"cache:{key}"] = (value, time.time() + ttl_seconds)
+
+    def delete(self, key: str):
+        """Delete a cached entry by key."""
+        if self.is_redis:
+            try:
+                self._redis_client.delete(f"cache:{key}")
+            except Exception as e:
+                logger.warning(f"Redis delete error: {e}")
+        with self._mem_lock:
+            self._fallback_mem.pop(f"cache:{key}", None)
+
+    def delete_pattern(self, pattern: str):
+        """Delete all cached entries matching pattern using non-blocking SCAN."""
+        if self.is_redis:
+            try:
+                cursor = 0
+                while True:
+                    cursor, keys = self._redis_client.scan(cursor=cursor, match=f"cache:{pattern}", count=100)
+                    if keys:
+                        self._redis_client.delete(*keys)
+                    if cursor == 0:
+                        break
+            except Exception as e:
+                logger.warning(f"Redis delete_pattern error: {e}")
+        with self._mem_lock:
+            import fnmatch
+            target = f"cache:{pattern}"
+            keys_to_del = [k for k in self._fallback_mem if fnmatch.fnmatch(k, target)]
+            for k in keys_to_del:
+                self._fallback_mem.pop(k, None)
 
 
 cache_service = CacheService()

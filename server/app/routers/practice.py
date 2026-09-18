@@ -1,36 +1,59 @@
+import logging
 import time
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, Query, Response
 from app.db import db
+from app.services.cache_service import cache_service
+
+logger = logging.getLogger("practice_router")
 
 router = APIRouter(prefix="/api/v1", tags=["Practice"])
 
-# In-memory TTL caches for high-concurrency read-heavy endpoints
-_LEVEL_SUMMARY_CACHE: Dict[str, Any] = {"data": None, "timestamp": 0}
-_LEVEL_QUESTIONS_CACHE: Dict[str, Any] = {}
-_FULL_TEST_CACHE: Dict[str, Any] = {}
-_TEST_PART_CACHE: Dict[str, Any] = {}
+# L0 In-process short-lived cache (5s) to buffer flash-crowd bursts before hitting Redis
+_L0_CACHE: Dict[str, Any] = {}
+_L0_TIMESTAMPS: Dict[str, float] = {}
 
+L0_TTL = 5                  # 5 seconds
 LEVEL_CACHE_TTL = 600       # 10 minutes
 FULL_TEST_CACHE_TTL = 1800  # 30 minutes
 
 
 def clear_practice_caches():
-    """Call when an admin modifies tests or questions."""
-    _LEVEL_SUMMARY_CACHE["data"] = None
-    _LEVEL_SUMMARY_CACHE["timestamp"] = 0
-    _LEVEL_QUESTIONS_CACHE.clear()
-    _FULL_TEST_CACHE.clear()
-    _TEST_PART_CACHE.clear()
+    """Invalidate practice caches globally across all workers via Redis, plus clear local L0."""
+    try:
+        cache_service.delete("practice:summary")
+        cache_service.delete_pattern("practice:questions:*")
+        cache_service.delete_pattern("practice:full_test:*")
+        cache_service.delete_pattern("practice:test_part:*")
+    except Exception as err:
+        logger.warning(f"Error clearing practice caches in Redis: {err}")
+
+    _L0_CACHE.clear()
+    _L0_TIMESTAMPS.clear()
 
 
 @router.get("/practice-by-level/summary")
 def get_practice_by_level_summary(response: Response):
     now = time.time()
-    if _LEVEL_SUMMARY_CACHE["data"] and (now - _LEVEL_SUMMARY_CACHE["timestamp"] < LEVEL_CACHE_TTL):
-        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
-        return _LEVEL_SUMMARY_CACHE["data"]
+    cache_key = "practice:summary"
 
+    # 1. L0 In-process cache (< 0.01ms)
+    if cache_key in _L0_CACHE and (now - _L0_TIMESTAMPS.get(cache_key, 0) < L0_TTL):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return _L0_CACHE[cache_key]
+
+    # 2. Redis Shared Cache (< 1ms)
+    try:
+        cached_data = cache_service.get(cache_key)
+        if cached_data:
+            _L0_CACHE[cache_key] = cached_data
+            _L0_TIMESTAMPS[cache_key] = now
+            response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+            return cached_data
+    except Exception as err:
+        logger.warning(f"Error reading Redis cache for {cache_key}: {err}")
+
+    # 3. Fallback: MySQL aggregation query
     rows = db.fetch_all("""
         SELECT q.part, q.difficulty_level, COUNT(*) AS question_count
         FROM questions q
@@ -52,8 +75,15 @@ def get_practice_by_level_summary(response: Response):
             for row in rows
         ],
     }
-    _LEVEL_SUMMARY_CACHE["data"] = result
-    _LEVEL_SUMMARY_CACHE["timestamp"] = now
+
+    # 4. Store in Redis and L0
+    try:
+        cache_service.set(cache_key, result, ttl_seconds=LEVEL_CACHE_TTL)
+    except Exception as err:
+        logger.warning(f"Error setting Redis cache for {cache_key}: {err}")
+
+    _L0_CACHE[cache_key] = result
+    _L0_TIMESTAMPS[cache_key] = now
     response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
     return result
 
@@ -64,13 +94,26 @@ def get_practice_by_level_questions(
     part: int = Query(..., ge=1, le=7),
     level: int = Query(..., ge=1, le=5),
 ):
-    cache_key = f"{part}:{level}"
+    cache_key = f"practice:questions:{part}:{level}"
     now = time.time()
-    cached = _LEVEL_QUESTIONS_CACHE.get(cache_key)
-    if cached and (now - cached["timestamp"] < LEVEL_CACHE_TTL):
-        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
-        return cached["data"]
 
+    # 1. L0 In-process cache (< 0.01ms)
+    if cache_key in _L0_CACHE and (now - _L0_TIMESTAMPS.get(cache_key, 0) < L0_TTL):
+        response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+        return _L0_CACHE[cache_key]
+
+    # 2. Redis Shared Cache (< 1ms)
+    try:
+        cached_data = cache_service.get(cache_key)
+        if cached_data:
+            _L0_CACHE[cache_key] = cached_data
+            _L0_TIMESTAMPS[cache_key] = now
+            response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
+            return cached_data
+    except Exception as err:
+        logger.warning(f"Error reading Redis cache for {cache_key}: {err}")
+
+    # 3. Fallback: MySQL composite query
     questions = db.fetch_all("""
         SELECT q.id, q.test_id, q.passage_id, q.part, q.section,
                q.question_number, COALESCE(q.audio_url, p.audio_url) AS audio_url,
@@ -99,19 +142,41 @@ def get_practice_by_level_questions(
         "questions": questions,
         "total_questions": len(questions),
     }
-    _LEVEL_QUESTIONS_CACHE[cache_key] = {"data": result, "timestamp": now}
+
+    # 4. Store in Redis and L0
+    try:
+        cache_service.set(cache_key, result, ttl_seconds=LEVEL_CACHE_TTL)
+    except Exception as err:
+        logger.warning(f"Error setting Redis cache for {cache_key}: {err}")
+
+    _L0_CACHE[cache_key] = result
+    _L0_TIMESTAMPS[cache_key] = now
     response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
     return result
 
 
 @router.get("/tests/{test_id}/full")
 def get_full_test(test_id: str, response: Response):
+    cache_key = f"practice:full_test:{test_id}"
     now = time.time()
-    cached = _FULL_TEST_CACHE.get(test_id)
-    if cached and (now - cached["timestamp"] < FULL_TEST_CACHE_TTL):
-        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
-        return cached["data"]
 
+    # 1. L0 In-process cache
+    if cache_key in _L0_CACHE and (now - _L0_TIMESTAMPS.get(cache_key, 0) < L0_TTL):
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+        return _L0_CACHE[cache_key]
+
+    # 2. Redis Shared Cache
+    try:
+        cached_data = cache_service.get(cache_key)
+        if cached_data:
+            _L0_CACHE[cache_key] = cached_data
+            _L0_TIMESTAMPS[cache_key] = now
+            response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+            return cached_data
+    except Exception as err:
+        logger.warning(f"Error reading Redis cache for {cache_key}: {err}")
+
+    # 3. Fallback: MySQL query
     test = db.fetch_one("SELECT * FROM tests WHERE id = ?", (test_id,))
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
@@ -146,7 +211,14 @@ def get_full_test(test_id: str, response: Response):
         "standalone_questions": standalone_questions,
         "total_questions": len(questions)
     }
-    _FULL_TEST_CACHE[test_id] = {"data": result, "timestamp": now}
+
+    try:
+        cache_service.set(cache_key, result, ttl_seconds=FULL_TEST_CACHE_TTL)
+    except Exception as err:
+        logger.warning(f"Error setting Redis cache for {cache_key}: {err}")
+
+    _L0_CACHE[cache_key] = result
+    _L0_TIMESTAMPS[cache_key] = now
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
     return result
 
@@ -156,13 +228,26 @@ def get_test_part(test_id: str, part_num: int, response: Response):
     if part_num < 1 or part_num > 7:
         raise HTTPException(status_code=400, detail="Invalid part number. Must be between 1 and 7.")
 
-    cache_key = f"{test_id}:{part_num}"
+    cache_key = f"practice:test_part:{test_id}:{part_num}"
     now = time.time()
-    cached = _TEST_PART_CACHE.get(cache_key)
-    if cached and (now - cached["timestamp"] < FULL_TEST_CACHE_TTL):
-        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
-        return cached["data"]
 
+    # 1. L0 In-process cache
+    if cache_key in _L0_CACHE and (now - _L0_TIMESTAMPS.get(cache_key, 0) < L0_TTL):
+        response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+        return _L0_CACHE[cache_key]
+
+    # 2. Redis Shared Cache
+    try:
+        cached_data = cache_service.get(cache_key)
+        if cached_data:
+            _L0_CACHE[cache_key] = cached_data
+            _L0_TIMESTAMPS[cache_key] = now
+            response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
+            return cached_data
+    except Exception as err:
+        logger.warning(f"Error reading Redis cache for {cache_key}: {err}")
+
+    # 3. Fallback: MySQL query
     test = db.fetch_one("SELECT id, name, year FROM tests WHERE id = ?", (test_id,))
     if not test:
         raise HTTPException(status_code=404, detail="Test not found")
@@ -198,6 +283,13 @@ def get_test_part(test_id: str, part_num: int, response: Response):
         "standalone_questions": standalone_questions,
         "total_questions": len(questions)
     }
-    _TEST_PART_CACHE[cache_key] = {"data": result, "timestamp": now}
+
+    try:
+        cache_service.set(cache_key, result, ttl_seconds=FULL_TEST_CACHE_TTL)
+    except Exception as err:
+        logger.warning(f"Error setting Redis cache for {cache_key}: {err}")
+
+    _L0_CACHE[cache_key] = result
+    _L0_TIMESTAMPS[cache_key] = now
     response.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=600"
     return result

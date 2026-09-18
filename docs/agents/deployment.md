@@ -18,3 +18,31 @@
 
 ## Secrets
 - Không hardcode secret/API key/password vào code hoặc commit. Nếu phát hiện secret bị lộ, báo ngay và đề xuất rotate.
+
+## Cấu hình Nginx Proxy Cache (Luyện theo Levels)
+- File cấu hình mẫu: `server/nginx/practice_by_level_cache.conf`
+- **Bước 1 (Một lần duy nhất)**: Khai báo cache zone trong `/etc/nginx/nginx.conf` bên trong block `http`:
+  ```nginx
+  proxy_cache_path /var/cache/nginx/practice_levels
+      levels=1:2
+      keys_zone=PRACTICE_LEVEL_CACHE:50m
+      max_size=500m
+      inactive=60m
+      use_temp_path=off;
+  ```
+  Tạo thư mục cache và phân quyền cho Nginx:
+  ```bash
+  sudo mkdir -p /var/cache/nginx/practice_levels
+  sudo chown -R www-data:www-data /var/cache/nginx/practice_levels
+  ```
+- **Bước 2**: Include nội dung `server/nginx/practice_by_level_cache.conf` vào server block của `ilovetoeic.com`.
+- **Bước 3**: Kiểm tra cú pháp và reload:
+  ```bash
+  sudo nginx -t
+  sudo systemctl reload nginx
+  ```
+- **Xóa / Bypass Cache thủ công**:
+  - Gửi header `X-Purge-Cache: 1` hoặc tham số URL `?nocache=1` để bỏ qua hoặc nạp mới cache:
+  ```bash
+  curl -I -H "X-Purge-Cache: 1" https://ilovetoeic.com/api/v1/practice-by-level/summary
+  ```

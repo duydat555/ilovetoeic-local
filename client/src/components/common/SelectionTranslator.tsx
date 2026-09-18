@@ -191,6 +191,7 @@ export const SelectionTranslator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [personalNote, setPersonalNote] = useState('');
+  const [showNote, setShowNote] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [vocabularyTopics, setVocabularyTopics] = useState<VocabularyTopicSelection[]>(
@@ -262,6 +263,7 @@ export const SelectionTranslator: React.FC = () => {
     setLoading(false);
     setError('');
     setPersonalNote('');
+    setShowNote(false);
     setSaved(false);
     setSaving(false);
     setPlayingAccent(null);
@@ -289,6 +291,7 @@ export const SelectionTranslator: React.FC = () => {
     setSaving(false);
     setSelectedTopicId(DEFAULT_VOCABULARY_TOPIC.id);
     setPersonalNote('');
+    setShowNote(false);
     setError('');
 
     if (initialTranslation) {
@@ -345,11 +348,18 @@ export const SelectionTranslator: React.FC = () => {
       let top: number;
       let maxHeight: number;
 
+      // Đảm bảo không gian tối thiểu rộng rãi để luôn hiển thị trọn vẹn phần nghĩa tiếng Việt
+      const MIN_PREFERRED_HEIGHT = 380;
+      const MAX_AVAILABLE_HEIGHT = Math.min(CARD_MAX_HEIGHT, Math.max(260, viewportHeight - 32));
+
       if (spaceBelow >= 340 || spaceBelow >= spaceAbove) {
         top = rect.bottom + 8;
-        maxHeight = Math.min(CARD_MAX_HEIGHT, Math.max(220, spaceBelow));
+        maxHeight = Math.min(MAX_AVAILABLE_HEIGHT, Math.max(MIN_PREFERRED_HEIGHT, spaceBelow));
+        if (top + maxHeight > viewportHeight - 12) {
+          top = Math.max(12, viewportHeight - maxHeight - 12);
+        }
       } else {
-        const calculatedHeight = Math.min(CARD_MAX_HEIGHT, Math.max(220, spaceAbove));
+        const calculatedHeight = Math.min(MAX_AVAILABLE_HEIGHT, Math.max(MIN_PREFERRED_HEIGHT, spaceAbove));
         top = Math.max(12, rect.top - calculatedHeight - 8);
         maxHeight = calculatedHeight;
       }
@@ -518,17 +528,31 @@ export const SelectionTranslator: React.FC = () => {
     if (!translation) return null;
     if (activeTab === 'meaning') {
       return (
-        <div className="space-y-3">
-          <div className="rounded-xl bg-brand-50 px-3.5 py-3 dark:bg-brand-500/10">
-            <p className="text-[10px] font-bold uppercase tracking-[.12em] text-brand-700 dark:text-brand-200">Nghĩa tiếng Việt</p>
-            <p className="mt-1 text-[15px] font-bold leading-snug text-slate-900 dark:text-content">{translation.translatedText}</p>
+        <div className="space-y-3.5">
+          <div className="rounded-2xl border border-brand-200/90 bg-gradient-to-br from-brand-50/90 via-brand-50/40 to-white p-4 shadow-xs dark:border-brand-500/20 dark:from-brand-500/15 dark:via-brand-500/5 dark:to-surface">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-brand-700 dark:text-brand-300">
+                Nghĩa tiếng Việt
+              </span>
+              {translation.partOfSpeech && (
+                <span className="rounded-md bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-600 shadow-2xs dark:bg-surface-elevated dark:text-content-muted">
+                  {translation.partOfSpeech}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[17px] font-bold leading-relaxed text-slate-950 dark:text-content">
+              {translation.translatedText}
+            </p>
           </div>
+
           {translation.definitionEn && (
-            <div className="flex gap-2.5 rounded-xl border border-slate-100 px-3.5 py-3 text-xs leading-relaxed text-slate-600 dark:border-line dark:text-content-muted">
-              <BookOpen className="mt-0.5 size-3.5 shrink-0 text-brand-600 dark:text-brand-300" />
-              <div>
-                <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">Định nghĩa tiếng Anh</p>
-                {translation.definitionEn}
+            <div className="flex gap-2.5 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5 text-xs leading-relaxed text-slate-600 dark:border-line dark:bg-surface-elevated/40 dark:text-content-muted">
+              <BookOpen className="mt-0.5 size-4 shrink-0 text-brand-600 dark:text-brand-400" />
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Định nghĩa tiếng Anh
+                </p>
+                <p className="leading-relaxed">{translation.definitionEn}</p>
               </div>
             </div>
           )}
@@ -661,14 +685,14 @@ export const SelectionTranslator: React.FC = () => {
             width: `min(${CARD_WIDTH}px, calc(100vw - 24px))`,
             maxHeight: position.maxHeight ? `${position.maxHeight}px` : undefined,
           }}
-          className="fixed z-[100] flex max-h-[min(540px,calc(100vh-24px))] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-800 shadow-[0_20px_60px_-15px_rgba(15,23,42,.22)] will-change-transform dark:border-line dark:bg-surface dark:text-content dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,.6)]"
+          className="fixed z-[100] flex max-h-[min(540px,calc(100vh-24px))] min-h-[280px] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-slate-800 shadow-[0_20px_60px_-15px_rgba(15,23,42,.22)] will-change-transform dark:border-line dark:bg-surface dark:text-content dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,.6)]"
           onMouseDown={(event) => event.stopPropagation()}
           onMouseUp={(event) => event.stopPropagation()}
         >
-          <header className="shrink-0 border-b border-slate-100 bg-white px-4 pt-3 dark:border-line dark:bg-surface">
-            <div className="flex items-center justify-between gap-3">
+          <header className="shrink-0 border-b border-slate-100 bg-white px-4 pt-2.5 pb-1.5 dark:border-line dark:bg-surface">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="text-[11px] font-extrabold uppercase tracking-[.14em] text-slate-500 dark:text-content-muted">
+                <span className="text-[10px] font-extrabold uppercase tracking-[.14em] text-slate-400 dark:text-content-muted">
                   Từ điển ngữ cảnh
                 </span>
                 {translation && <SourceBadge source={activeSource} />}
@@ -676,51 +700,51 @@ export const SelectionTranslator: React.FC = () => {
               <button
                 onClick={close}
                 aria-label="Đóng"
-                className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-surface-hover dark:hover:text-white"
+                className="rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-surface-hover dark:hover:text-white"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            <div className="mt-3 space-y-2.5">
-              <div className="flex flex-wrap items-baseline gap-2.5">
-                <h3 className="truncate text-[26px] font-black tracking-tight text-slate-950 dark:text-content">
+            <div className="mt-1.5">
+              <div className="flex flex-wrap items-baseline gap-2">
+                <h3 className="truncate text-[22px] font-black tracking-tight text-slate-950 dark:text-content">
                   {selectedWord}
                 </h3>
                 {translation?.partOfSpeech ? (
-                  <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-600 dark:bg-surface-elevated dark:text-content-muted">
+                  <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:bg-surface-elevated dark:text-content-muted">
                     {translation.partOfSpeech}
                   </span>
                 ) : loading ? (
-                  <div className="h-5 w-14 rounded-full bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                  <div className="h-4 w-12 rounded-full bg-slate-100 dark:bg-surface-elevated animate-pulse" />
                 ) : null}
               </div>
 
               {translation ? (
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {/* UK Pronunciation */}
                   <button
                     type="button"
                     onClick={() => void handlePlay('UK')}
-                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                    className={`group flex h-7 items-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition-all duration-150 active:scale-95 ${
                       playingAccent === 'UK'
-                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 shadow-sm dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                        ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 shadow-xs dark:text-indigo-300 ring-2 ring-indigo-500/20'
                         : 'border-slate-200/80 bg-slate-50/70 hover:border-indigo-300 hover:bg-indigo-50/50 text-slate-700 dark:border-line dark:bg-surface-elevated/50 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/30 dark:text-content'
                     }`}
                     title="Nghe phát âm Anh - Anh (UK)"
                     aria-label={`Nghe phát âm Anh - Anh: ${dualPhonetic.uk || selectedWord}`}
                   >
-                    <span className="flex items-center justify-center rounded-md bg-indigo-100/90 px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
+                    <span className="rounded bg-indigo-100/90 px-1 py-0.5 text-[9px] font-extrabold text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300">
                       UK
                     </span>
                     <Volume2
-                      className={`size-3.5 transition-transform duration-200 group-hover:scale-110 ${
+                      className={`size-3.5 transition-transform duration-150 group-hover:scale-110 ${
                         playingAccent === 'UK'
                           ? 'text-indigo-600 animate-pulse dark:text-indigo-400'
                           : 'text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400'
                       }`}
                     />
-                    <span className="font-mono text-[12px] text-slate-600 dark:text-content-muted">
+                    <span className="font-mono text-[11px] text-slate-600 dark:text-content-muted">
                       {dualPhonetic.uk || translation.phonetic || 'Phát âm'}
                     </span>
                   </button>
@@ -729,38 +753,38 @@ export const SelectionTranslator: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void handlePlay('US')}
-                    className={`group relative flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                    className={`group flex h-7 items-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition-all duration-150 active:scale-95 ${
                       playingAccent === 'US'
-                        ? 'border-rose-500 bg-rose-500/15 text-rose-700 shadow-sm dark:text-rose-300 ring-2 ring-rose-500/20'
+                        ? 'border-rose-500 bg-rose-500/15 text-rose-700 shadow-xs dark:text-rose-300 ring-2 ring-rose-500/20'
                         : 'border-slate-200/80 bg-slate-50/70 hover:border-rose-300 hover:bg-rose-50/50 text-slate-700 dark:border-line dark:bg-surface-elevated/50 dark:hover:border-rose-500/50 dark:hover:bg-rose-950/30 dark:text-content'
                     }`}
                     title="Nghe phát âm Anh - Mỹ (US)"
                     aria-label={`Nghe phát âm Anh - Mỹ: ${dualPhonetic.us || selectedWord}`}
                   >
-                    <span className="flex items-center justify-center rounded-md bg-rose-100/90 px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                    <span className="rounded bg-rose-100/90 px-1 py-0.5 text-[9px] font-extrabold text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
                       US
                     </span>
                     <Volume2
-                      className={`size-3.5 transition-transform duration-200 group-hover:scale-110 ${
+                      className={`size-3.5 transition-transform duration-150 group-hover:scale-110 ${
                         playingAccent === 'US'
                           ? 'text-rose-600 animate-pulse dark:text-rose-400'
                           : 'text-slate-400 group-hover:text-rose-600 dark:group-hover:text-rose-400'
                       }`}
                     />
-                    <span className="font-mono text-[12px] text-slate-600 dark:text-content-muted">
+                    <span className="font-mono text-[11px] text-slate-600 dark:text-content-muted">
                       {dualPhonetic.us || translation.phonetic || 'Phát âm'}
                     </span>
                   </button>
                 </div>
               ) : loading ? (
-                <div className="flex items-center gap-2 h-[34px]">
-                  <div className="h-8 w-24 rounded-xl bg-slate-100 dark:bg-surface-elevated animate-pulse" />
-                  <div className="h-8 w-24 rounded-xl bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                <div className="mt-1.5 flex items-center gap-1.5 h-7">
+                  <div className="h-7 w-20 rounded-lg bg-slate-100 dark:bg-surface-elevated animate-pulse" />
+                  <div className="h-7 w-20 rounded-lg bg-slate-100 dark:bg-surface-elevated animate-pulse" />
                 </div>
               ) : null}
             </div>
 
-            <div className="-mx-1 mt-3 flex gap-0.5 overflow-x-auto pb-2" role="tablist" aria-label="Nội dung từ điển">
+            <div className="-mx-1 mt-2 flex gap-0.5 overflow-x-auto pb-1.5" role="tablist" aria-label="Nội dung từ điển">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
@@ -768,7 +792,7 @@ export const SelectionTranslator: React.FC = () => {
                   aria-selected={activeTab === tab.id}
                   onClick={() => void selectTab(tab.id)}
                   disabled={!translation}
-                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                  className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
                     activeTab === tab.id
                       ? 'bg-brand text-brand-ink'
                       : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-content-muted dark:hover:bg-surface-hover dark:hover:text-white'
@@ -780,7 +804,7 @@ export const SelectionTranslator: React.FC = () => {
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="min-h-[140px] flex-1 overflow-y-auto p-4">
             {loading && !translation && (
               <div className="space-y-3" role="status">
                 <div className="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-content-muted">
@@ -799,62 +823,106 @@ export const SelectionTranslator: React.FC = () => {
           </div>
 
           {(translation || (loading && !error)) && (
-            <footer className="shrink-0 border-t border-slate-100 bg-white p-3 dark:border-line dark:bg-surface">
-              <label className="mb-2 block">
-                <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
-                  <FolderOpen className="size-3.5" />
-                  Lưu vào chủ đề
-                </span>
-                <select
-                  value={selectedTopicId}
-                  onChange={(event) => {
-                    setSelectedTopicId(event.target.value);
-                    setSaved(false);
-                    setError('');
-                  }}
-                  disabled={saving || loading}
-                  className="block min-h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
-                  aria-label="Chọn chủ đề lưu từ vựng"
+            <footer className="shrink-0 border-t border-slate-100 bg-white p-2.5 dark:border-line dark:bg-surface">
+              {showNote && (
+                <div className="mb-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">
+                      Ghi chú cá nhân
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowNote(false)}
+                      className="text-[10px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-content"
+                    >
+                      Ẩn ghi chú
+                    </button>
+                  </div>
+                  <label className="relative block">
+                    <StickyNote className="absolute left-2.5 top-2.5 size-3.5 text-slate-400" />
+                    <textarea
+                      value={personalNote}
+                      onChange={(event) => {
+                        setPersonalNote(event.target.value);
+                        setSaved(false);
+                      }}
+                      autoFocus
+                      rows={2}
+                      maxLength={500}
+                      disabled={loading}
+                      placeholder="Thêm nghĩa hoặc ghi chú theo cách hiểu của bạn..."
+                      className="block max-h-20 min-h-12 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-xs leading-relaxed text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
+                    />
+                  </label>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                {/* Topic selector */}
+                <div className="relative min-w-0 flex-1">
+                  <select
+                    value={selectedTopicId}
+                    onChange={(event) => {
+                      setSelectedTopicId(event.target.value);
+                      setSaved(false);
+                      setError('');
+                    }}
+                    disabled={saving || loading}
+                    className="block h-9 w-full appearance-none truncate rounded-xl border border-slate-200 bg-slate-50 pl-7 pr-6 text-xs font-semibold text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
+                    aria-label="Chọn chủ đề lưu từ vựng"
+                  >
+                    {vocabularyTopics.map((topic) => (
+                      <option key={topic.id} value={topic.id}>{topic.name}</option>
+                    ))}
+                  </select>
+                  <FolderOpen className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+                  <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">
+                    ▼
+                  </div>
+                </div>
+
+                {/* Toggle Note button */}
+                <button
+                  type="button"
+                  onClick={() => setShowNote((prev) => !prev)}
+                  title={showNote ? 'Ẩn ghi chú' : 'Thêm ghi chú riêng'}
+                  aria-label={showNote ? 'Ẩn ghi chú' : 'Thêm ghi chú riêng'}
+                  className={`relative flex h-9 shrink-0 items-center justify-center rounded-xl border px-2.5 transition-colors ${
+                    showNote || personalNote.trim()
+                      ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-950/40 dark:text-amber-300'
+                      : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:border-line dark:bg-surface-elevated dark:text-content-muted dark:hover:text-white'
+                  }`}
                 >
-                  {vocabularyTopics.map((topic) => (
-                    <option key={topic.id} value={topic.id}>{topic.name}</option>
-                  ))}
-                </select>
-              </label>
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[.1em] text-slate-400">Nghĩa riêng của bạn</p>
-              <label className="relative block">
-                <StickyNote className="absolute left-3 top-2.5 size-3.5 text-slate-400" />
-                <textarea
-                  value={personalNote}
-                  onChange={(event) => {
-                    setPersonalNote(event.target.value);
-                    setSaved(false);
-                  }}
-                  rows={2}
-                  maxLength={500}
-                  disabled={loading}
-                  placeholder="Thêm nghĩa hoặc ghi chú theo cách hiểu của bạn..."
-                  className="block max-h-20 min-h-14 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs leading-relaxed text-slate-700 outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 disabled:opacity-60 dark:border-line dark:bg-surface-elevated dark:text-content dark:focus:border-brand dark:focus:bg-slate-900 dark:focus:ring-brand-500/10"
-                />
-              </label>
-              <button
-                onClick={addToVocabulary}
-                disabled={saved || saving || !user || loading}
-                className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 text-xs font-bold text-brand-ink transition hover:bg-brand-hover active:scale-[.99] disabled:bg-brand-500 disabled:opacity-70"
-              >
-                {saving
-                  ? <Loader2 className="size-4 animate-spin" />
-                  : saved
-                    ? <Check className="size-4" />
-                    : <Plus className="size-4" />}
-                {loading
-                  ? 'Đang chuẩn bị...'
-                  : saving
-                    ? 'Đang đồng bộ...'
-                    : saved
-                      ? 'Đã có trong kho từ vựng'
-                      : 'Thêm vào kho từ vựng'}
-              </button>
+                  <StickyNote className="size-4" />
+                  {personalNote.trim().length > 0 && !showNote && (
+                    <span className="absolute -top-1 -right-1 flex size-2 rounded-full bg-amber-500" />
+                  )}
+                </button>
+
+                {/* Save button */}
+                <button
+                  onClick={addToVocabulary}
+                  disabled={saved || saving || !user || loading}
+                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-brand px-3.5 text-xs font-bold text-brand-ink transition hover:bg-brand-hover active:scale-[.99] disabled:bg-brand-500 disabled:opacity-70"
+                >
+                  {saving ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : saved ? (
+                    <Check className="size-3.5" />
+                  ) : (
+                    <Plus className="size-3.5" />
+                  )}
+                  <span>
+                    {loading
+                      ? 'Đang chuẩn bị...'
+                      : saving
+                        ? 'Đang lưu...'
+                        : saved
+                          ? 'Đã lưu'
+                          : 'Lưu từ'}
+                  </span>
+                </button>
+              </div>
             </footer>
           )}
         </motion.div>

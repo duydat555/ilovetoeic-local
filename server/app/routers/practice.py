@@ -88,13 +88,19 @@ def get_practice_by_level_summary(response: Response):
     return result
 
 
+from typing import Dict, Any, Optional, Literal
+
 @router.get("/practice-by-level/questions")
 def get_practice_by_level_questions(
     response: Response,
     part: int = Query(..., ge=1, le=7),
     level: int = Query(..., ge=1, le=5),
+    response_format: Literal["v1", "v2"] = Query(
+        default="v1",
+        description="v1=embedded passage in each question (legacy), v2=normalized passages map (deduplicated)"
+    ),
 ):
-    cache_key = f"practice:questions:{part}:{level}"
+    cache_key = f"practice:questions:{part}:{level}:{response_format}"
     now = time.time()
 
     # 1. L0 In-process cache (< 0.01ms)
@@ -135,13 +141,44 @@ def get_practice_by_level_questions(
     if not questions:
         raise HTTPException(status_code=404, detail="Không có câu hỏi phù hợp với Part và Level đã chọn.")
 
-    result = {
-        "success": True,
-        "part": part,
-        "level": level,
-        "questions": questions,
-        "total_questions": len(questions),
-    }
+    if response_format == "v2":
+        passages_map: Dict[str, Any] = {}
+        deduped_questions = []
+        passage_fields = (
+            "passage_text", "passage_text_2", "passage_text_3",
+            "transcript", "format_status", "passage_text_vi_html",
+            "passage_text_2_vi_html", "passage_text_3_vi_html",
+            "passage_sentence_pairs"
+        )
+        for q in questions:
+            q_dict = dict(q)
+            pid = q_dict.get("passage_id")
+            if pid:
+                if pid not in passages_map:
+                    passages_map[pid] = {
+                        field: q_dict.get(field)
+                        for field in passage_fields
+                    }
+                for field in passage_fields:
+                    q_dict.pop(field, None)
+            deduped_questions.append(q_dict)
+
+        result = {
+            "success": True,
+            "part": part,
+            "level": level,
+            "total_questions": len(questions),
+            "passages": passages_map,
+            "questions": deduped_questions,
+        }
+    else:
+        result = {
+            "success": True,
+            "part": part,
+            "level": level,
+            "questions": questions,
+            "total_questions": len(questions),
+        }
 
     # 4. Store in Redis and L0
     try:

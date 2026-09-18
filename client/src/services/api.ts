@@ -57,15 +57,24 @@ export const apiService = {
   },
 
   async getPracticeLevelQuestions(part: number, level: number): Promise<Question[]> {
-    const query = new URLSearchParams({ part: String(part), level: String(level) });
+    const query = new URLSearchParams({
+      part: String(part),
+      level: String(level),
+      response_format: 'v2',
+    });
     const res = await fetch(`${API_BASE_URL}/practice-by-level/questions?${query.toString()}`);
     if (!res.ok) {
       const body = await res.json().catch(() => null);
       throw new Error(body?.detail || 'Không thể tải câu hỏi theo Level.');
     }
     const json = await res.json();
+    const passagesMap = (json && typeof json.passages === 'object' && json.passages) || {};
     const source = Array.isArray(json.questions) ? json.questions : [];
     return source.map((raw: any, index: number) => {
+      // Unpack normalized passage fields if received in v2 format
+      if (raw.passage_id && passagesMap[raw.passage_id]) {
+        Object.assign(raw, passagesMap[raw.passage_id]);
+      }
       const question = formatQuestionObject(raw);
       // Level practice combines matching questions from multiple tests. Their
       // original TOEIC numbers repeat (for example, every test has a question

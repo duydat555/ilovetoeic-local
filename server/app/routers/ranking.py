@@ -26,6 +26,8 @@ def serialize_member(row, identity):
         "totalQuestions": total_questions,
         "correctQuestions": correct_questions,
         "accuracyRate": round(correct_questions * 100 / total_questions, 1) if total_questions else 0,
+        "xp": int(row.get("xp") or 0),
+        "level": int(row.get("level") or 1),
     }
 
 
@@ -69,6 +71,7 @@ def _get_cached_leaderboard_data():
             FROM answer_events GROUP BY user_id
         )
         SELECT u.id, u.full_name, u.family_middle_name, u.avatar_url,
+               u.xp, u.level,
                CASE WHEN u.last_study_date IS NULL
                           OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
                     THEN 0 ELSE u.streak_days END AS active_streak_days,
@@ -89,7 +92,7 @@ def _get_cached_leaderboard_data():
             members.append(serialize_member(row, identity))
 
     grouped = defaultdict(lambda: {
-        "memberCount": 0, "streakDays": 0, "totalQuestions": 0, "correctQuestions": 0,
+        "memberCount": 0, "streakDays": 0, "totalQuestions": 0, "correctQuestions": 0, "totalXp": 0,
     })
     for member in members:
         cohort = grouped[member["cohortCode"]]
@@ -97,6 +100,7 @@ def _get_cached_leaderboard_data():
         cohort["streakDays"] += member["streakDays"]
         cohort["totalQuestions"] += member["totalQuestions"]
         cohort["correctQuestions"] += member["correctQuestions"]
+        cohort["totalXp"] += member["xp"]
 
     cohorts = []
     for cohort_code, values in grouped.items():

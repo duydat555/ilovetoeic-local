@@ -22,6 +22,8 @@ def serialize_member(row):
         "streakDays": int(row.get("streak_days") or 0),
         "completedLessons": int(row.get("completed_lessons") or 0),
         "rankChange": int(row.get("rank_change") or 0),
+        "xp": int(row.get("xp") or 0),
+        "level": int(row.get("level") or 1),
     }
 
 
@@ -59,6 +61,7 @@ def get_leaderboard(
             SELECT u.id, u.full_name AS display_name, u.avatar_url,
                    0 AS rank_change,
                    u.current_score AS total_score,
+                   u.xp, u.level,
                    CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
                         THEN 0 ELSE u.streak_days END AS streak_days,
                    COALESCE(al.completed_lessons, 0) AS completed_lessons
@@ -81,13 +84,14 @@ def get_leaderboard(
             SELECT u.id, u.full_name AS display_name, u.avatar_url,
                    0 AS rank_change,
                    COALESCE(SUM(a.total_score), 0) AS total_score,
+                   u.xp, u.level,
                    CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
                         THEN 0 ELSE u.streak_days END AS streak_days,
                    COUNT(DISTINCT a.id) AS completed_lessons
             FROM test_attempts a
             JOIN users u ON u.id = a.user_id AND u.role = 'student' AND u.approval_status = 'approved'
             WHERE a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
-            GROUP BY u.id, u.full_name, u.avatar_url, u.streak_days, u.last_study_date
+            GROUP BY u.id, u.full_name, u.avatar_url, u.xp, u.level, u.streak_days, u.last_study_date
             ORDER BY total_score DESC, completed_lessons DESC, u.full_name ASC
             LIMIT 100
             """,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, CheckCircle2, Crown, Flame, Medal, Target, Trophy } from 'lucide-react';
+import { Award, CheckCircle2, Crown, Flame, Medal, Target, Trophy, Zap } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
 import { RankingPodiumSkeleton } from './RankingPageSkeleton';
@@ -160,14 +160,21 @@ const PodiumCard: React.FC<{
           </div>
 
           {/* Student Name & Cohort */}
-          <h3
-            className={`mt-3.5 w-full truncate font-black text-content tracking-tight ${
-              isWinner ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
-            }`}
-            title={studentFullName(member)}
-          >
-            {studentFullName(member)}
-          </h3>
+          <div className="mt-3.5 flex items-center justify-center gap-1.5 w-full">
+            <h3
+              className={`truncate font-black text-content tracking-tight ${
+                isWinner ? 'text-base sm:text-lg' : 'text-sm sm:text-base'
+              }`}
+              title={studentFullName(member)}
+            >
+              {studentFullName(member)}
+            </h3>
+            {Boolean(member.level) && (
+              <span className="shrink-0 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-400">
+                Lv.{member.level}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold text-content-muted">
             Khoá {member.cohortCode}
           </p>
@@ -183,7 +190,7 @@ const PodiumCard: React.FC<{
             }`}
           >
             <div className="flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-content-muted">
-              <CheckCircle2
+              <Zap
                 className={`size-3.5 ${
                   isWinner
                     ? 'text-amber-600 dark:text-amber-400'
@@ -192,7 +199,7 @@ const PodiumCard: React.FC<{
                     : 'text-orange-600 dark:text-orange-400'
                 }`}
               />
-              <span>Đã hoàn thành</span>
+              <span>{language === 'en' ? 'XP Points' : 'Điểm XP'}</span>
             </div>
             <div
               className={`mt-0.5 font-black tabular-nums tracking-tight ${
@@ -203,23 +210,36 @@ const PodiumCard: React.FC<{
                   : 'text-lg sm:text-xl text-orange-900 dark:text-orange-100'
               }`}
             >
-              {formatRankingValue(member, 'totalQuestions')}
+              {formatRankingValue(member, 'xp')}
             </div>
           </div>
 
           {/* Secondary Sub-metrics */}
-          <div className="mt-2.5 grid w-full grid-cols-2 gap-2">
-            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-2 py-1.5 shadow-2xs">
-              <Flame className="size-3.5 text-amber-500 shrink-0" aria-hidden="true" />
-              <span className="text-[11px] font-bold text-content-muted">{language === 'en' ? 'Streak:' : 'Chuỗi:'}</span>
-              <span className="text-xs font-black tabular-nums text-content">
+          <div className="mt-2.5 grid w-full grid-cols-3 gap-1.5">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-1 py-1.5 shadow-2xs">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-content-muted">
+                <CheckCircle2 className="size-3 text-brand-600 dark:text-brand-300 shrink-0" aria-hidden="true" />
+                <span>{language === 'en' ? 'Solved' : 'Đã làm'}</span>
+              </div>
+              <span className="text-xs font-black tabular-nums text-content mt-0.5">
+                {formatRankingValue(member, 'totalQuestions')}
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-1 py-1.5 shadow-2xs">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-content-muted">
+                <Flame className="size-3 text-amber-500 shrink-0" aria-hidden="true" />
+                <span>{language === 'en' ? 'Streak' : 'Chuỗi'}</span>
+              </div>
+              <span className="text-xs font-black tabular-nums text-content mt-0.5">
                 {formatRankingValue(member, 'streakDays')}
               </span>
             </div>
-            <div className="flex items-center justify-center gap-1.5 rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-2 py-1.5 shadow-2xs">
-              <Target className="size-3.5 text-emerald-500 shrink-0" aria-hidden="true" />
-              <span className="text-[11px] font-bold text-content-muted">{language === 'en' ? 'Accuracy:' : 'Đúng:'}</span>
-              <span className="text-xs font-black tabular-nums text-content">
+            <div className="flex flex-col items-center justify-center rounded-xl border border-line/60 bg-surface/80 dark:bg-surface/50 px-1 py-1.5 shadow-2xs">
+              <div className="flex items-center gap-1 text-[10px] font-bold text-content-muted">
+                <Target className="size-3 text-emerald-500 shrink-0" aria-hidden="true" />
+                <span>{language === 'en' ? 'Acc' : 'Đúng'}</span>
+              </div>
+              <span className="text-xs font-black tabular-nums text-content mt-0.5">
                 {formatRankingValue(member, 'accuracyRate')}
               </span>
             </div>

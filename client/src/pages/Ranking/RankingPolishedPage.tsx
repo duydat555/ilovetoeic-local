@@ -79,7 +79,7 @@ export const RankingPage: React.FC = () => {
         />
       </div>
 
-      <RankingStreakBanner streakDays={user?.streakDays || 0} />
+      <RankingStreakBanner streakDays={user?.streakDays || 0} xp={user?.xp} level={user?.level} />
 
       <BoneyardSkeleton
         name="ranking-page-body"

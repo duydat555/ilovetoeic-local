@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Flame, Target } from 'lucide-react';
+import { CheckCircle2, Flame, Target, Zap } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -44,6 +44,12 @@ export const RankingListRow: React.FC<RankingListRowProps> = ({
               {studentFullName(member)}
             </h3>
 
+            {member.level && (
+              <span className="shrink-0 rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-black text-brand-600 dark:text-brand-400">
+                Lv.{member.level}
+              </span>
+            )}
+
             {isCurrent && (
               <span className="shrink-0 rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-black text-brand-ink">
                 {language === 'en' ? 'YOU' : 'BẠN'}
@@ -57,7 +63,16 @@ export const RankingListRow: React.FC<RankingListRowProps> = ({
         </div>
       </div>
 
-      <dl className="grid w-full shrink-0 grid-cols-3 gap-2 border-t border-line/80 pt-2 text-right sm:w-auto sm:gap-5 sm:border-0 sm:pt-0">
+      <dl className="grid w-full shrink-0 grid-cols-2 gap-2 border-t border-line/80 pt-2 text-right sm:w-auto sm:grid-cols-4 sm:gap-4 sm:border-0 sm:pt-0">
+        <div>
+          <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted">
+            <Zap className="size-3 text-amber-500" aria-hidden="true" />
+            <span>{language === 'en' ? 'XP' : 'Điểm XP'}</span>
+          </dt>
+          <dd className="mt-0.5 text-xs font-black tabular-nums text-amber-600 dark:text-amber-400 sm:text-sm">
+            {(member.xp || 0).toLocaleString('vi-VN')} XP
+          </dd>
+        </div>
         <div>
           <dt className="flex items-center justify-end gap-1 text-[10px] font-semibold text-content-muted">
             <Flame className="size-3 text-amber-500" aria-hidden="true" />

@@ -170,6 +170,8 @@ export interface LeaderboardMember {
   totalQuestions: number;
   accuracyRate: number;
   correctQuestions: number;
+  xp?: number;
+  level?: number;
 }
 
 export interface LeaderboardCohort {

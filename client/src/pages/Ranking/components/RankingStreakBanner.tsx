@@ -1,11 +1,15 @@
 import React from 'react';
-import { Flame } from 'lucide-react';
+import { Flame, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../../context/LanguageContext';
 
-interface RankingStreakBannerProps { streakDays: number; }
+interface RankingStreakBannerProps {
+  streakDays: number;
+  xp?: number;
+  level?: number;
+}
 
-export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({ streakDays }) => {
+export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({ streakDays, xp, level }) => {
   const { language } = useLanguage();
 
   return (
@@ -15,9 +19,22 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({ streak
           <Flame className="size-5 fill-current" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <h2 className="text-sm font-black text-slate-900 dark:text-content">
-            {language === 'en' ? `Current streak: ${streakDays} days` : `Chuỗi hiện tại: ${streakDays} ngày`}
-          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-black text-slate-900 dark:text-content">
+              {language === 'en' ? `Current streak: ${streakDays} days` : `Chuỗi hiện tại: ${streakDays} ngày`}
+            </h2>
+            {typeof xp === 'number' && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300">
+                <Zap className="size-3 text-amber-500" />
+                {xp.toLocaleString('vi-VN')} XP
+              </span>
+            )}
+            {typeof level === 'number' && (
+              <span className="inline-flex items-center rounded-md bg-brand/15 border border-brand/30 px-2 py-0.5 text-xs font-black text-brand-700 dark:text-brand-300">
+                Lv.{level}
+              </span>
+            )}
+          </div>
           <p className="mt-0.5 text-xs text-slate-600 dark:text-content-muted">
             {streakDays > 0
               ? (language === 'en' ? `Study today to maintain your ${streakDays}-day streak!` : `Học ngay hôm nay để giữ chuỗi ${streakDays} ngày!`)

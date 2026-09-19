@@ -20,6 +20,21 @@ RANKING_CACHE_KEY = "leaderboard:ranking_data"
 RANKING_CACHE_TTL = 120  # 2 minutes
 
 
+MIN_QUESTIONS_FOR_ACCURACY = 20
+
+
+def _member_sort_key(member):
+    effective_acc = member["accuracyRate"] if member["totalQuestions"] >= MIN_QUESTIONS_FOR_ACCURACY else 0.0
+    full_name = f"{member.get('familyMiddleName', '')} {member['name']}".strip()
+    return (
+        -member["xp"],
+        -effective_acc,
+        -member["totalQuestions"],
+        -member["streakDays"],
+        full_name,
+    )
+
+
 def serialize_member(row, identity):
     canonical_name, cohort_code = identity
     total_questions = int(row.get("total_questions") or 0)
@@ -70,6 +85,8 @@ def _compute_and_cache_leaderboard():
         identity = parse_student_ranking_name(row.get("full_name") or "")
         if identity:
             members.append(serialize_member(row, identity))
+
+    members.sort(key=_member_sort_key)
 
     grouped = defaultdict(lambda: {
         "memberCount": 0, "streakDays": 0, "totalQuestions": 0, "correctQuestions": 0, "totalXp": 0,

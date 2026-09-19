@@ -55,7 +55,7 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
           {language === 'en' ? 'Inter-Class Rankings' : 'Xếp hạng giữa các khoá'}
         </h2>
         <p className="mt-1 text-xs text-content-muted">
-          {language === 'en' ? 'Top 3 learners by total questions completed in each class' : 'Top 3 học sinh có tổng số câu đã làm cao nhất của mỗi khoá'}
+          {language === 'en' ? 'Top 3 outstanding learners in each class' : 'Top 3 học sinh xuất sắc nhất của mỗi khoá'}
         </p>
       </div>
 

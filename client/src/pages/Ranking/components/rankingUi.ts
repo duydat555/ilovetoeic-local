@@ -33,12 +33,18 @@ export const studentFullName = (member: LeaderboardMember): string => (
   `${member.familyMiddleName ? `${member.familyMiddleName} ` : ''}${member.name.replace(/_K\d+$/i, '')}`.trim()
 );
 
+export const MIN_QUESTIONS_FOR_ACCURACY = 20;
+
+export const effectiveAccuracyRate = (member: LeaderboardMember): number => (
+  (member.totalQuestions || 0) >= MIN_QUESTIONS_FOR_ACCURACY ? (member.accuracyRate || 0) : 0
+);
+
 export const sortRankingMembers = (members: LeaderboardMember[]): LeaderboardMember[] => (
   [...members].sort((left, right) => (
     (right.xp || 0) - (left.xp || 0)
+    || effectiveAccuracyRate(right) - effectiveAccuracyRate(left)
     || right.totalQuestions - left.totalQuestions
     || right.streakDays - left.streakDays
-    || right.accuracyRate - left.accuracyRate
     || studentFullName(left).localeCompare(studentFullName(right), 'vi')
   ))
 );

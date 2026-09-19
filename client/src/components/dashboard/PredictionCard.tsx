@@ -239,12 +239,11 @@ export const PredictionCard: React.FC = () => {
                     <path
                       d="M 32 115 A 88 88 0 0 1 208 115"
                       fill="none"
-                      stroke="currentColor"
+                      stroke="#FF5000"
                       strokeWidth="14"
                       strokeLinecap="round"
                       strokeDasharray={276.46}
                       strokeDashoffset={strokeDashoffset}
-                      className="text-brand-600 dark:text-brand-400"
                       style={{
                         transition: reduceMotion ? 'none' : 'stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)',
                       }}
@@ -256,7 +255,7 @@ export const PredictionCard: React.FC = () => {
                       cy={knobY}
                       r="6.5"
                       fill="#ffffff"
-                      stroke="#6366f1"
+                      stroke="#FF5000"
                       strokeWidth="3.5"
                       className="drop-shadow-sm transition-all duration-700"
                     />

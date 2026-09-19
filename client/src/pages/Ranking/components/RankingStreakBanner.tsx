@@ -1,7 +1,8 @@
 import React from 'react';
-import { Flame, Zap } from 'lucide-react';
+import { Flame, HelpCircle, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../../context/LanguageContext';
+import { XpExplanationTooltip } from './XpExplanationTooltip';
 
 interface RankingStreakBannerProps {
   streakDays: number;
@@ -24,10 +25,13 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({ streak
               {language === 'en' ? `Current streak: ${streakDays} days` : `Chuỗi hiện tại: ${streakDays} ngày`}
             </h2>
             {typeof xp === 'number' && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300">
-                <Zap className="size-3 text-amber-500" />
-                {xp.toLocaleString('vi-VN')} XP
-              </span>
+              <XpExplanationTooltip align="left" side="bottom">
+                <span className="inline-flex cursor-help items-center gap-1 rounded-md bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 transition-colors">
+                  <Zap className="size-3 text-amber-500" />
+                  <span className="underline decoration-dotted underline-offset-2">{xp.toLocaleString('vi-VN')} XP</span>
+                  <HelpCircle className="size-2.5 opacity-60 ml-0.5" />
+                </span>
+              </XpExplanationTooltip>
             )}
             {typeof level === 'number' && (
               <span className="inline-flex items-center rounded-md bg-brand/15 border border-brand/30 px-2 py-0.5 text-xs font-black text-brand-700 dark:text-brand-300">

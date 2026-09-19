@@ -212,5 +212,35 @@ class CacheService:
             for k in keys_to_del:
                 self._fallback_mem.pop(k, None)
 
+    # ------------------------------------------------------------------
+    # Redis ZSET (Leaderboard & Fast Ranking)
+    # ------------------------------------------------------------------
+
+    def zadd(self, key: str, mapping: dict):
+        """Add or update member scores in sorted set."""
+        if self.is_redis:
+            try:
+                self._redis_client.zadd(f"zset:{key}", mapping)
+            except Exception as e:
+                logger.warning(f"Redis zadd error: {e}")
+
+    def zrevrange(self, key: str, start: int, end: int, withscores: bool = False):
+        """Retrieve range of members ordered by highest score first."""
+        if self.is_redis:
+            try:
+                return self._redis_client.zrevrange(f"zset:{key}", start, end, withscores=withscores)
+            except Exception as e:
+                logger.warning(f"Redis zrevrange error: {e}")
+        return []
+
+    def zrevrank(self, key: str, member: str) -> Optional[int]:
+        """Get 0-indexed ranking of member (0 = #1 top rank)."""
+        if self.is_redis:
+            try:
+                return self._redis_client.zrevrank(f"zset:{key}", member)
+            except Exception as e:
+                logger.warning(f"Redis zrevrank error: {e}")
+        return None
+
 
 cache_service = CacheService()

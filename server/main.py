@@ -24,6 +24,8 @@ from app.routers import (
     user_data,
     system_vocabulary,
     listening,
+    study_time,
+    gamification,
 )
 
 from contextlib import asynccontextmanager
@@ -84,6 +86,8 @@ app.include_router(ranking.router)
 app.include_router(notifications.router)
 app.include_router(community_chat.router)
 app.include_router(listening.router)
+app.include_router(study_time.router)
+app.include_router(gamification.router)
 
 
 

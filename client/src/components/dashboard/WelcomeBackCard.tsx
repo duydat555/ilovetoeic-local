@@ -13,6 +13,7 @@ import './WelcomeBackCard.css';
 export interface WelcomeBackCardProps {
   userName: string;
   xp: number;
+  level?: number;
   streakDays: number;
   longestStreak: number;
   ctaLink?: string;
@@ -50,6 +51,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
   const {
     userName,
     xp,
+    level = 1,
     streakDays,
     longestStreak,
     ctaLink = '/practice-by-level',
@@ -146,6 +148,9 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
           >
             <Flame className="size-3.5 text-amber-950 fill-amber-950/20" />
             <span>{t('dashboard.welcomeTitle')}</span>
+            <span className="inline-flex items-center rounded-md bg-amber-950 px-1.5 py-0.5 text-[10px] font-black text-amber-300">
+              Lv.{level}
+            </span>
           </motion.div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-amber-950 tracking-tight leading-snug">
             {t('dashboard.greeting', { name: userName })} <span className="inline-block animate-[wave-hand_2s_ease-in-out_infinite] origin-bottom-right">👋</span>

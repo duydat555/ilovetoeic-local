@@ -5,6 +5,8 @@ from fastapi import APIRouter, HTTPException
 from app.db import db
 from app.models import TestSubmissionRequest, TestSubmissionResponse, QuestionResult
 from app.notifications import create_notification
+from app.services.study_progress_service import record_study_activity
+from app.services.xp_service import award_test_completion_xp
 
 router = APIRouter(prefix="/api/v1", tags=["Submissions"])
 
@@ -214,18 +216,12 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
                                     last_wrong_at = VALUES(last_wrong_at)
                             """, wrong_values)
 
-            # Update streak and score
-            today = date.today()
-            raw_last_date = user_row.get("last_study_date")
-            last_study = raw_last_date.date() if isinstance(raw_last_date, datetime) else raw_last_date
-            current_streak = int(user_row.get("streak_days") or 0)
-            if last_study == today:
-                streak = max(current_streak, 1)
-            elif last_study == today - timedelta(days=1):
-                streak = current_streak + 1
-            else:
-                streak = 1
-            longest = max(int(user_row.get("longest_streak") or 0), streak)
+            # Update streak and study time
+            record_study_activity(
+                user_id=user_id,
+                seconds_spent=payload.time_spent_seconds or 0,
+                source="full_test_submission",
+            )
 
             score_row = db.fetch_one("""
                 SELECT COALESCE(MAX(total_score), 0) AS best_score
@@ -241,9 +237,9 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
 
             db.execute("""
                 UPDATE users
-                SET streak_days = ?, longest_streak = ?, last_study_date = ?, current_score = ?
+                SET current_score = ?
                 WHERE id = ?
-            """, (streak, longest, today, new_score, user_id))
+            """, (new_score, user_id))
 
             create_notification(
                 user_id,
@@ -252,6 +248,14 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
                 f"{test_name}: đúng {total_correct}/{len(questions)} câu, độ chính xác {round(accuracy_rate)}%.",
                 action_url=f"/results?attemptId={attempt_id}",
                 dedupe_key=f"study-attempt:{attempt_id}",
+            )
+
+            award_test_completion_xp(
+                user_id=user_id,
+                attempt_id=attempt_id,
+                total_score=total_score,
+                is_partial=is_partial,
+                test_name=test_name,
             )
 
     return TestSubmissionResponse(

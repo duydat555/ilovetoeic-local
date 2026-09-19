@@ -880,3 +880,149 @@ export const backendService = {
     }
   },
 };
+
+export interface StudyDayStat {
+  date: string;
+  dayOfWeek: string;
+  seconds: number;
+  minutes: number;
+  goalMinutes: number;
+  isGoalReached: boolean;
+  isToday: boolean;
+}
+
+export interface WeeklyStudyStats {
+  days: StudyDayStat[];
+  dailyGoalMinutes: number;
+  todaySeconds: number;
+  todayMinutes: number;
+  weeklyTotalSeconds: number;
+  weeklyTotalMinutes: number;
+}
+
+export const studyTimeService = {
+  async ping(seconds: number, source = 'heartbeat'): Promise<{
+    success: boolean;
+    secondsAdded: number;
+    todaySeconds: number;
+    todayMinutes: number;
+    streakDays: number;
+  }> {
+    return authFetch('/study-time/ping', {
+      method: 'POST',
+      body: JSON.stringify({ seconds, source }),
+    });
+  },
+
+  async getWeekly(): Promise<{ success: boolean; data: WeeklyStudyStats }> {
+    return authFetch('/study-time/weekly');
+  },
+
+  async getToday(): Promise<{ success: boolean; todaySeconds: number; todayMinutes: number }> {
+    return authFetch('/study-time/today');
+  },
+
+  async updateDailyGoal(dailyGoalMinutes: number): Promise<{ success: boolean; dailyGoalMinutes: number }> {
+    return authFetch('/study-time/goal', {
+      method: 'PUT',
+      body: JSON.stringify({ dailyGoalMinutes }),
+    });
+  },
+};
+
+export interface UserLevelInfo {
+  currentLevel: number;
+  title: string;
+  badgeIcon: string;
+  color: string;
+  currentXp: number;
+  currentLevelXp: number;
+  nextLevel: number | null;
+  nextLevelXp: number | null;
+  progressPercent: number;
+  xpRemaining: number;
+}
+
+export interface LevelDefinition {
+  level: number;
+  xp_required: number;
+  title: string;
+  badge_icon: string;
+  color: string;
+}
+
+export interface XpLedgerItem {
+  id: number;
+  xpAmount: number;
+  activityType: string;
+  description: string;
+  createdAt: string;
+}
+
+export const gamificationService = {
+  async getLevelInfo(): Promise<{ success: boolean; data: UserLevelInfo }> {
+    return authFetch('/gamification/level-info');
+  },
+
+  async getLevelDefinitions(): Promise<{ success: boolean; data: LevelDefinition[] }> {
+    return authFetch('/gamification/level-definitions');
+  },
+
+  async getXpHistory(limit = 20): Promise<{ success: boolean; data: XpLedgerItem[] }> {
+    return authFetch(`/gamification/xp-history?limit=${limit}`);
+  },
+
+  async getSkillsRadar(): Promise<{ success: boolean; data: SkillsRadarData }> {
+    return authFetch('/gamification/skills-radar');
+  },
+
+  async getPrediction(): Promise<{ success: boolean; data: ScorePredictionData }> {
+    return authFetch('/gamification/prediction');
+  },
+
+  async updateTargetGoal(payload: { targetScore?: number; targetDate?: string }): Promise<{
+    success: boolean;
+    targetScore?: number;
+    targetDate?: string;
+  }> {
+    return authFetch('/gamification/goal', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+};
+
+export interface PartRadarItem {
+  part: string;
+  partNumber: number;
+  fullName: string;
+  section: 'listening' | 'reading';
+  accuracy: number;
+  target: number;
+  totalAnswered: number;
+  totalCorrect: number;
+  mastery: string;
+  tip: string;
+}
+
+export interface SkillsRadarData {
+  radarData: PartRadarItem[];
+  listeningAccuracy: number;
+  readingAccuracy: number;
+  strongestPart: PartRadarItem | null;
+  weakestPart: PartRadarItem | null;
+  totalAnswered: number;
+}
+
+export interface ScorePredictionData {
+  predictedScore: number;
+  predictedRange: [number, number];
+  predictedListening: number;
+  predictedReading: number;
+  targetScore: number;
+  targetDate: string | null;
+  daysRemaining: number | null;
+  probability: number;
+  suggestedDailyMinutes: number;
+  aiSummary: string;
+}

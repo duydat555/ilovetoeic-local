@@ -24,6 +24,10 @@ import { backendService, RecentActiveStudent } from '../../services/backend';
 import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
+import { WeeklyStudyTimeCard } from '../../components/dashboard/WeeklyStudyTimeCard';
+import { LevelProgressCard } from '../../components/dashboard/LevelProgressCard';
+import { SkillsRadarCard } from '../../components/dashboard/SkillsRadarCard';
+import { PredictionCard } from '../../components/dashboard/PredictionCard';
 import { CommunityChatWidget } from '../../components/dashboard/CommunityChatWidget';
 import { getBestToeicGoalScore, isToeicGoalAttempt } from '../../utils/toeicGoal';
 
@@ -236,7 +240,8 @@ export const DashboardLivePage: React.FC = () => {
       <div id="tour-db-welcome">
         <WelcomeBackCard
           userName={user.name}
-          xp={user.questionsAnswered || 0}
+          xp={user.xp ?? user.questionsAnswered ?? 0}
+          level={user.level ?? 1}
           streakDays={user.streakDays}
           longestStreak={user.longestStreak ?? user.streakDays}
         />
@@ -283,9 +288,19 @@ export const DashboardLivePage: React.FC = () => {
         )}
       </section>
 
+      {/* Gamification Level & Weekly Study Time Progress */}
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <LevelProgressCard />
+        <WeeklyStudyTimeCard />
+      </section>
+
       <div id="tour-db-activity">
         <PracticeActivityPanel />
       </div>
+
+      <PredictionCard />
+
+      <SkillsRadarCard />
 
       {/* Community Chat & Recent Activities Grid */}
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.1fr_.9fr]">

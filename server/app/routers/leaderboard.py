@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import db
 from app.security import active_streak_days, get_current_user, get_dicebear_avatar
+from app.services.cache_service import cache_service
 
 
 router = APIRouter(prefix="/api/v1", tags=["Leaderboard"])
@@ -30,29 +31,76 @@ def get_leaderboard(
     period: Period = Query(default="all"),
     user=Depends(get_current_user),
 ):
-    attempt_condition = ""
-    if period == "week":
-        attempt_condition = "AND a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 7 DAY)"
-    elif period == "month":
-        attempt_condition = "AND a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 DAY)"
-    member_rows = db.fetch_all(
-        f"""
-        SELECT u.id, u.full_name AS display_name, u.avatar_url,
-               0 AS rank_change,
-               CASE WHEN ? = 'all' THEN GREATEST(u.current_score, COALESCE(SUM(a.total_score), 0))
-                    ELSE COALESCE(SUM(a.total_score), 0) END AS total_score,
-               CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
-                    THEN 0 ELSE u.streak_days END AS streak_days,
-               COUNT(DISTINCT a.id) AS completed_lessons
-        FROM users u
-        LEFT JOIN test_attempts a ON a.user_id = u.id {attempt_condition}
-        WHERE u.role = 'student'
-        GROUP BY u.id, u.full_name, u.avatar_url, u.current_score, u.streak_days, u.last_study_date
-        ORDER BY total_score DESC, completed_lessons DESC, u.full_name ASC
-        """,
-        (period,),
-        use_cache=False,
-    )
+    cache_key = f"leaderboard:members:{period}"
+    cached_members = cache_service.get(cache_key)
+    if cached_members:
+        current_row = next((m for m in cached_members if m["id"] == user["id"]), None)
+        if current_row is None:
+            current_row = {
+                "id": user["id"],
+                "name": user.get("full_name") or "Học viên TOEIC",
+                "avatar": user.get("avatar_url") or get_dicebear_avatar(user.get("full_name") or user["id"]),
+                "score": int(user.get("current_score") or 0),
+                "streakDays": active_streak_days(user),
+                "completedLessons": 0,
+                "rankChange": 0,
+            }
+        return {
+            "currentMemberId": user["id"],
+            "currentUser": current_row,
+            "members": cached_members,
+            "updatedAt": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        }
+
+    if period == "all":
+        # Zero-COALESCE on indexed score column + B-Tree index scan
+        member_rows = db.fetch_all(
+            """
+            SELECT u.id, u.full_name AS display_name, u.avatar_url,
+                   0 AS rank_change,
+                   u.current_score AS total_score,
+                   CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+                        THEN 0 ELSE u.streak_days END AS streak_days,
+                   COALESCE(al.completed_lessons, 0) AS completed_lessons
+            FROM users u
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS completed_lessons
+                FROM test_attempts
+                GROUP BY user_id
+            ) al ON al.user_id = u.id
+            WHERE u.role = 'student' AND u.approval_status = 'approved'
+            ORDER BY u.current_score DESC, u.streak_days DESC, u.full_name ASC
+            LIMIT 100
+            """,
+            use_cache=False,
+        )
+    else:
+        days = 7 if period == "week" else 30
+        member_rows = db.fetch_all(
+            """
+            SELECT u.id, u.full_name AS display_name, u.avatar_url,
+                   0 AS rank_change,
+                   COALESCE(SUM(a.total_score), 0) AS total_score,
+                   CASE WHEN u.last_study_date IS NULL OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+                        THEN 0 ELSE u.streak_days END AS streak_days,
+                   COUNT(DISTINCT a.id) AS completed_lessons
+            FROM test_attempts a
+            JOIN users u ON u.id = a.user_id AND u.role = 'student' AND u.approval_status = 'approved'
+            WHERE a.completed_at >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL ? DAY)
+            GROUP BY u.id, u.full_name, u.avatar_url, u.streak_days, u.last_study_date
+            ORDER BY total_score DESC, completed_lessons DESC, u.full_name ASC
+            LIMIT 100
+            """,
+            (days,),
+            use_cache=False,
+        )
+
+    serialized_members = [serialize_member(row) for row in (member_rows or [])]
+    cache_service.set(cache_key, serialized_members, ttl_seconds=60)
+
+    if period == "all" and member_rows:
+        cache_service.zadd("leaderboard:score", {row["id"]: float(row["total_score"]) for row in member_rows})
+
     current_row = next((row for row in member_rows if row["id"] == user["id"]), None)
     if current_row is None:
         current_row = {
@@ -64,7 +112,7 @@ def get_leaderboard(
     return {
         "currentMemberId": user["id"],
         "currentUser": serialize_member(current_row),
-        "members": [serialize_member(row) for row in member_rows],
+        "members": serialized_members,
         "updatedAt": datetime.utcnow().isoformat(timespec="seconds") + "Z",
     }
 

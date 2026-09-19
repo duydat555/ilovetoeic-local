@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field, field_validator
 from app.db import db
 from app.notifications import create_notification
 from app.services.cache_service import cache_service
+from app.services.study_progress_service import record_study_activity
+from app.services.xp_service import award_practice_answer_xp, award_test_completion_xp
 from app.security import (
     active_streak_days,
     get_current_user,
@@ -40,33 +42,15 @@ def parse_json(value, fallback):
         return fallback
 
 
-def record_practice_streak(user: dict) -> None:
-    """Mark a day active when at least one practice answer reaches the database.
-    Early-exits if the user has already recorded activity today.
-    """
+def record_practice_streak(user: dict, seconds_spent: int = 0) -> None:
+    """Mark a day active when at least one practice answer reaches the database."""
     try:
-        today = date.today()
-        last_date = normalize_date(user.get("last_study_date"))
-        if last_date == today:
-            return
-
-        current_streak = active_streak_days(user)
-        if last_date == today - timedelta(days=1):
-            streak = current_streak + 1
-        else:
-            streak = 1
-        longest = max(int(user.get("longest_streak") or 0), streak)
-        db.execute(
-            """
-            UPDATE users
-            SET streak_days = ?, longest_streak = ?, last_study_date = ?
-            WHERE id = ?
-            """,
-            (streak, longest, today, user["id"]),
+        record_study_activity(
+            user_id=user.get("id"),
+            seconds_spent=seconds_spent,
+            source="practice_question",
+            user_dict=user,
         )
-        user["last_study_date"] = today
-        user["streak_days"] = streak
-        user["longest_streak"] = longest
     except Exception as exc:
         logger.warning(f"Failed to record practice streak for user {user.get('id')}: {exc}")
 
@@ -179,19 +163,16 @@ def _handle_study_attempt_side_effects(
     correct_answers: int,
     total_questions: int,
     accuracy_rate: float,
+    time_spent_seconds: int = 0,
 ) -> None:
-    """Execute streak update, exam score recalculation, and notification in the background."""
+    """Execute streak/time update, exam score recalculation, and notification in the background."""
     try:
-        today = date.today()
-        last_date = normalize_date(user.get("last_study_date"))
-        current_streak = active_streak_days(user)
-        if last_date == today:
-            streak = max(current_streak, 1)
-        elif last_date == today - timedelta(days=1):
-            streak = current_streak + 1
-        else:
-            streak = 1
-        longest = max(int(user.get("longest_streak") or 0), streak)
+        record_study_activity(
+            user_id=user["id"],
+            seconds_spent=time_spent_seconds,
+            source=f"attempt_{mode}",
+            user_dict=user,
+        )
 
         # Only the best fully answered, non-Part TOEIC exam contributes to the goal.
         # Recalculation also clears legacy scores produced by practice/partial work.
@@ -216,14 +197,11 @@ def _handle_study_attempt_side_effects(
         db.execute(
             """
             UPDATE users
-            SET streak_days = ?, longest_streak = ?, last_study_date = ?, current_score = ?
+            SET current_score = ?
             WHERE id = ?
             """,
-            (streak, longest, today, new_score, user["id"]),
+            (new_score, user["id"]),
         )
-        user["last_study_date"] = today
-        user["streak_days"] = streak
-        user["longest_streak"] = longest
         user["current_score"] = new_score
     except Exception as exc:
         logger.warning(f"Failed to update user score/streak in background for {user.get('id')}: {exc}")
@@ -260,8 +238,17 @@ def _handle_study_attempt_side_effects(
             action_url="/history",
             dedupe_key=f"study-attempt:{attempt_id}",
         )
+
+        is_partial = total_questions < 200 or metadata.get("is_partial") is True
+        award_test_completion_xp(
+            user_id=user["id"],
+            attempt_id=attempt_id,
+            total_score=metadata.get("total_score") or 0,
+            is_partial=is_partial,
+            test_name=activity_name,
+        )
     except Exception as exc:
-        logger.warning(f"Failed to create notification in background for {user.get('id')}: {exc}")
+        logger.warning(f"Failed to create notification or award XP in background for {user.get('id')}: {exc}")
 
 
 @router.put("/study-attempts/{attempt_id}")
@@ -348,6 +335,7 @@ def save_study_attempt(
             correct_answers=payload.correctAnswers,
             total_questions=payload.totalQuestions,
             accuracy_rate=payload.accuracyRate,
+            time_spent_seconds=payload.timeSpentSeconds,
         )
     else:
         background_tasks.add_task(
@@ -362,6 +350,7 @@ def save_study_attempt(
             correct_answers=payload.correctAnswers,
             total_questions=payload.totalQuestions,
             accuracy_rate=payload.accuracyRate,
+            time_spent_seconds=payload.timeSpentSeconds,
         )
     return {"success": True}
 
@@ -977,6 +966,21 @@ def delete_study_attempts(
     return {"success": True, "deletedCount": deleted_count}
 
 
+def _award_batch_questions_xp(user_id: str, attempt_id: str, items: list, qid_index: int = 2, is_correct_index: int = 5) -> None:
+    for row in items:
+        q_id = str(row[qid_index])
+        is_corr = bool(row[is_correct_index])
+        try:
+            award_practice_answer_xp(
+                user_id=user_id,
+                attempt_id=attempt_id,
+                question_id=q_id,
+                is_correct=is_corr,
+            )
+        except Exception:
+            pass
+
+
 @router.put("/study-activity/questions")
 @router.post("/user-question-activity/batch")
 def save_question_activity(
@@ -1037,6 +1041,7 @@ def save_question_activity(
                 )
         if normalize_date(user.get("last_study_date")) != date.today():
             background_tasks.add_task(record_practice_streak, user)
+        background_tasks.add_task(_award_batch_questions_xp, user["id"], payload.attemptId, values, 3, 5)
         return {"success": True, "saved": len(values)}
 
     question_rows = db.fetch_all(
@@ -1166,6 +1171,7 @@ def save_question_activity(
             record_practice_streak(user)
         else:
             background_tasks.add_task(record_practice_streak, user)
+    background_tasks.add_task(_award_batch_questions_xp, user["id"], payload.attemptId, values, 2, 5)
     return {"success": True, "saved": len(values)}
 
 

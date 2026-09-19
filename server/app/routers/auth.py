@@ -13,6 +13,7 @@ from pymysql.err import IntegrityError
 from app import config
 from app.db import db
 from app.notifications import create_notification
+from app.services.study_progress_service import record_study_activity
 from app.security import (
     active_streak_days,
     bearer_scheme,
@@ -432,34 +433,8 @@ def update_password(payload: PasswordRequest, user=Depends(get_current_user)):
 
 @router.post("/activity")
 def record_activity(user=Depends(get_current_user)):
-    today = date.today()
-    last_date = normalize_date(user.get("last_study_date"))
-    current_streak = active_streak_days(user)
-    if last_date == today:
-        streak = max(current_streak, 1)
-    elif last_date == today - timedelta(days=1):
-        streak = current_streak + 1
-    else:
-        streak = 1
-    longest = max(int(user.get("longest_streak") or 0), streak)
-    db.execute(
-        """
-        UPDATE users
-        SET streak_days = ?, longest_streak = ?, last_study_date = ?
-        WHERE id = ?
-        """,
-        (streak, longest, today, user["id"]),
-    )
+    record_study_activity(user["id"], seconds_spent=0, source="auth_activity", user_dict=user)
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
-    if streak in {3, 7, 14, 30, 60, 100, 200, 365}:
-        create_notification(
-            user["id"],
-            "achievement",
-            f"Chuỗi học đạt {streak} ngày",
-            "Bạn đã duy trì nhịp học đều đặn. Hoàn thành một hoạt động vào ngày mai để nối dài chuỗi.",
-            action_url="/dashboard",
-            dedupe_key=f"streak-milestone:{streak}",
-        )
     return {"user": user_payload(updated)}
 
 

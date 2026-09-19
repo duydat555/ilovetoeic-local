@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Clock, Timer, Zap, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { studyTimeService } from '../../services/backend';
 import { ModalPortal } from './ModalPortal';
 
 // Hook kiểm tra viewport mobile (<768px)
@@ -26,9 +27,12 @@ export const useIsMobile = (breakpoint = 768) => {
 export const ActiveTimeTracker: React.FC = () => {
   const { user } = useAuth();
   const [seconds, setSeconds] = useState<number>(0);
+  const [dailyGoalMinutes, setDailyGoalMinutes] = useState<number>(30);
   const [showTooltip, setShowTooltip] = useState<boolean>(false);
   const isMobile = useIsMobile(768);
   const containerRef = useRef<HTMLDivElement>(null);
+  const unflushedSecondsRef = useRef<number>(0);
+  const isPingingRef = useRef<boolean>(false);
 
   const getStorageKey = () => {
     const today = new Date().toISOString().slice(0, 10);
@@ -36,13 +40,29 @@ export const ActiveTimeTracker: React.FC = () => {
     return `toeic_active_time_${uid}_${today}`;
   };
 
+  // Sync initial seconds from local storage and backend
   useEffect(() => {
     const key = getStorageKey();
     const saved = localStorage.getItem(key);
     const initialSeconds = saved ? parseInt(saved, 10) || 0 : 0;
     setSeconds(initialSeconds);
+
+    if (user?.id && user.id !== 'guest') {
+      studyTimeService.getToday()
+        .then((res) => {
+          if (res && typeof res.todaySeconds === 'number') {
+            setSeconds((prev) => {
+              const maxSec = Math.max(prev, res.todaySeconds);
+              localStorage.setItem(key, maxSec.toString());
+              return maxSec;
+            });
+          }
+        })
+        .catch(() => {});
+    }
   }, [user?.id]);
 
+  // Main 1-second interval + 30-second ping flush
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -52,10 +72,59 @@ export const ActiveTimeTracker: React.FC = () => {
           localStorage.setItem(key, next.toString());
           return next;
         });
+        unflushedSecondsRef.current += 1;
+
+        // Flush heartbeat every 30 seconds if authenticated
+        if (
+          unflushedSecondsRef.current >= 30 &&
+          user?.id &&
+          user.id !== 'guest' &&
+          !isPingingRef.current
+        ) {
+          isPingingRef.current = true;
+          const toFlush = Math.min(unflushedSecondsRef.current, 60);
+          unflushedSecondsRef.current = Math.max(0, unflushedSecondsRef.current - toFlush);
+
+          studyTimeService.ping(toFlush, 'heartbeat')
+            .then((res) => {
+              if (res && typeof res.todaySeconds === 'number') {
+                setSeconds((prev) => Math.max(prev, res.todaySeconds));
+              }
+            })
+            .catch(() => {
+              // Return unflushed on network error
+              unflushedSecondsRef.current += toFlush;
+            })
+            .finally(() => {
+              isPingingRef.current = false;
+            });
+        }
       }
     }, 1000);
 
-    return () => clearInterval(interval);
+    // Flush on page unload or background switch
+    const handleVisibilityOrUnload = () => {
+      if (
+        document.visibilityState === 'hidden' &&
+        unflushedSecondsRef.current >= 5 &&
+        user?.id &&
+        user.id !== 'guest' &&
+        !isPingingRef.current
+      ) {
+        const toFlush = Math.min(unflushedSecondsRef.current, 60);
+        unflushedSecondsRef.current = 0;
+        void studyTimeService.ping(toFlush, 'tab_hidden');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityOrUnload);
+    window.addEventListener('beforeunload', handleVisibilityOrUnload);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityOrUnload);
+      window.removeEventListener('beforeunload', handleVisibilityOrUnload);
+    };
   }, [user?.id]);
 
   // Click outside listener cho Desktop
@@ -98,7 +167,7 @@ export const ActiveTimeTracker: React.FC = () => {
     return parts.join(' ');
   };
 
-  const percentGoal = Math.min(100, Math.round((seconds / 1800) * 100));
+  const percentGoal = Math.min(100, Math.round((seconds / Math.max(60, dailyGoalMinutes * 60)) * 100));
 
   const popupContent = (
     <>
@@ -137,7 +206,7 @@ export const ActiveTimeTracker: React.FC = () => {
 
         <div className="rounded-xl bg-surface-elevated/80 p-2.5 text-xs text-content-muted">
           <div className="flex items-center justify-between text-[11px] font-bold">
-            <span>Mục tiêu ngày (30p)</span>
+            <span>Mục tiêu ngày ({dailyGoalMinutes}p)</span>
             <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{percentGoal}%</span>
           </div>
           <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-surface-hover">

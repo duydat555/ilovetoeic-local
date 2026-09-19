@@ -257,6 +257,8 @@ def user_payload(user):
         "streakDays": active_streak_days(user),
         "longestStreak": int(user.get("longest_streak") or 0),
         "lastStudyDate": last_study_date,
+        "xp": int(user.get("xp") or 0),
+        "level": int(user.get("level") or 1),
         "totalStudyMinutes": 0,
         "questionsAnswered": 0,
         "accuracyRate": 0,

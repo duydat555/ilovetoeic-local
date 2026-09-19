@@ -25,6 +25,8 @@ export interface User {
   frozenAt?: string | null;
   accessExpiresAt?: string | null;
   isPro?: boolean;
+  xp?: number;
+  level?: number;
 }
 
 export interface ActivityItem {

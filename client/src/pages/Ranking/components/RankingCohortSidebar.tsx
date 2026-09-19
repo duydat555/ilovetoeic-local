@@ -39,11 +39,12 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
         totalQuestions,
         streakDays: cohortMembers.reduce((sum, member) => sum + member.streakDays, 0),
         accuracyRate: totalQuestions ? Math.round((correctQuestions * 1000) / totalQuestions) / 10 : 0,
+        rawAccuracyRatio: totalQuestions ? (correctQuestions / totalQuestions) : 0,
       };
     }).sort((left, right) => (
       right.totalQuestions - left.totalQuestions
       || right.streakDays - left.streakDays
-      || right.accuracyRate - left.accuracyRate
+      || (right.rawAccuracyRatio ?? 0) - (left.rawAccuracyRatio ?? 0)
       || left.cohortCode.localeCompare(right.cohortCode, language === 'en' ? 'en' : 'vi', { numeric: true })
     ));
   }, [members, language]);

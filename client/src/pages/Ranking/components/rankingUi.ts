@@ -35,6 +35,12 @@ export const studentFullName = (member: LeaderboardMember): string => (
 
 export const MIN_QUESTIONS_FOR_ACCURACY = 20;
 
+export const rawAccuracyRatio = (member: LeaderboardMember): number => (
+  (member.totalQuestions || 0) >= MIN_QUESTIONS_FOR_ACCURACY
+    ? ((member.correctQuestions || 0) / (member.totalQuestions || 1))
+    : -1.0
+);
+
 export const effectiveAccuracyRate = (member: LeaderboardMember): number => (
   (member.totalQuestions || 0) >= MIN_QUESTIONS_FOR_ACCURACY ? (member.accuracyRate || 0) : 0
 );
@@ -42,7 +48,7 @@ export const effectiveAccuracyRate = (member: LeaderboardMember): number => (
 export const sortRankingMembers = (members: LeaderboardMember[]): LeaderboardMember[] => (
   [...members].sort((left, right) => (
     (right.xp || 0) - (left.xp || 0)
-    || effectiveAccuracyRate(right) - effectiveAccuracyRate(left)
+    || rawAccuracyRatio(right) - rawAccuracyRatio(left)
     || right.totalQuestions - left.totalQuestions
     || right.streakDays - left.streakDays
     || studentFullName(left).localeCompare(studentFullName(right), 'vi')

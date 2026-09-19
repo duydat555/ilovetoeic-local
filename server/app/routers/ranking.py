@@ -24,12 +24,14 @@ MIN_QUESTIONS_FOR_ACCURACY = 20
 
 
 def _member_sort_key(member):
-    effective_acc = member["accuracyRate"] if member["totalQuestions"] >= MIN_QUESTIONS_FOR_ACCURACY else -1.0
+    tq = member["totalQuestions"]
+    cq = member["correctQuestions"]
+    raw_acc = (cq / tq) if tq >= MIN_QUESTIONS_FOR_ACCURACY else -1.0
     full_name = f"{member.get('familyMiddleName', '')} {member['name']}".strip()
     return (
         -member["xp"],
-        -effective_acc,
-        -member["totalQuestions"],
+        -raw_acc,
+        -tq,
         -member["streakDays"],
         full_name,
     )
@@ -77,7 +79,7 @@ def _compute_and_cache_leaderboard():
         ORDER BY
             u.xp DESC,
             CASE WHEN u.total_questions_answered >= 20
-                 THEN ROUND(u.total_correct_answers * 100.0 / NULLIF(u.total_questions_answered, 0), 1)
+                 THEN (u.total_correct_answers * 1.0 / u.total_questions_answered)
                  ELSE -1.0 END DESC,
             u.total_questions_answered DESC,
             u.streak_days DESC,

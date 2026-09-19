@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+import { XpExplanationTooltip } from '../common/XpExplanationTooltip';
 import quockhanhSvg from '../../assets/icons/quockhanh.svg';
 import './NationalDayBanner.css';
 
@@ -109,24 +110,27 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
 
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-1.5 pt-1 sm:flex sm:flex-wrap sm:gap-3">
-              <StatCard
-                id="stat-xp-nd"
-                icon={<Award className="size-4" />}
-                label="Điểm XP"
-                value={xp}
-                badgeBg="bg-gradient-to-br from-amber-400 to-amber-500"
-                iconColor="text-amber-950"
-                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-                textColor="text-slate-900"
-                labelColor="text-slate-600 font-bold"
-              />
+              <XpExplanationTooltip align="left" side="bottom">
+                <StatCard
+                  id="stat-xp-nd"
+                  icon={<Award className="size-4" />}
+                  label="Điểm XP"
+                  value={xp}
+                  badgeBg="bg-amber-400"
+                  iconColor="text-amber-950"
+                  cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
+                  textColor="text-slate-900"
+                  labelColor="text-slate-600 font-bold"
+                  className="cursor-help"
+                />
+              </XpExplanationTooltip>
               <StatCard
                 id="stat-streak-nd"
                 icon={<Flame className="size-4" />}
                 label="Chuỗi ngày"
                 value={streakDays}
                 unit="ngày"
-                badgeBg="bg-gradient-to-br from-orange-400 to-red-500"
+                badgeBg="bg-orange-500"
                 iconColor="text-white"
                 cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
                 textColor="text-slate-900"
@@ -138,8 +142,8 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
                 label="Max Streak"
                 value={longestStreak}
                 unit="ngày"
-                badgeBg="bg-gradient-to-br from-amber-400 to-amber-600"
-                iconColor="text-amber-950"
+                badgeBg="bg-amber-500"
+                iconColor="text-white"
                 cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
                 textColor="text-slate-900"
                 labelColor="text-slate-600 font-bold"

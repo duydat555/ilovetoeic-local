@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
+import { XpExplanationTooltip } from '../common/XpExplanationTooltip';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
 import { useLanguage } from '../../context/LanguageContext';
 import { NationalDayBanner } from './NationalDayBanner';
@@ -162,21 +163,24 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-1.5 pt-2 sm:flex sm:flex-wrap sm:gap-3">
-          <StatCard
-            id="stat-xp"
-            icon={<Award className="size-4" />}
-            label={t('dashboard.xpPoints')}
-            value={xp}
-            badgeBg="bg-gradient-to-br from-blue-400 to-blue-600"
-            iconColor="text-white"
-          />
+          <XpExplanationTooltip align="left" side="bottom">
+            <StatCard
+              id="stat-xp"
+              icon={<Award className="size-4" />}
+              label={t('dashboard.xpPoints')}
+              value={xp}
+              badgeBg="bg-blue-500"
+              iconColor="text-white"
+              className="cursor-help"
+            />
+          </XpExplanationTooltip>
           <StatCard
             id="stat-streak"
             icon={<Flame className="size-4" />}
             label={t('dashboard.streak')}
             value={streakDays}
             unit={t('common.days')}
-            badgeBg="bg-gradient-to-br from-orange-400 to-red-500"
+            badgeBg="bg-orange-500"
             iconColor="text-white"
           />
           <StatCard
@@ -185,7 +189,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
             label={t('dashboard.longestStreak')}
             value={longestStreak}
             unit={t('common.days')}
-            badgeBg="bg-gradient-to-br from-amber-400 to-amber-600"
+            badgeBg="bg-amber-500"
             iconColor="text-white"
           />
         </div>

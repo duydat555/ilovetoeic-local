@@ -8,6 +8,8 @@ import {
   X,
   History,
   TrendingUp,
+  HelpCircle,
+  Zap,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import {
@@ -18,6 +20,7 @@ import {
 } from '../../services/backend';
 import { ModalPortal } from '../common/ModalPortal';
 import { getModalMotion } from '../common/modalMotion';
+import { XpExplanationTooltip } from '../common/XpExplanationTooltip';
 
 export const LevelProgressCard: React.FC = () => {
   const { language } = useLanguage();
@@ -88,7 +91,7 @@ export const LevelProgressCard: React.FC = () => {
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
           <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-2xl border border-brand-200/60 bg-gradient-to-br from-brand-500 to-indigo-600 text-white shadow-xs shadow-brand-500/20 shrink-0">
+            <span className="grid size-11 place-items-center rounded-2xl border border-brand-200/60 bg-brand-500 text-white shadow-xs shadow-brand-500/20 shrink-0">
               <Award className="size-5.5" />
             </span>
             <div>
@@ -98,15 +101,31 @@ export const LevelProgressCard: React.FC = () => {
                 </span>
                 <h2 className="text-base font-extrabold text-content">{title}</h2>
               </div>
-              <p className="mt-0.5 text-xs text-content-muted">
-                {language === 'en'
-                  ? `Total XP earned: ${currentXp.toLocaleString()}`
-                  : `Tổng XP tích lũy: ${currentXp.toLocaleString()} XP`}
-              </p>
+              <XpExplanationTooltip align="left" side="bottom">
+                <p className="mt-0.5 text-xs text-content-muted cursor-help flex items-center gap-1 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                  <span className="underline decoration-dotted underline-offset-2">
+                    {language === 'en'
+                      ? `Total XP earned: ${currentXp.toLocaleString()}`
+                      : `Tổng XP tích lũy: ${currentXp.toLocaleString()} XP`}
+                  </span>
+                  <HelpCircle className="size-3 opacity-60" />
+                </p>
+              </XpExplanationTooltip>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <XpExplanationTooltip align="right" side="bottom">
+              <button
+                type="button"
+                className="inline-flex cursor-help items-center gap-1 rounded-xl border border-amber-500/25 bg-amber-500/10 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-300 transition-colors"
+                title="Cách tính Điểm XP"
+              >
+                <Zap className="size-3 text-amber-500" />
+                <span>Cách tính XP</span>
+                <HelpCircle className="size-3 text-amber-600 dark:text-amber-400" />
+              </button>
+            </XpExplanationTooltip>
             <button
               type="button"
               onClick={() => setShowHistoryModal(true)}
@@ -160,7 +179,7 @@ export const LevelProgressCard: React.FC = () => {
               initial={{ width: 0 }}
               animate={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.8, ease: 'easeOut' }}
-              className="h-full rounded-full bg-gradient-to-r from-brand-500 via-indigo-500 to-purple-500"
+              className="h-full rounded-full bg-brand-500"
             />
           </div>
 

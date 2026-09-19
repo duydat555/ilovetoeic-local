@@ -6,7 +6,7 @@ import {
   CheckCircle2,
   Target,
   ChevronDown,
-  Sparkles,
+  TrendingUp,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { studyTimeService, WeeklyStudyStats } from '../../services/backend';
@@ -255,7 +255,7 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
       <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 rounded-2xl border border-line/60 bg-surface-elevated/40 p-3.5">
         <div className="flex items-center gap-3">
           <div className="relative grid size-9 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-            <Sparkles className="size-4" />
+            <TrendingUp className="size-4" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between text-xs">

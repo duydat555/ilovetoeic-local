@@ -13,6 +13,7 @@ export interface StatCardProps {
   textColor?: string;
   labelColor?: string;
   className?: string;
+  helpIcon?: boolean;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -27,6 +28,7 @@ export const StatCard: React.FC<StatCardProps> = ({
   textColor = 'text-slate-800',
   labelColor = 'text-amber-900/70',
   className = '',
+  helpIcon = false,
 }) => {
   return (
     <div
@@ -46,8 +48,16 @@ export const StatCard: React.FC<StatCardProps> = ({
           <CountUp end={value} />
           {unit && <span className="text-[9px] sm:text-[10px] font-semibold opacity-80">{unit}</span>}
         </div>
-        <span className={`text-[10px] font-bold truncate mt-0.5 ${labelColor}`}>
-          {label}
+        <span className={`text-[10px] font-bold truncate mt-0.5 flex items-center gap-1 ${labelColor}`}>
+          <span>{label}</span>
+          {helpIcon && (
+            <span
+              className="grid size-3.5 place-items-center rounded-full bg-amber-500/25 text-amber-950 dark:text-amber-200 text-[9px] font-black shrink-0 border border-amber-500/40"
+              title="Xem cách tính điểm XP"
+            >
+              ?
+            </span>
+          )}
         </span>
       </div>
     </div>

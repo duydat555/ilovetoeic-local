@@ -171,6 +171,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
               value={xp}
               badgeBg="bg-blue-500"
               iconColor="text-white"
+              helpIcon={true}
               className="cursor-help"
             />
           </XpExplanationTooltip>

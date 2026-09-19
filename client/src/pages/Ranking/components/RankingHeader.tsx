@@ -1,7 +1,6 @@
 import React from 'react';
-import { GraduationCap, HelpCircle, RefreshCw, Zap } from 'lucide-react';
+import { GraduationCap, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
-import { XpExplanationTooltip } from './XpExplanationTooltip';
 
 interface RankingHeaderProps {
   updatedAt?: string;
@@ -32,23 +31,11 @@ export const RankingHeader: React.FC<RankingHeaderProps> = ({ updatedAt, loading
         <h1 className="mt-2 text-2xl font-black tracking-tight text-content sm:text-3xl">
           {language === 'en' ? 'Leaderboard' : 'Bảng xếp hạng'}
         </h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-content-muted sm:text-sm">
-          <span>
-            {language === 'en'
-              ? 'Track your progress and engage in healthy competition with learners.'
-              : 'Theo dõi tiến độ và thi đua lành mạnh cùng các học viên trong lớp.'}
-          </span>
-          <XpExplanationTooltip align="left" side="bottom">
-            <button
-              type="button"
-              className="inline-flex cursor-help items-center gap-1 rounded-md border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 hover:bg-amber-500/20 dark:border-amber-500/30 dark:text-amber-300 transition-colors"
-            >
-              <Zap className="size-3 text-amber-500" />
-              <span>{language === 'en' ? 'XP rules' : 'Cách tính Điểm XP'}</span>
-              <HelpCircle className="size-2.5 opacity-60" />
-            </button>
-          </XpExplanationTooltip>
-        </div>
+        <p className="mt-1 text-xs font-semibold text-content-muted sm:text-sm">
+          {language === 'en'
+            ? 'Track your progress and engage in healthy competition with learners.'
+            : 'Theo dõi tiến độ và thi đua lành mạnh cùng các học viên trong lớp.'}
+        </p>
       </div>
       <button
         type="button"

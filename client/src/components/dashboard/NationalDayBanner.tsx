@@ -121,6 +121,7 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
                   cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
                   textColor="text-slate-900"
                   labelColor="text-slate-600 font-bold"
+                  helpIcon={true}
                   className="cursor-help"
                 />
               </XpExplanationTooltip>

@@ -1,11 +1,10 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Award, CheckCircle2, Crown, Flame, HelpCircle, Medal, Target, Trophy, Zap } from 'lucide-react';
+import { Award, CheckCircle2, Crown, Flame, Medal, Target, Trophy, Zap } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, studentFullName } from './rankingUi';
 import { RankingPodiumSkeleton } from './RankingPageSkeleton';
 import { useLanguage } from '../../../context/LanguageContext';
-import { XpExplanationTooltip } from './XpExplanationTooltip';
 
 interface RankingPodiumProps {
   members: LeaderboardMember[];
@@ -181,42 +180,39 @@ const PodiumCard: React.FC<{
           </p>
 
           {/* Primary Achievement Hero Metric */}
-          <XpExplanationTooltip align="center" side="bottom" className="mt-3 w-full">
+          <div
+            className={`mt-3 w-full rounded-2xl border p-2.5 sm:p-3 text-center transition-colors ${
+              isWinner
+                ? 'border-amber-300/50 bg-amber-500/10 dark:border-amber-500/30 dark:bg-amber-500/15'
+                : rank === 2
+                ? 'border-slate-300/50 bg-slate-200/20 dark:border-slate-600/30 dark:bg-slate-700/20'
+                : 'border-orange-300/50 bg-orange-500/10 dark:border-orange-800/30 dark:bg-orange-950/20'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-content-muted">
+              <Zap
+                className={`size-3.5 ${
+                  isWinner
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : rank === 2
+                    ? 'text-slate-600 dark:text-slate-300'
+                    : 'text-orange-600 dark:text-orange-400'
+                }`}
+              />
+              <span>{language === 'en' ? 'XP Points' : 'Điểm XP'}</span>
+            </div>
             <div
-              className={`w-full cursor-help rounded-2xl border p-2.5 sm:p-3 text-center transition-all hover:scale-[1.02] ${
+              className={`mt-0.5 font-black tabular-nums tracking-tight ${
                 isWinner
-                  ? 'border-amber-300/50 bg-amber-500/10 dark:border-amber-500/30 dark:bg-amber-500/15'
+                  ? 'text-xl sm:text-2xl text-amber-900 dark:text-amber-100'
                   : rank === 2
-                  ? 'border-slate-300/50 bg-slate-200/20 dark:border-slate-600/30 dark:bg-slate-700/20'
-                  : 'border-orange-300/50 bg-orange-500/10 dark:border-orange-800/30 dark:bg-orange-950/20'
+                  ? 'text-lg sm:text-xl text-slate-800 dark:text-slate-100'
+                  : 'text-lg sm:text-xl text-orange-900 dark:text-orange-100'
               }`}
             >
-              <div className="flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-content-muted">
-                <Zap
-                  className={`size-3.5 ${
-                    isWinner
-                      ? 'text-amber-600 dark:text-amber-400'
-                      : rank === 2
-                      ? 'text-slate-600 dark:text-slate-300'
-                      : 'text-orange-600 dark:text-orange-400'
-                  }`}
-                />
-                <span className="underline decoration-dotted underline-offset-2">{language === 'en' ? 'XP Points' : 'Điểm XP'}</span>
-                <HelpCircle className="size-2.5 opacity-60 ml-0.5" />
-              </div>
-              <div
-                className={`mt-0.5 font-black tabular-nums tracking-tight ${
-                  isWinner
-                    ? 'text-xl sm:text-2xl text-amber-900 dark:text-amber-100'
-                    : rank === 2
-                    ? 'text-lg sm:text-xl text-slate-800 dark:text-slate-100'
-                    : 'text-lg sm:text-xl text-orange-900 dark:text-orange-100'
-                }`}
-              >
-                {formatRankingValue(member, 'xp')}
-              </div>
+              {formatRankingValue(member, 'xp')}
             </div>
-          </XpExplanationTooltip>
+          </div>
 
           {/* Secondary Sub-metrics */}
           <div className="mt-2.5 grid w-full grid-cols-3 gap-1.5">

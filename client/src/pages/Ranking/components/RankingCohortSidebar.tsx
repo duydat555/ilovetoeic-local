@@ -3,7 +3,6 @@ import { CheckCircle2, Flame, Target, UsersRound, Zap } from 'lucide-react';
 import type { LeaderboardMember } from '../../../services/backend';
 import { formatRankingValue, sortRankingMembers, studentFullName } from './rankingUi';
 import { useLanguage } from '../../../context/LanguageContext';
-import { XpExplanationTooltip } from './XpExplanationTooltip';
 
 interface RankingCohortSidebarProps {
   members: LeaderboardMember[];
@@ -106,12 +105,7 @@ export const RankingCohortSidebar: React.FC<RankingCohortSidebarProps> = ({
                       )}
                     </div>
                     <dl className="mt-2 grid grid-cols-2 gap-1.5 pl-6 text-[9px] text-content-muted">
-                      <XpExplanationTooltip align="left" side="bottom">
-                        <div className="flex items-center gap-1 cursor-help hover:text-amber-600 transition-colors">
-                          <Zap className="size-3 text-amber-500" aria-hidden="true" />
-                          <span className="font-bold tabular-nums text-amber-600 dark:text-amber-400 underline decoration-dotted underline-offset-2">{(member.xp || 0).toLocaleString('vi-VN')} XP</span>
-                        </div>
-                      </XpExplanationTooltip>
+                      <div className="flex items-center gap-1"><Zap className="size-3 text-amber-500" aria-hidden="true" /><span className="font-bold tabular-nums text-amber-600 dark:text-amber-400">{(member.xp || 0).toLocaleString('vi-VN')} XP</span></div>
                       <div className="flex items-center justify-end gap-1"><Flame className="size-3 text-amber-500" aria-hidden="true" /><span className="font-bold tabular-nums text-content">{formatRankingValue(member, 'streakDays')}</span></div>
                       <div className="flex items-center gap-1"><CheckCircle2 className="size-3 text-brand-600 dark:text-brand-300" aria-hidden="true" /><span className="font-bold tabular-nums text-content">{formatRankingValue(member, 'totalQuestions')}</span></div>
                       <div className="flex items-center justify-end gap-1"><Target className="size-3" aria-hidden="true" /><span className="font-bold tabular-nums text-content">{formatRankingValue(member, 'accuracyRate')}</span></div>

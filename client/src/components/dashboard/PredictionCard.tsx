@@ -215,15 +215,6 @@ export const PredictionCard: React.FC = () => {
                     className="w-full h-full overflow-visible"
                     aria-label={`Điểm dự đoán: ${predictedScore} trên 990`}
                   >
-                    <defs>
-                      <linearGradient id="scoreGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="45%" stopColor="#6366f1" />
-                        <stop offset="80%" stopColor="#8b5cf6" />
-                        <stop offset="100%" stopColor="#f59e0b" />
-                      </linearGradient>
-                    </defs>
-
                     {/* Subtle dashed inner guide arc */}
                     <path
                       d="M 44 115 A 76 76 0 0 1 196 115"
@@ -248,11 +239,12 @@ export const PredictionCard: React.FC = () => {
                     <path
                       d="M 32 115 A 88 88 0 0 1 208 115"
                       fill="none"
-                      stroke="url(#scoreGaugeGradient)"
+                      stroke="currentColor"
                       strokeWidth="14"
                       strokeLinecap="round"
                       strokeDasharray={276.46}
                       strokeDashoffset={strokeDashoffset}
+                      className="text-brand-600 dark:text-brand-400"
                       style={{
                         transition: reduceMotion ? 'none' : 'stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)',
                       }}

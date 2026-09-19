@@ -133,6 +133,9 @@ export const translations = {
       deleteTestHistory: 'Xoá lịch sử làm bài',
       selectedTest: 'Đã chọn đề này',
       selectTest: 'Chọn đề này',
+      autoSaved: 'Tự động lưu tiến độ',
+      noTests: 'Chưa có đề thi nào',
+      noTestsDesc: 'Hiện tại chưa có đề thi phù hợp với bộ lọc bạn đã chọn.',
     },
     listening: {
       title: 'Luyện nghe TOEIC Chuyên sâu',
@@ -501,6 +504,9 @@ export const translations = {
       deleteTestHistory: 'Delete test history',
       selectedTest: 'Selected',
       selectTest: 'Select this test',
+      autoSaved: 'Progress auto-saved',
+      noTests: 'No mock tests found',
+      noTestsDesc: 'There are currently no tests matching your selected filter.',
     },
     listening: {
       title: 'Intensive TOEIC Listening',

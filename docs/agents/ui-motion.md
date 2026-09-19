@@ -4,6 +4,7 @@
 - Không tạo animation duration/easing/offset/scale riêng cho từng modal.
 - Modal dismissal (nút close, Cancel, Escape, click backdrop) phải chạy cùng animation exit trước khi unmount.
 - Motion phải tôn trọng `prefers-reduced-motion`.
+- Không được sử dụng màu gradient.
 - Drawer và anchored popover được phép có motion riêng phù hợp với kiểu tương tác, nhưng mở/đóng phải đối xứng.
 - Khi sửa motion của 1 modal, phải audit các modal khác dùng cùng pattern để đồng bộ.
 - Mọi chỉnh sửa liên quan đến giao diện phải dùng taste skills để chỉnh sửa.

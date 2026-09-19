@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.security import get_current_user
+from app.security import active_streak_days, get_current_user
 from app.services.study_progress_service import (
     get_today_study_seconds,
     get_weekly_study_time,
@@ -43,7 +43,7 @@ def ping_study_time(
         "secondsAdded": payload.seconds,
         "todaySeconds": today_sec,
         "todayMinutes": round(today_sec / 60, 1),
-        "streakDays": res.get("streak_days", user.get("streak_days", 0)),
+        "streakDays": res.get("streak_days", active_streak_days(user)),
     }
 
 

@@ -108,6 +108,10 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT NULL,
     target_score INT NOT NULL DEFAULT 750,
     current_score INT NOT NULL DEFAULT 0,
+    total_questions_answered INT NOT NULL DEFAULT 0,
+    total_correct_answers INT NOT NULL DEFAULT 0,
+    xp INT NOT NULL DEFAULT 0,
+    level INT NOT NULL DEFAULT 1,
     exam_date DATE NULL,
     streak_days INT NOT NULL DEFAULT 0,
     longest_streak INT NOT NULL DEFAULT 0,
@@ -118,7 +122,10 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_users_email (email),
     UNIQUE KEY uq_users_google_sub (google_sub),
-    UNIQUE KEY uq_users_single_admin (admin_guard)
+    UNIQUE KEY uq_users_single_admin (admin_guard),
+    INDEX idx_users_xp (xp),
+    INDEX idx_users_level (level),
+    INDEX idx_users_ranking (xp DESC, total_questions_answered DESC, streak_days DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_sessions (

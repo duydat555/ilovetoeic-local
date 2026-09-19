@@ -16,6 +16,7 @@ from app.security import (
     active_streak_days,
     get_current_user,
     get_dicebear_avatar,
+    get_vietnam_today,
     normalize_date,
 )
 
@@ -550,7 +551,7 @@ def get_recent_active_students():
             "avatar": avatar,
             "role": row.get("role") or "student",
             "currentScore": int(row.get("current_score") or 0),
-            "streakDays": int(row.get("streak_days") or 0),
+            "streakDays": active_streak_days(row),
             "lastActiveAt": last_active.isoformat() if isinstance(last_active, datetime) else "",
             "isOnline": is_online,
         })
@@ -700,6 +701,23 @@ def delete_single_study_attempt(
     with db.transaction() as conn:
         with conn.cursor() as cursor:
             cursor.execute(
+                "SELECT COUNT(*), COALESCE(SUM(is_correct), 0) FROM user_question_activity WHERE attempt_id = %s AND user_id = %s",
+                (attempt_id, user_id),
+            )
+            count_row = cursor.fetchone()
+            del_q = int(list(count_row.values())[0]) if count_row else 0
+            del_c = int(list(count_row.values())[1]) if count_row else 0
+            if del_q > 0:
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET total_questions_answered = GREATEST(0, total_questions_answered - %s),
+                        total_correct_answers = GREATEST(0, total_correct_answers - %s)
+                    WHERE id = %s
+                    """,
+                    (del_q, del_c, user_id),
+                )
+            cursor.execute(
                 "DELETE FROM user_question_activity WHERE attempt_id = %s AND user_id = %s",
                 (attempt_id, user_id),
             )
@@ -805,11 +823,19 @@ def delete_study_attempts(
                     (user_id,),
                 )
                 cursor.execute(
+                    "DELETE FROM user_grammar_question_activity WHERE user_id = %s",
+                    (user_id,),
+                )
+                cursor.execute(
                     "DELETE FROM user_practice_sessions WHERE user_id = %s",
                     (user_id,),
                 )
                 cursor.execute(
                     "DELETE FROM user_wrong_questions WHERE user_id = %s",
+                    (user_id,),
+                )
+                cursor.execute(
+                    "UPDATE users SET total_questions_answered = 0, total_correct_answers = 0 WHERE id = %s",
                     (user_id,),
                 )
             elif source_type == "level":
@@ -1027,6 +1053,33 @@ def save_question_activity(
         ]
         with db.transaction() as conn:
             with conn.cursor() as cursor:
+                # Idempotent delta computation for grammar questions
+                cursor.execute(
+                    f"""
+                    SELECT membership_id, is_correct
+                    FROM user_grammar_question_activity
+                    WHERE user_id = %s AND attempt_id = %s AND membership_id IN ({placeholders})
+                    """,
+                    (user["id"], payload.attemptId, *question_ids),
+                )
+                prev_grammar_rows = cursor.fetchall()
+                prev_grammar_map = {
+                    list(r.values())[0]: bool(list(r.values())[1])
+                    for r in prev_grammar_rows
+                } if prev_grammar_rows else {}
+
+                delta_g_answered = 0
+                delta_g_correct = 0
+                for mid in question_ids:
+                    is_c = 1 if answer_map[mid] == str(grammar_map[mid].get("correct_answer") or "").upper() else 0
+                    if mid not in prev_grammar_map:
+                        delta_g_answered += 1
+                        if is_c:
+                            delta_g_correct += 1
+                    else:
+                        prev_c = 1 if prev_grammar_map[mid] else 0
+                        delta_g_correct += (is_c - prev_c)
+
                 cursor.executemany(
                     """
                     INSERT INTO user_grammar_question_activity (
@@ -1039,7 +1092,17 @@ def save_question_activity(
                     """,
                     values,
                 )
-        if normalize_date(user.get("last_study_date")) != date.today():
+                if delta_g_answered or delta_g_correct:
+                    cursor.execute(
+                        """
+                        UPDATE users
+                        SET total_questions_answered = GREATEST(0, total_questions_answered + %s),
+                            total_correct_answers = GREATEST(0, total_correct_answers + %s)
+                        WHERE id = %s
+                        """,
+                        (delta_g_answered, delta_g_correct, user["id"]),
+                    )
+        if normalize_date(user.get("last_study_date")) != get_vietnam_today():
             background_tasks.add_task(record_practice_streak, user)
         background_tasks.add_task(_award_batch_questions_xp, user["id"], payload.attemptId, values, 3, 5)
         return {"success": True, "saved": len(values)}
@@ -1090,17 +1153,28 @@ def save_question_activity(
     )
     existing_wrong_ids = {str(row["question_id"]) for row in existing_wrong_rows}
 
+    delta_answered = 0
+    delta_correct = 0
     values = []
     for question_id in question_ids:
         question = question_map[question_id]
         selected_answer = answer_map[question_id]
+        is_corr = 1 if selected_answer == str(question.get("correct_answer") or "").upper() else 0
+        if question_id not in previous_correctness:
+            delta_answered += 1
+            if is_corr:
+                delta_correct += 1
+        else:
+            prev_corr = 1 if previous_correctness[question_id] else 0
+            delta_correct += (is_corr - prev_corr)
+
         values.append((
             user["id"],
             payload.attemptId,
             question_id,
             int(question["part"]),
             selected_answer,
-            1 if selected_answer == str(question.get("correct_answer") or "").upper() else 0,
+            is_corr,
             answered_at_map[question_id],
         ))
     with db.transaction() as conn:
@@ -1116,6 +1190,16 @@ def save_question_activity(
                 """,
                 values,
             )
+            if delta_answered or delta_correct:
+                cursor.execute(
+                    """
+                    UPDATE users
+                    SET total_questions_answered = GREATEST(0, total_questions_answered + %s),
+                        total_correct_answers = GREATEST(0, total_correct_answers + %s)
+                    WHERE id = %s
+                    """,
+                    (delta_answered, delta_correct, user["id"]),
+                )
 
             # Delete only rows that actually exist in user_wrong_questions (exact row lock, zero gap lock)
             to_delete_wrong = [

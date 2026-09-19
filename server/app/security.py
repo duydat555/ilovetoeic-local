@@ -5,7 +5,7 @@ import json
 import re
 import secrets
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import quote_plus
 
@@ -218,14 +218,32 @@ def normalize_date(val):
     return None
 
 
-def active_streak_days(user):
+VIETNAM_TZ = timezone(timedelta(hours=7))
+
+
+def get_vietnam_today() -> date:
+    """Return the current calendar date in Vietnam timezone (UTC+7)."""
+    return datetime.now(VIETNAM_TZ).date()
+
+
+def active_streak_days(user: Optional[dict]) -> int:
+    """Check if streak is still active based on Vietnam timezone (UTC+7).
+    
+    If last_study_date is older than yesterday in Vietnam time, streak is considered broken (returns 0).
+    Otherwise, returns user's streak_days.
+    """
+    if not user:
+        return 0
     last_study = normalize_date(user.get("last_study_date"))
     if not last_study:
         return 0
-    today = date.today()
+    today = get_vietnam_today()
     if last_study < today - timedelta(days=1):
         return 0
     return int(user.get("streak_days") or 0)
+
+
+get_effective_streak = active_streak_days
 
 
 def user_payload(user):

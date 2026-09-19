@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from app.db import db
 from app.notifications import create_notification
-from app.security import normalize_date
+from app.security import get_vietnam_today, normalize_date
 from app.services.xp_service import award_daily_goal_xp, award_streak_milestone_xp
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ def record_study_activity(
     if not user_id or user_id == "guest":
         return {"success": False, "reason": "guest_user"}
 
-    today = date.today()
+    today = get_vietnam_today()
     safe_seconds = max(0, min(int(seconds_spent or 0), 7200))
 
     try:
@@ -136,7 +136,7 @@ def get_today_study_seconds(user_id: str) -> int:
 
 def get_weekly_study_time(user_id: str) -> Dict[str, Any]:
     """Retrieve 7-day rolling study time with daily goals for charting."""
-    today = date.today()
+    today = get_vietnam_today()
     start_date = today - timedelta(days=6)
 
     # 1. Fetch daily goal from user_study_goals or default to 30 minutes

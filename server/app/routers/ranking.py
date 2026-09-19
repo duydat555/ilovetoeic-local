@@ -1,15 +1,23 @@
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
 from app.db import db
-from app.security import get_current_user, get_dicebear_avatar, parse_student_ranking_name
+from app.security import (
+    get_current_user,
+    get_dicebear_avatar,
+    get_vietnam_today,
+    parse_student_ranking_name,
+)
+from app.services.cache_service import cache_service
 
 
 router = APIRouter(prefix="/api/v1", tags=["Leaderboard"])
 Scope = Literal["course", "cohort", "cohorts"]
+RANKING_CACHE_KEY = "leaderboard:ranking_data"
+RANKING_CACHE_TTL = 120  # 2 minutes
 
 
 def serialize_member(row, identity):
@@ -31,57 +39,29 @@ def serialize_member(row, identity):
     }
 
 
-import threading
-import time
+def _compute_and_cache_leaderboard():
+    # Cache lookup using Redis with thread-safe in-memory fallback
+    cached = cache_service.get(RANKING_CACHE_KEY)
+    if cached and isinstance(cached, dict) and "members" in cached and "cohorts" in cached:
+        return cached["members"], cached["cohorts"]
 
-_ranking_cache_lock = threading.Lock()
-_cached_leaderboard: dict = {
-    "members": None,
-    "cohorts": None,
-    "timestamp": 0,
-}
-RANKING_CACHE_TTL = 120  # 2 minutes
+    yesterday_vn = get_vietnam_today() - timedelta(days=1)
 
-
-def _get_cached_leaderboard_data():
-    now = time.time()
-    with _ranking_cache_lock:
-        if _cached_leaderboard["members"] is not None and (now - _cached_leaderboard["timestamp"] < RANKING_CACHE_TTL):
-            return _cached_leaderboard["members"], _cached_leaderboard["cohorts"]
-
+    # Materialized read directly from indexed users table (no UNION ALL or runtime log aggregation)
     rows = db.fetch_all(
         """
-        WITH answer_events AS (
-            SELECT user_id, COUNT(*) AS question_count, SUM(is_correct) AS correct_count
-            FROM user_question_activity GROUP BY user_id
-            UNION ALL
-            SELECT user_id, COUNT(*) AS question_count, SUM(is_correct) AS correct_count
-            FROM user_grammar_question_activity GROUP BY user_id
-            UNION ALL
-            SELECT ta.user_id, SUM(ta.answered_questions), SUM(ta.correct_answers)
-            FROM test_attempts ta
-            WHERE NOT EXISTS (
-                SELECT 1 FROM user_question_activity uqa
-                WHERE uqa.user_id = ta.user_id AND uqa.attempt_id = ta.id
-            )
-            GROUP BY ta.user_id
-        ), activity_totals AS (
-            SELECT user_id, SUM(question_count) AS total_questions,
-                   SUM(correct_count) AS correct_questions
-            FROM answer_events GROUP BY user_id
-        )
         SELECT u.id, u.full_name, u.family_middle_name, u.avatar_url,
                u.xp, u.level,
                CASE WHEN u.last_study_date IS NULL
-                          OR u.last_study_date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+                          OR u.last_study_date < ?
                     THEN 0 ELSE u.streak_days END AS active_streak_days,
-               COALESCE(a.total_questions, 0) AS total_questions,
-               COALESCE(a.correct_questions, 0) AS correct_questions
+               u.total_questions_answered AS total_questions,
+               u.total_correct_answers AS correct_questions
         FROM users u
-        LEFT JOIN activity_totals a ON a.user_id = u.id
         WHERE u.role = 'student' AND u.approval_status = 'approved'
-        ORDER BY u.full_name ASC
+        ORDER BY u.xp DESC, u.total_questions_answered DESC, u.streak_days DESC, u.full_name ASC
         """,
+        (yesterday_vn,),
         use_cache=False,
     )
 
@@ -113,17 +93,13 @@ def _get_cached_leaderboard_data():
         })
     cohorts.sort(key=lambda item: int(item["cohortCode"][1:]))
 
-    with _ranking_cache_lock:
-        _cached_leaderboard["members"] = members
-        _cached_leaderboard["cohorts"] = cohorts
-        _cached_leaderboard["timestamp"] = time.time()
-
+    cache_service.set(RANKING_CACHE_KEY, {"members": members, "cohorts": cohorts}, ttl_seconds=RANKING_CACHE_TTL)
     return members, cohorts
 
 
 @router.get("/leaderboard")
 def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_current_user)):
-    members, cohorts = _get_cached_leaderboard_data()
+    members, cohorts = _compute_and_cache_leaderboard()
 
     current_identity = parse_student_ranking_name(user.get("full_name") or "")
     current_cohort = current_identity[1] if current_identity else None

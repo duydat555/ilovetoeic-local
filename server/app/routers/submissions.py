@@ -197,6 +197,35 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
             if activity_values:
                 with db.transaction() as conn:
                     with conn.cursor() as cursor:
+                        q_ids = [v[2] for v in activity_values]
+                        q_placeholders = ", ".join("%s" for _ in q_ids)
+                        cursor.execute(
+                            f"""
+                            SELECT question_id, is_correct
+                            FROM user_question_activity
+                            WHERE user_id = %s AND attempt_id = %s AND question_id IN ({q_placeholders})
+                            """,
+                            (user_id, attempt_id, *q_ids),
+                        )
+                        prev_rows = cursor.fetchall()
+                        prev_map = {
+                            list(r.values())[0]: bool(list(r.values())[1])
+                            for r in prev_rows
+                        } if prev_rows else {}
+
+                        delta_answered = 0
+                        delta_correct = 0
+                        for v in activity_values:
+                            qid = v[2]
+                            is_c = v[5]
+                            if qid not in prev_map:
+                                delta_answered += 1
+                                if is_c:
+                                    delta_correct += 1
+                            else:
+                                prev_c = 1 if prev_map[qid] else 0
+                                delta_correct += (is_c - prev_c)
+
                         cursor.executemany("""
                             INSERT INTO user_question_activity (
                                 user_id, attempt_id, question_id, part, selected_answer, is_correct, answered_at
@@ -206,6 +235,16 @@ def submit_test(test_id: str, payload: TestSubmissionRequest):
                                 is_correct = VALUES(is_correct),
                                 answered_at = VALUES(answered_at)
                         """, activity_values)
+                        if delta_answered or delta_correct:
+                            cursor.execute(
+                                """
+                                UPDATE users
+                                SET total_questions_answered = GREATEST(0, total_questions_answered + %s),
+                                    total_correct_answers = GREATEST(0, total_correct_answers + %s)
+                                WHERE id = %s
+                                """,
+                                (delta_answered, delta_correct, user_id),
+                            )
                         if wrong_values:
                             cursor.executemany("""
                                 INSERT INTO user_wrong_questions (

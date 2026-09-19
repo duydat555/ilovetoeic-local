@@ -16,6 +16,7 @@ Chi tiết theo từng mảng được tách trong `docs/agents/`. Dựa vào lo
 
 ## Production safety (áp dụng chung, luôn đọc trước khi sửa gì)
 
+- Không được tự động push lên production, phải có sự kiểm tra của tôi.
 - Không hardcode secret/API key/password vào code hoặc commit. Nếu phát hiện secret bị lộ, báo ngay và đề xuất rotate.
 - Trước khi merge, phải chạy `npm run build` (client) và kiểm tra server khởi động được không lỗi.
 - Nếu task chạm vào nhiều mảng cùng lúc (ví dụ vừa sửa API vừa động tới DB), đọc tất cả file liên quan trong bảng trên trước khi code.

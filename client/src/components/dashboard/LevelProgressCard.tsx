@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Award,
   ChevronRight,
   Lock,
   CheckCircle2,
-  Sparkles,
   X,
   History,
   TrendingUp,
@@ -18,9 +17,13 @@ import {
   XpLedgerItem,
 } from '../../services/backend';
 import { ModalPortal } from '../common/ModalPortal';
+import { getModalMotion } from '../common/modalMotion';
 
 export const LevelProgressCard: React.FC = () => {
   const { language } = useLanguage();
+  const reduceMotion = useReducedMotion();
+  const modalMotion = getModalMotion(reduceMotion);
+
   const [levelInfo, setLevelInfo] = useState<UserLevelInfo | null>(null);
   const [allLevels, setAllLevels] = useState<LevelDefinition[]>([]);
   const [recentXp, setRecentXp] = useState<XpLedgerItem[]>([]);
@@ -128,7 +131,7 @@ export const LevelProgressCard: React.FC = () => {
         <div className="mt-4 space-y-2">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-content flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-amber-500" />
+              <TrendingUp className="size-3.5 text-amber-500" />
               {nextLevel ? (
                 <>
                   {language === 'en' ? 'Progress to' : 'Tiến trình lên'}{' '}
@@ -174,17 +177,12 @@ export const LevelProgressCard: React.FC = () => {
         {showLevelsModal && (
           <ModalPortal>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              {...modalMotion.backdrop}
               onClick={() => setShowLevelsModal(false)}
               className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-xs"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
+              {...modalMotion.panel}
               className="fixed inset-x-4 top-[10%] z-[9999] mx-auto max-w-lg max-h-[80vh] overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between border-b border-line pb-3">
@@ -269,17 +267,12 @@ export const LevelProgressCard: React.FC = () => {
         {showHistoryModal && (
           <ModalPortal>
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              {...modalMotion.backdrop}
               onClick={() => setShowHistoryModal(false)}
               className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-xs"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{ duration: 0.2 }}
+              {...modalMotion.panel}
               className="fixed inset-x-4 top-[15%] z-[9999] mx-auto max-w-lg max-h-[75vh] overflow-hidden rounded-3xl border border-line bg-surface p-6 shadow-2xl flex flex-col"
             >
               <div className="flex items-center justify-between border-b border-line pb-3">

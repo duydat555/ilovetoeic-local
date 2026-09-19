@@ -26,6 +26,7 @@ from app.routers import (
     listening,
     study_time,
     gamification,
+    announcements,
 )
 
 from contextlib import asynccontextmanager
@@ -88,6 +89,7 @@ app.include_router(community_chat.router)
 app.include_router(listening.router)
 app.include_router(study_time.router)
 app.include_router(gamification.router)
+app.include_router(announcements.router)
 
 
 

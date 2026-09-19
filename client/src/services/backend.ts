@@ -1028,3 +1028,83 @@ export interface ScorePredictionData {
   suggestedDailyMinutes: number;
   aiSummary: string;
 }
+
+// =============================================================================
+// System Announcements
+// =============================================================================
+
+export interface SystemAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  type: 'info' | 'warning' | 'success' | 'event';
+  actionUrl: string | null;
+  actionLabel: string | null;
+  isActive: boolean;
+  showPopup: boolean;
+  createdBy: string;
+  readCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateAnnouncementPayload {
+  title: string;
+  content: string;
+  type: 'info' | 'warning' | 'success' | 'event';
+  actionUrl?: string | null;
+  actionLabel?: string | null;
+  isActive: boolean;
+  showPopup: boolean;
+  sendInAppNotification: boolean;
+}
+
+export interface UpdateAnnouncementPayload {
+  title: string;
+  content: string;
+  type: 'info' | 'warning' | 'success' | 'event';
+  actionUrl?: string | null;
+  actionLabel?: string | null;
+  isActive: boolean;
+  showPopup: boolean;
+}
+
+export const announcementService = {
+  /** Lấy pop-up chưa đọc mới nhất cho học viên hiện tại */
+  async getUnreadPopup(): Promise<{ data: SystemAnnouncement | null }> {
+    return authFetch('/announcements/unread-popup');
+  },
+
+  /** Đánh dấu đã đọc */
+  async markAsRead(id: string): Promise<{ success: boolean }> {
+    return authFetch(`/announcements/${id}/read`, { method: 'POST' });
+  },
+
+  // --- Admin ---
+
+  async listAdmin(): Promise<{ data: SystemAnnouncement[] }> {
+    return authFetch('/admin/announcements');
+  },
+
+  async create(payload: CreateAnnouncementPayload): Promise<{ success: boolean; data: SystemAnnouncement }> {
+    return authFetch('/admin/announcements', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async update(id: string, payload: UpdateAnnouncementPayload): Promise<{ success: boolean; data: SystemAnnouncement }> {
+    return authFetch(`/admin/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async toggleStatus(id: string): Promise<{ success: boolean; isActive: boolean }> {
+    return authFetch(`/admin/announcements/${id}/toggle`, { method: 'PATCH' });
+  },
+
+  async delete(id: string): Promise<{ success: boolean }> {
+    return authFetch(`/admin/announcements/${id}`, { method: 'DELETE' });
+  },
+};

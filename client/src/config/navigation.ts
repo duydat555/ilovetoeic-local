@@ -1,4 +1,5 @@
 import {
+  BellRing,
   ClipboardCheck,
   Headphones,
   Languages,
@@ -56,6 +57,7 @@ export const studentNavItems: NavigationItem[] = [
 export const adminNavItems: NavigationItem[] = [
   { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog, end: true },
   { path: '/admin/feedback', label: 'Quản lý Góp ý', icon: MessageSquare },
+  { path: '/admin/announcements', label: 'Quản lý thông báo', icon: BellRing },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];

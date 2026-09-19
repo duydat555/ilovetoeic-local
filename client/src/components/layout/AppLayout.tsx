@@ -10,6 +10,7 @@ import { AdminSidebar } from './RoleSidebars';
 import { getUserRole } from '../../utils/rbac';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { StudentIdentityModal } from '../auth/StudentIdentityModal';
+import { AnnouncementPopupModal } from '../common/AnnouncementPopupModal';
 import { hasCompletedTour, startWebsiteTour } from '../../utils/tourGuide';
 
 export const AppLayout: React.FC = () => {
@@ -163,6 +164,7 @@ export const AppLayout: React.FC = () => {
       </div>
       {!isAdminArea && <SelectionTranslator />}
       <StudentIdentityModal open={needsRankingIdentity} />
+      {!isAdminArea && <AnnouncementPopupModal />}
     </div>
   );
 };

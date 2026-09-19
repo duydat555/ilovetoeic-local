@@ -38,6 +38,7 @@ const NotificationsPage = lazy(() => import('./pages/Notifications/Notifications
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
 const StudentPracticeDetailPage = lazy(() => import('./pages/Admin/StudentPracticeDetailPage').then((m) => ({ default: m.StudentPracticeDetailPage })));
 const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage').then((m) => ({ default: m.AdminFeedbackPage })));
+const AdminAnnouncementsPage = lazy(() => import('./pages/Admin/AdminAnnouncementsPage').then((m) => ({ default: m.AdminAnnouncementsPage })));
 const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagementPage').then((m) => ({ default: m.FeatureManagementPage })));
 const InterleavedPreviewPage = lazy(() => import('./pages/InterleavedPreviewPage').then((m) => ({ default: m.InterleavedPreviewPage })));
 
@@ -108,6 +109,7 @@ export const App: React.FC = () => {
                 <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/accounts/:studentId/practice" element={<AdminFeatureRoute route="/admin/accounts"><StudentPracticeDetailPage /></AdminFeatureRoute>} />
                 <Route path="/admin/feedback" element={<AdminFeatureRoute route="/admin/feedback"><AdminFeedbackPage /></AdminFeatureRoute>} />
+                <Route path="/admin/announcements" element={<AdminFeatureRoute route="/admin/announcements"><AdminAnnouncementsPage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />
               </Route>
             </Route>

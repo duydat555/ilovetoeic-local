@@ -5,7 +5,7 @@ export interface AdminFeatureStatus {
   status: AdminFeatureState;
   title: string;
   description: string;
-  iconKey: 'chart' | 'school' | 'clipboard' | 'users' | 'wrench' | 'user' | 'settings' | 'message-square';
+  iconKey: 'chart' | 'school' | 'clipboard' | 'users' | 'wrench' | 'user' | 'settings' | 'message-square' | 'megaphone';
   actionLabel?: string | null;
   actionPath?: string | null;
 }
@@ -13,6 +13,13 @@ export interface AdminFeatureStatus {
 export const ADMIN_FEATURE_STATUS: Record<string, AdminFeatureStatus> = {
   '/admin/accounts': { route: '/admin/accounts', status: 'ready', title: 'Quản lý tài khoản', iconKey: 'users', description: 'Quản lý tài khoản học viên.' },
   '/admin/feedback': { route: '/admin/feedback', status: 'ready', title: 'Quản lý Góp ý', iconKey: 'message-square', description: 'Xem và phản hồi ý kiến, đóng góp từ học viên.' },
+  '/admin/announcements': {
+    route: '/admin/announcements',
+    status: 'ready',
+    title: 'Quản lý thông báo',
+    iconKey: 'megaphone',
+    description: 'Soạn và quản lý thông báo hệ thống hiển thị cho học viên.',
+  },
   '/admin/features': {
     route: '/admin/features', status: 'ready', title: 'Quản lý tính năng', iconKey: 'wrench',
     description: 'Trang Quản lý tính năng đang được hoàn thiện và sẽ sớm được đưa vào sử dụng.',

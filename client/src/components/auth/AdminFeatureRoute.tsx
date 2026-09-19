@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, ClipboardList, MessageSquare, School, Settings, UserCog, UserRound, Wrench } from 'lucide-react';
+import { BarChart3, ClipboardList, Megaphone, MessageSquare, School, Settings, UserCog, UserRound, Wrench } from 'lucide-react';
 import type { AdminFeatureStatus } from '../../config/adminFeatureStatus';
 import { useAdminFeatureStatus } from '../../context/AdminFeatureStatusContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,7 @@ const ICONS = {
   user: UserRound,
   settings: Settings,
   'message-square': MessageSquare,
+  megaphone: Megaphone,
 } satisfies Record<AdminFeatureStatus['iconKey'], typeof BarChart3>;
 
 export const AdminFeatureRoute: React.FC<{ route: string; children?: React.ReactNode }> = ({ route, children }) => {

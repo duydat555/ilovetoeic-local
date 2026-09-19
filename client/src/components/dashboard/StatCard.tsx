@@ -1,4 +1,5 @@
 import React from 'react';
+import { HelpCircle } from 'lucide-react';
 import { CountUp } from './CountUp';
 
 export interface StatCardProps {
@@ -48,17 +49,17 @@ export const StatCard: React.FC<StatCardProps> = ({
           <CountUp end={value} />
           {unit && <span className="text-[9px] sm:text-[10px] font-semibold opacity-80">{unit}</span>}
         </div>
-        <span className={`text-[10px] font-bold truncate mt-0.5 flex items-center gap-1 ${labelColor}`}>
-          <span>{label}</span>
+        <div className={`text-[10px] font-bold truncate mt-0.5 inline-flex items-center gap-1 leading-none ${labelColor}`}>
+          <span className="truncate">{label}</span>
           {helpIcon && (
             <span
-              className="grid size-3.5 place-items-center rounded-full bg-amber-500/25 text-amber-950 dark:text-amber-200 text-[9px] font-black shrink-0 border border-amber-500/40"
+              className="inline-flex items-center justify-center size-3.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 shrink-0 self-center"
               title="Xem cách tính điểm XP"
             >
-              ?
+              <HelpCircle className="size-2.5 stroke-[2.5]" aria-hidden="true" />
             </span>
           )}
-        </span>
+        </div>
       </div>
     </div>
   );

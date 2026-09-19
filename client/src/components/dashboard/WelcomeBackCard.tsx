@@ -163,7 +163,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-1.5 pt-2 sm:flex sm:flex-wrap sm:gap-3">
-          <XpExplanationTooltip align="left" side="bottom">
+          <XpExplanationTooltip align="left" side="bottom" className="w-full sm:w-auto">
             <StatCard
               id="stat-xp"
               icon={<Award className="size-4" />}
@@ -172,7 +172,7 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
               badgeBg="bg-blue-500"
               iconColor="text-white"
               helpIcon={true}
-              className="cursor-help"
+              className="cursor-help w-full"
             />
           </XpExplanationTooltip>
           <StatCard

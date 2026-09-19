@@ -110,7 +110,7 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
 
             {/* Stats Row */}
             <div className="grid grid-cols-3 gap-1.5 pt-1 sm:flex sm:flex-wrap sm:gap-3">
-              <XpExplanationTooltip align="left" side="bottom">
+              <XpExplanationTooltip align="left" side="bottom" className="w-full sm:w-auto">
                 <StatCard
                   id="stat-xp-nd"
                   icon={<Award className="size-4" />}
@@ -122,7 +122,7 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
                   textColor="text-slate-900"
                   labelColor="text-slate-600 font-bold"
                   helpIcon={true}
-                  className="cursor-help"
+                  className="cursor-help w-full"
                 />
               </XpExplanationTooltip>
               <StatCard

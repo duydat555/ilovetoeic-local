@@ -102,19 +102,19 @@ export const LevelProgressCard: React.FC = () => {
                 <h2 className="text-base font-extrabold text-content">{title}</h2>
               </div>
               <XpExplanationTooltip align="left" side="bottom">
-                <p className="mt-0.5 text-xs text-content-muted cursor-help flex items-center gap-1.5 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
+                <div className="mt-0.5 text-xs text-content-muted cursor-help inline-flex items-center gap-1.5 hover:text-amber-600 dark:hover:text-amber-400 transition-colors">
                   <span className="underline decoration-dotted underline-offset-2">
                     {language === 'en'
                       ? `Total XP earned: ${currentXp.toLocaleString()}`
                       : `Tổng XP tích lũy: ${currentXp.toLocaleString()} XP`}
                   </span>
                   <span
-                    className="grid size-3.5 place-items-center rounded-full bg-amber-500/25 text-amber-800 dark:text-amber-300 text-[9px] font-black shrink-0 border border-amber-500/40"
+                    className="inline-flex items-center justify-center size-3.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 shrink-0 self-center"
                     title="Xem cách tính điểm XP"
                   >
-                    ?
+                    <HelpCircle className="size-2.5 stroke-[2.5]" aria-hidden="true" />
                   </span>
-                </p>
+                </div>
               </XpExplanationTooltip>
             </div>
           </div>

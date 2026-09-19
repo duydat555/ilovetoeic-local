@@ -208,21 +208,23 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu }) => {
             aria-controls="header-notification-panel"
             className={`relative flex size-8 sm:size-10 items-center justify-center rounded-xl p-1.5 sm:p-2.5 transition-colors duration-200 hover:bg-surface-hover hover:text-content ${showNotifications ? 'bg-surface-hover text-content' : 'text-content-muted'}`}
           >
-            <Bell className="size-4 sm:size-5" />
-            <AnimatePresence initial={false}>
-              {unreadCount > 0 && (
-                <motion.span
-                  key="notification-count"
-                  initial={{ opacity: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.6 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="absolute -right-0.5 -top-0.5 grid min-h-3.5 min-w-3.5 sm:min-h-4 sm:min-w-4 place-items-center rounded-full border-2 border-surface bg-brand px-0.5 text-[8px] sm:text-[9px] font-black leading-none text-brand-ink"
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </motion.span>
-              )}
-            </AnimatePresence>
+            <div className="relative inline-flex items-center justify-center">
+              <Bell className="size-4 sm:size-5" />
+              <AnimatePresence initial={false}>
+                {unreadCount > 0 && (
+                  <motion.span
+                    key="notification-count"
+                    initial={{ opacity: 0, scale: 0.6 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.6 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="absolute -top-1 -right-1.5 sm:-top-1.5 sm:-right-2 flex h-4 min-w-4 sm:h-4.5 sm:min-w-4.5 items-center justify-center rounded-full border-2 border-surface bg-brand px-1 text-[9px] sm:text-[10px] font-black leading-none text-brand-ink shadow-xs tabular-nums select-none pointer-events-none"
+                  >
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
           </button>
 
           <AnimatePresence initial={false}>

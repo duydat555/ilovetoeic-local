@@ -21,6 +21,7 @@ import {
 } from '../../services/backend';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 import { getModalMotion } from '../common/modalMotion';
+import { CountUp } from './CountUp';
 
 const SCORE_MILESTONES = [500, 600, 700, 800, 900];
 
@@ -141,6 +142,18 @@ export const PredictionCard: React.FC = () => {
       ? 'bg-amber-500/10'
       : 'bg-rose-500/10';
 
+  const GAUGE_RADIUS = 88;
+  const GAUGE_CENTER_X = 120;
+  const GAUGE_CENTER_Y = 115;
+  const GAUGE_CIRCUMFERENCE = Math.PI * GAUGE_RADIUS; // ~276.46
+
+  const scoreRatio = Math.min(1, Math.max(0, (predictedScore || 0) / 990));
+  const strokeDashoffset = GAUGE_CIRCUMFERENCE * (1 - scoreRatio);
+
+  const knobAngleRad = Math.PI * (1 - scoreRatio);
+  const knobX = GAUGE_CENTER_X + GAUGE_RADIUS * Math.cos(knobAngleRad);
+  const knobY = GAUGE_CENTER_Y - GAUGE_RADIUS * Math.sin(knobAngleRad);
+
   return (
     <>
       <article
@@ -181,7 +194,7 @@ export const PredictionCard: React.FC = () => {
 
         {/* Metrics Grid */}
         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-          {/* Column 1: Predicted TOEIC Score */}
+          {/* Column 1: Predicted TOEIC Score with Semi-Circle Gauge */}
           <div className="flex flex-col justify-between rounded-2xl border border-line/70 bg-surface-elevated/40 p-4 sm:p-5">
             <div>
               <div className="flex items-center justify-between">
@@ -194,14 +207,90 @@ export const PredictionCard: React.FC = () => {
                 </span>
               </div>
 
-              <div className="mt-3 flex items-baseline gap-3">
-                <span className="text-4xl sm:text-5xl font-black tracking-tight text-content">
-                  {predictedScore}
-                </span>
-                <span className="text-sm font-bold text-content-muted">/ 990</span>
-                <span className="ml-auto rounded-lg border border-line bg-surface px-2.5 py-1 text-xs font-semibold text-content-subtle">
-                  {predictedRange[0]} – {predictedRange[1]}
-                </span>
+              {/* Biểu đồ Nửa đường tròn (Semi-Circle Gauge) */}
+              <div className="relative mt-2 flex flex-col items-center justify-center pt-2">
+                <div className="relative w-full max-w-[260px] aspect-[240/135]">
+                  <svg
+                    viewBox="0 0 240 135"
+                    className="w-full h-full overflow-visible"
+                    aria-label={`Điểm dự đoán: ${predictedScore} trên 990`}
+                  >
+                    <defs>
+                      <linearGradient id="scoreGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="45%" stopColor="#6366f1" />
+                        <stop offset="80%" stopColor="#8b5cf6" />
+                        <stop offset="100%" stopColor="#f59e0b" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Subtle dashed inner guide arc */}
+                    <path
+                      d="M 44 115 A 76 76 0 0 1 196 115"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1"
+                      strokeDasharray="3 4"
+                      className="text-slate-300/70 dark:text-slate-700/60"
+                    />
+
+                    {/* Background Track Arc */}
+                    <path
+                      d="M 32 115 A 88 88 0 0 1 208 115"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="14"
+                      strokeLinecap="round"
+                      className="text-slate-200 dark:text-surface-hover/80"
+                    />
+
+                    {/* Progress Arc */}
+                    <path
+                      d="M 32 115 A 88 88 0 0 1 208 115"
+                      fill="none"
+                      stroke="url(#scoreGaugeGradient)"
+                      strokeWidth="14"
+                      strokeLinecap="round"
+                      strokeDasharray={276.46}
+                      strokeDashoffset={strokeDashoffset}
+                      style={{
+                        transition: reduceMotion ? 'none' : 'stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1)',
+                      }}
+                    />
+
+                    {/* Indicator Knob Dot */}
+                    <circle
+                      cx={knobX}
+                      cy={knobY}
+                      r="6.5"
+                      fill="#ffffff"
+                      stroke="#6366f1"
+                      strokeWidth="3.5"
+                      className="drop-shadow-sm transition-all duration-700"
+                    />
+
+                    {/* Min & Max Labels */}
+                    <text x="24" y="132" textAnchor="middle" className="text-[10px] font-bold fill-slate-400 select-none">
+                      0
+                    </text>
+                    <text x="216" y="132" textAnchor="middle" className="text-[10px] font-bold fill-slate-400 select-none">
+                      990
+                    </text>
+                  </svg>
+
+                  {/* Centered Score Inside Arc */}
+                  <div className="absolute inset-x-0 bottom-1 flex flex-col items-center justify-center text-center select-none pointer-events-none">
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-3xl sm:text-4xl font-black tracking-tight text-content">
+                        <CountUp end={predictedScore} duration={1200} />
+                      </span>
+                      <span className="text-xs font-bold text-content-muted">/ 990</span>
+                    </div>
+                    <span className="mt-0.5 rounded-md border border-line/80 bg-surface/90 px-2 py-0.5 text-[10px] font-bold text-content-subtle shadow-2xs">
+                      {predictedRange[0]} – {predictedRange[1]}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

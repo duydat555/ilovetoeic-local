@@ -145,7 +145,10 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
 ];
 
 export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
-  FEATURE_DEFINITIONS.map((feature) => [feature.key, true]),
+  FEATURE_DEFINITIONS.map((feature) => [
+    feature.key,
+    feature.key === 'national_day_theme' ? false : true,
+  ]),
 ) as Record<FeatureKey, boolean>;
 
 const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [

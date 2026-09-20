@@ -61,16 +61,10 @@ const JUMP_MESSAGES_EN = [
   "So much XP!",
 ];
 
-export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
-  const { isFeatureEnabled } = useFeatureFlags();
+const StandardWelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
   const { language, t } = useLanguage();
   const reduceMotion = useReducedMotion();
   const modalMotion = getModalMotion(reduceMotion);
-  const isNationalDayTheme = isFeatureEnabled('national_day_theme');
-
-  if (isNationalDayTheme) {
-    return <NationalDayBanner {...props} />;
-  }
 
   const {
     userName,
@@ -550,4 +544,15 @@ export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
       </AnimatePresence>
     </>
   );
+};
+
+export const WelcomeBackCard: React.FC<WelcomeBackCardProps> = (props) => {
+  const { isFeatureEnabled } = useFeatureFlags();
+  const isNationalDayTheme = isFeatureEnabled('national_day_theme');
+
+  if (isNationalDayTheme) {
+    return <NationalDayBanner {...props} />;
+  }
+
+  return <StandardWelcomeBackCard {...props} />;
 };

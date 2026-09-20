@@ -29,7 +29,7 @@ def get_level_definitions() -> List[Dict[str, Any]]:
         ]
         return fallback
 
-    cache_service.set(LEVEL_CACHE_KEY, rows, ex=LEVEL_CACHE_TTL)
+    cache_service.set(LEVEL_CACHE_KEY, rows, ttl_seconds=LEVEL_CACHE_TTL)
     return rows
 
 

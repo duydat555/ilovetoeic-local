@@ -1022,6 +1022,7 @@ def save_question_activity(
 
     question_ids = sorted(list(dict.fromkeys(item.questionId for item in payload.answers)))
     placeholders = ", ".join("?" for _ in question_ids)
+    cursor_placeholders = ", ".join("%s" for _ in question_ids)
     answer_map = {item.questionId: item.selectedAnswer.strip().upper() for item in payload.answers}
     answered_at_map = {
         item.questionId: parse_datetime(item.answeredAt or payload.answeredAt)
@@ -1058,13 +1059,13 @@ def save_question_activity(
                     f"""
                     SELECT membership_id, is_correct
                     FROM user_grammar_question_activity
-                    WHERE user_id = %s AND attempt_id = %s AND membership_id IN ({placeholders})
+                    WHERE user_id = %s AND attempt_id = %s AND membership_id IN ({cursor_placeholders})
                     """,
                     (user["id"], payload.attemptId, *question_ids),
                 )
                 prev_grammar_rows = cursor.fetchall()
                 prev_grammar_map = {
-                    list(r.values())[0]: bool(list(r.values())[1])
+                    str(r["membership_id"]): bool(r["is_correct"])
                     for r in prev_grammar_rows
                 } if prev_grammar_rows else {}
 

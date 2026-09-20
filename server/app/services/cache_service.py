@@ -167,7 +167,8 @@ class CacheService:
                 self._fallback_mem.pop(f"cache:{key}", None)
         return None
 
-    def set(self, key: str, value: Any, ttl_seconds: int = 120):
+    def set(self, key: str, value: Any, ttl_seconds: int = 120, ex: Optional[int] = None):
+        ttl = ex if ex is not None else ttl_seconds
         try:
             json_str = json.dumps(value, default=_json_serial)
         except Exception:
@@ -175,12 +176,12 @@ class CacheService:
 
         if self.is_redis:
             try:
-                self._redis_client.set(f"cache:{key}", json_str, ex=ttl_seconds)
+                self._redis_client.set(f"cache:{key}", json_str, ex=ttl)
                 return
             except Exception:
                 pass
         with self._mem_lock:
-            self._fallback_mem[f"cache:{key}"] = (value, time.time() + ttl_seconds)
+            self._fallback_mem[f"cache:{key}"] = (value, time.time() + ttl)
 
     def delete(self, key: str):
         """Delete a cached entry by key."""

@@ -51,7 +51,7 @@ class RegisterRequest(LoginRequest):
 class ProfileRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str
-    avatar: str = Field(default="", max_length=2048)
+    avatar: str = Field(default="", max_length=5_000_000)
     target_score: int = Field(default=750, ge=10, le=990)
     exam_date: str = ""
     family_middle_name: str = Field(default="", max_length=100)

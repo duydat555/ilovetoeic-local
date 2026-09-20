@@ -20,7 +20,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { DICEBEAR_STYLES, getDiceBearAvatar, getRandomSeed } from '../../utils/avatar';
-import { compressImageToFullHD } from '../../utils/imageCompressor';
+import { AvatarCropModal } from '../../components/common/AvatarCropModal';
 
 type Message = {
   type: 'success' | 'error';
@@ -154,6 +154,8 @@ export const ProfilePage: React.FC = () => {
     return Array.from(scores).sort((a, b) => a - b);
   }, [targetScore]);
 
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -176,25 +178,34 @@ export const ProfilePage: React.FC = () => {
 
   if (!user) return null;
 
-  const handleAvatarFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
-    setProfileMessage(null);
-
-    try {
-      // Compress image file to max FullHD (1920x1080) under the hood
-      const result = await compressImageToFullHD(file, 1920, 0.85);
-      setAvatar(result.dataUrl);
-    } catch (err) {
-      console.error('[!] Avatar upload error:', err);
-      const errMsg = err instanceof Error ? err.message : (language === 'en' ? 'Unable to upload image.' : 'Không thể tải ảnh lên.');
+    if (!file.type.startsWith('image/')) {
+      const errMsg = language === 'en' ? 'Please select a valid image file.' : 'Vui lòng chọn tệp hình ảnh hợp lệ.';
       setProfileMessage({ type: 'error', text: errMsg });
-    } finally {
-      setUploading(false);
-      if (event.target) event.target.value = '';
+      return;
     }
+
+    setProfileMessage(null);
+    const objectUrl = URL.createObjectURL(file);
+    setCropImageSrc(objectUrl);
+    setIsCropModalOpen(true);
+    if (event.target) event.target.value = '';
+  };
+
+  const handleCloseCropModal = () => {
+    setIsCropModalOpen(false);
+    if (cropImageSrc) {
+      URL.revokeObjectURL(cropImageSrc);
+      setCropImageSrc(null);
+    }
+  };
+
+  const handleCropComplete = (croppedDataUrl: string) => {
+    setAvatar(croppedDataUrl);
+    handleCloseCropModal();
   };
 
   const handleProfileSave = async (event: React.FormEvent) => {
@@ -562,6 +573,13 @@ export const ProfilePage: React.FC = () => {
           </button>
         </form>
       </section>
+
+      <AvatarCropModal
+        isOpen={isCropModalOpen}
+        imageSrc={cropImageSrc}
+        onClose={handleCloseCropModal}
+        onCropComplete={handleCropComplete}
+      />
     </div>
   );
 };

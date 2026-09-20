@@ -119,4 +119,5 @@ CREATE INDEX idx_questions_skill_tag ON questions (skill_tag);
 
 ## 4. Tài liệu Chi tiết liên quan
 
-- [Quy tắc Tính điểm & Xếp hạng 4 Tiêu chí (XP, Accuracy, Số câu, Streak)](ranking-metrics.md): Công thức toán học, nguyên tắc tie-break không làm tròn và ma trận các màn hình áp dụng.
+- [Quy chuẩn Toàn bộ Luồng Cộng Điểm XP & Hệ thống Gamification](xp-system-flows.md): Bảng tổng hợp tất cả các luồng phát sinh XP (luyện tập, full test, streak, mục tiêu ngày), dedupe keys, sổ cái bất biến `user_xp_ledger`, bảng 16 cấp bậc (Level 1..16) và ma trận hiển thị UI.
+- [Quy tắc Tính điểm & Xếp hạng 4 Tiêu chí (XP, Accuracy, Số câu, Streak)](ranking-metrics.md): Công thức toán học, nguyên tắc tie-break không làm tròn, giải thuật cụm Epsilon-gap và ma trận các màn hình áp dụng.

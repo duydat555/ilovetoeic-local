@@ -147,7 +147,7 @@ CREATE TABLE IF NOT EXISTS user_level_stats (
 ```
 
 ### 4.2. Cập nhật tiệm tiến (Incremental Upsert)
-Khi học viên hoàn thành một bài luyện đạt chuẩn (`accuracyRate >= 70%`):
+Khi học viên hoàn thành một bài luyện Level chính thức đạt chuẩn (`accuracyRate >= 70%`, `source = 'level_practice'` và `not is_wrong_retry`):
 ```sql
 INSERT INTO user_level_stats (user_id, part, max_level_achieved)
 VALUES (%s, %s, %s)
@@ -156,6 +156,7 @@ ON DUPLICATE KEY UPDATE
 ```
 - Phép tính cập nhật hoàn thành trong **< 0.5ms**.
 - Đồng thời xóa cache Redis `user:level_stats:{user_id}`.
+- **Quy tắc an toàn chống gian lận/sai lệch**: Các lượt **Làm lại câu sai** (`is_wrong_retry = true` hoặc `source = 'wrong_practice'`) tuyệt đối không kích hoạt ghi nhận `user_level_stats` và không nhận thưởng hoàn thành +30 XP (chỉ nhận XP từng câu theo độ chính xác thực tế).
 
 ### 4.3. Endpoint `GET /api/v1/practice-by-level/stats`
 - Trả về danh sách `[ { part, max_level_achieved } ]` và `average_level` đã tính sẵn.

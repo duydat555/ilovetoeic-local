@@ -176,10 +176,10 @@ def award_test_completion_xp(
     is_partial: bool,
     test_name: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Full test: +100 XP + total_score//10 XP. Partial/practice: +30 XP."""
+    """Full test: +100 XP + total_score//10 XP. Partial exam in mock-test: +30 XP."""
     if is_partial:
         xp = 30
-        desc = f"Hoàn thành phần thi: {test_name or 'Bài luyện tập'}"
+        desc = f"Hoàn thành bài thi rút gọn: {test_name or 'Phần thi TOEIC'}"
     else:
         bonus = max(0, int((total_score or 0) // 10))
         xp = 100 + bonus
@@ -191,6 +191,23 @@ def award_test_completion_xp(
         activity_type="test_completion",
         dedupe_key=f"xp:test:{attempt_id}",
         description=desc,
+    )
+
+
+def award_level_completion_xp(
+    user_id: str,
+    attempt_id: str,
+    part: int,
+    level: int,
+    accuracy_rate: float,
+) -> Dict[str, Any]:
+    """Award +30 XP bonus when a student qualifies/passes a level practice set (accuracy >= 70%)."""
+    return award_xp(
+        user_id=user_id,
+        xp_amount=30,
+        activity_type="level_completion",
+        dedupe_key=f"xp:level:{attempt_id}",
+        description=f"Vượt qua Part {part} - Level {level} (Chính xác {round(accuracy_rate)}%)",
     )
 
 

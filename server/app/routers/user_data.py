@@ -11,7 +11,11 @@ from app.db import db
 from app.notifications import create_notification
 from app.services.cache_service import cache_service
 from app.services.study_progress_service import record_study_activity
-from app.services.xp_service import award_practice_answer_xp, award_test_completion_xp
+from app.services.xp_service import (
+    award_level_completion_xp,
+    award_practice_answer_xp,
+    award_test_completion_xp,
+)
 from app.security import (
     active_streak_days,
     get_current_user,
@@ -207,8 +211,23 @@ def _handle_study_attempt_side_effects(
     except Exception as exc:
         logger.warning(f"Failed to update user score/streak in background for {user.get('id')}: {exc}")
 
-    # If this is a qualifying level practice attempt (accuracyRate >= 70%), incrementally update user_level_stats
-    if mode == "practice" and part is not None and level is not None and accuracy_rate >= 70.0:
+    is_wrong_retry = bool(
+        metadata.get("is_wrong_retry")
+        or metadata.get("wrong_source")
+        or metadata.get("review_attempt_id")
+        or metadata.get("source") == "wrong_practice"
+    )
+
+    # If this is a qualifying level practice attempt (accuracyRate >= 70%), incrementally update user_level_stats.
+    # Note: Retrying wrong questions or reviews must NEVER update user_level_stats.
+    if (
+        mode == "practice"
+        and part is not None
+        and level is not None
+        and accuracy_rate >= 70.0
+        and not is_wrong_retry
+        and metadata.get("source") == "level_practice"
+    ):
         try:
             db.execute(
                 """
@@ -228,10 +247,17 @@ def _handle_study_attempt_side_effects(
         activity_name = test_name or metadata.get("test_name") or (
             f"Part {part}" if part else "bài TOEIC"
         )
+        notification_title = (
+            "Đã hoàn thành đề thi"
+            if mode == "exam"
+            else "Đã hoàn thành luyện lại câu sai"
+            if is_wrong_retry
+            else "Đã hoàn thành bài luyện tập"
+        )
         create_notification(
             user["id"],
             "achievement",
-            "Đã hoàn thành đề thi" if mode == "exam" else "Đã hoàn thành bài luyện tập",
+            notification_title,
             (
                 f"{activity_name}: đúng {correct_answers}/{total_questions} câu, "
                 f"độ chính xác {round(accuracy_rate)}%."
@@ -240,14 +266,33 @@ def _handle_study_attempt_side_effects(
             dedupe_key=f"study-attempt:{attempt_id}",
         )
 
-        is_partial = total_questions < 200 or metadata.get("is_partial") is True
-        award_test_completion_xp(
-            user_id=user["id"],
-            attempt_id=attempt_id,
-            total_score=metadata.get("total_score") or 0,
-            is_partial=is_partial,
-            test_name=activity_name,
-        )
+        if mode == "exam":
+            is_partial = total_questions < 200 or metadata.get("is_partial") is True
+            award_test_completion_xp(
+                user_id=user["id"],
+                attempt_id=attempt_id,
+                total_score=metadata.get("total_score") or 0,
+                is_partial=is_partial,
+                test_name=activity_name,
+            )
+        elif mode == "practice":
+            # For practice sessions, per-question XP is already awarded during answering (+5 correct, +1 incorrect).
+            # Completion bonus (+30 XP) is ONLY awarded when passing a genuine Level practice set (accuracy >= 70%).
+            # Retrying wrong questions, reviews, or failing (< 70%) NEVER awards completion bonus.
+            if (
+                not is_wrong_retry
+                and part is not None
+                and level is not None
+                and accuracy_rate >= 70.0
+                and metadata.get("source") == "level_practice"
+            ):
+                award_level_completion_xp(
+                    user_id=user["id"],
+                    attempt_id=attempt_id,
+                    part=part,
+                    level=level,
+                    accuracy_rate=accuracy_rate,
+                )
     except Exception as exc:
         logger.warning(f"Failed to create notification or award XP in background for {user.get('id')}: {exc}")
 

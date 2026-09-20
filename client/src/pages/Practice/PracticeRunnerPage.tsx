@@ -381,7 +381,16 @@ export const PracticeRunnerPage: React.FC = () => {
       answers: userAnswers,
       questionIds: questions.map((question) => question.id),
       metadata: {
-        source: isLevelPractice ? 'level_practice' : testId ? 'test_practice' : 'quick_practice',
+        source: isWrongRetry
+          ? 'wrong_practice'
+          : isLevelPractice
+            ? 'level_practice'
+            : testId
+              ? 'test_practice'
+              : 'quick_practice',
+        is_wrong_retry: isWrongRetry,
+        wrong_source: wrongSource || undefined,
+        review_attempt_id: reviewAttemptId || undefined,
         selected_parts: selectedParts,
         ...(isLevelPractice ? { selected_part: selectedParts[0], selected_level: selectedLevel } : {}),
       },

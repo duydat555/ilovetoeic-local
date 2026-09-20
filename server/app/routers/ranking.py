@@ -4,6 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
+from app import config
 from app.db import db
 from app.security import (
     get_current_user,
@@ -19,22 +20,60 @@ Scope = Literal["course", "cohort", "cohorts"]
 RANKING_CACHE_KEY = "leaderboard:ranking_data"
 RANKING_CACHE_TTL = 120  # 2 minutes
 
-
+RANKING_XP_CLUSTER_EPSILON = getattr(config, "RANKING_XP_CLUSTER_EPSILON", 200)
 MIN_QUESTIONS_FOR_ACCURACY = 20
 
 
-def _member_sort_key(member):
+def cluster_by_xp(users_sorted_by_xp_desc: list, epsilon: int = RANKING_XP_CLUSTER_EPSILON) -> list:
+    """Cluster learners by XP using top-of-cluster epsilon threshold.
+
+    Each user is compared against `cluster_top_xp` (the XP of the user who opened the cluster),
+    ensuring that every member in the cluster is within `epsilon` XP of the cluster's leader.
+    """
+    clusters = []
+    current_cluster = []
+    cluster_top_xp = None
+    for user in users_sorted_by_xp_desc:
+        user_xp = int(user.get("xp") or 0)
+        if cluster_top_xp is None or (cluster_top_xp - user_xp) <= epsilon:
+            if cluster_top_xp is None:
+                cluster_top_xp = user_xp
+            current_cluster.append(user)
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [user]
+            cluster_top_xp = user_xp
+    if current_cluster:
+        clusters.append(current_cluster)
+    return clusters
+
+
+def _cluster_member_sort_key(member: dict):
     tq = member["totalQuestions"]
     cq = member["correctQuestions"]
     raw_acc = (cq / tq) if tq >= MIN_QUESTIONS_FOR_ACCURACY else -1.0
     full_name = f"{member.get('familyMiddleName', '')} {member['name']}".strip()
     return (
-        -member["xp"],
         -raw_acc,
-        -tq,
         -member["streakDays"],
         full_name,
     )
+
+
+def sort_and_rank_by_xp_clusters(members: list, epsilon: int = RANKING_XP_CLUSTER_EPSILON) -> list:
+    """Sort members by XP DESC, cluster them by epsilon gap, sort each cluster by:
+    Accuracy (raw ratio, >= 20 questions) DESC -> Streak DESC -> Name ASC,
+    and return the flattened ranked list.
+    """
+    if not members:
+        return []
+    by_xp_desc = sorted(members, key=lambda m: (-int(m.get("xp") or 0), str(m.get("id") or "")))
+    clusters = cluster_by_xp(by_xp_desc, epsilon=epsilon)
+    ranked = []
+    for cluster in clusters:
+        cluster.sort(key=_cluster_member_sort_key)
+        ranked.extend(cluster)
+    return ranked
 
 
 def serialize_member(row, identity):
@@ -64,7 +103,7 @@ def _compute_and_cache_leaderboard():
 
     yesterday_vn = get_vietnam_today() - timedelta(days=1)
 
-    # Materialized read directly from indexed users table (no UNION ALL or runtime log aggregation)
+    # Materialized read directly from indexed users table sorted by XP DESC
     rows = db.fetch_all(
         """
         SELECT u.id, u.full_name, u.family_middle_name, u.avatar_url,
@@ -78,12 +117,7 @@ def _compute_and_cache_leaderboard():
         WHERE u.role = 'student' AND u.approval_status = 'approved'
         ORDER BY
             u.xp DESC,
-            CASE WHEN u.total_questions_answered >= 20
-                 THEN (u.total_correct_answers * 1.0 / u.total_questions_answered)
-                 ELSE -1.0 END DESC,
-            u.total_questions_answered DESC,
-            u.streak_days DESC,
-            u.full_name ASC
+            u.id ASC
         """,
         (yesterday_vn,),
         use_cache=False,
@@ -95,7 +129,8 @@ def _compute_and_cache_leaderboard():
         if identity:
             members.append(serialize_member(row, identity))
 
-    members.sort(key=_member_sort_key)
+    # Cluster by XP with epsilon-gap and sort inside each cluster
+    members = sort_and_rank_by_xp_clusters(members, epsilon=RANKING_XP_CLUSTER_EPSILON)
 
     grouped = defaultdict(lambda: {
         "memberCount": 0, "streakDays": 0, "totalQuestions": 0, "correctQuestions": 0, "totalXp": 0,
@@ -130,7 +165,8 @@ def get_leaderboard(scope: Scope = Query(default="course"), user=Depends(get_cur
     current_identity = parse_student_ranking_name(user.get("full_name") or "")
     current_cohort = current_identity[1] if current_identity else None
     if scope == "cohort":
-        visible_members = [member for member in members if member["cohortCode"] == current_cohort]
+        cohort_members = [member for member in members if member["cohortCode"] == current_cohort]
+        visible_members = sort_and_rank_by_xp_clusters(cohort_members, epsilon=RANKING_XP_CLUSTER_EPSILON)
     else:
         visible_members = members
 

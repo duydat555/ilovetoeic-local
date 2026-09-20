@@ -45,12 +45,49 @@ export const effectiveAccuracyRate = (member: LeaderboardMember): number => (
   (member.totalQuestions || 0) >= MIN_QUESTIONS_FOR_ACCURACY ? (member.accuracyRate || 0) : 0
 );
 
-export const sortRankingMembers = (members: LeaderboardMember[]): LeaderboardMember[] => (
+export const RANKING_XP_CLUSTER_EPSILON = 200;
+
+export const clusterByXp = <T extends { xp?: number }>(
+  usersSortedByXpDesc: T[],
+  epsilon = RANKING_XP_CLUSTER_EPSILON,
+): T[][] => {
+  const clusters: T[][] = [];
+  let currentCluster: T[] = [];
+  let clusterTopXp: number | null = null;
+
+  for (const user of usersSortedByXpDesc) {
+    const userXp = user.xp || 0;
+    if (clusterTopXp === null || (clusterTopXp - userXp) <= epsilon) {
+      if (clusterTopXp === null) {
+        clusterTopXp = userXp;
+      }
+      currentCluster.push(user);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [user];
+      clusterTopXp = userXp;
+    }
+  }
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+  return clusters;
+};
+
+export const sortClusterMembers = (members: LeaderboardMember[]): LeaderboardMember[] => (
   [...members].sort((left, right) => (
-    (right.xp || 0) - (left.xp || 0)
-    || rawAccuracyRatio(right) - rawAccuracyRatio(left)
-    || right.totalQuestions - left.totalQuestions
-    || right.streakDays - left.streakDays
+    rawAccuracyRatio(right) - rawAccuracyRatio(left)
+    || (right.streakDays || 0) - (left.streakDays || 0)
     || studentFullName(left).localeCompare(studentFullName(right), 'vi')
   ))
 );
+
+export const sortRankingMembers = (
+  members: LeaderboardMember[],
+  epsilon = RANKING_XP_CLUSTER_EPSILON,
+): LeaderboardMember[] => {
+  if (!members.length) return [];
+  const byXpDesc = [...members].sort((a, b) => ((b.xp || 0) - (a.xp || 0)) || a.id.localeCompare(b.id));
+  const clusters = clusterByXp(byXpDesc, epsilon);
+  return clusters.flatMap(sortClusterMembers);
+};

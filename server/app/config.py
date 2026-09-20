@@ -72,4 +72,10 @@ CIRCUIT_BREAKER_FAIL_THRESHOLD = int(os.getenv("CIRCUIT_BREAKER_FAIL_THRESHOLD",
 CIRCUIT_BREAKER_COOLDOWN_SECONDS = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN_SECONDS", "30"))
 GEMINI_RATE_LIMIT_PER_MINUTE = int(os.getenv("GEMINI_RATE_LIMIT_PER_MINUTE", "30"))
 
+# Leaderboard Ranking Configuration
+# Ngưỡng khoảng cách XP tối đa (epsilon-gap) để gộp các học viên vào cùng 1 cụm.
+# Khi khoảng cách XP từ người đầu cụm đến người tiếp theo <= RANKING_XP_CLUSTER_EPSILON,
+# cụm sẽ dùng tỷ lệ chính xác thật (Accuracy) và Streak để phân định thứ hạng thay vì chênh lệch vài XP.
+RANKING_XP_CLUSTER_EPSILON = int(os.getenv("RANKING_XP_CLUSTER_EPSILON", "200"))
+
 

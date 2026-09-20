@@ -70,7 +70,8 @@ def get_skills_radar_endpoint(
 
 class TargetGoalPayload(BaseModel):
     targetScore: Optional[int] = Field(default=None, ge=100, le=990, description="Mục tiêu điểm số TOEIC (100-990)")
-    targetDate: Optional[str] = Field(default=None, description="Ngày dự kiến thi (YYYY-MM-DD)")
+    examDate: Optional[str] = Field(default=None, description="Ngày dự kiến thi (YYYY-MM-DD)")
+    targetDate: Optional[str] = Field(default=None, description="Ngày dự kiến thi (YYYY-MM-DD) - tương thích ngược")
 
 
 @router.get("/prediction", summary="Dự đoán điểm TOEIC và xác suất đạt mục tiêu từ AI")
@@ -89,10 +90,11 @@ def update_target_goal_endpoint(
     payload: TargetGoalPayload,
     user=Depends(get_current_user),
 ):
+    chosen_date = payload.examDate or payload.targetDate
     res = update_user_target_goal(
         user_id=user["id"],
         target_score=payload.targetScore,
-        target_date=payload.targetDate,
+        exam_date=chosen_date,
     )
     return res
 

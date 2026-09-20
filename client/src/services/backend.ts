@@ -982,9 +982,10 @@ export const gamificationService = {
     return authFetch('/gamification/prediction');
   },
 
-  async updateTargetGoal(payload: { targetScore?: number; targetDate?: string }): Promise<{
+  async updateTargetGoal(payload: { targetScore?: number; examDate?: string; targetDate?: string }): Promise<{
     success: boolean;
     targetScore?: number;
+    examDate?: string;
     targetDate?: string;
   }> {
     return authFetch('/gamification/goal', {
@@ -1022,6 +1023,7 @@ export interface ScorePredictionData {
   predictedListening: number;
   predictedReading: number;
   targetScore: number;
+  examDate?: string | null;
   targetDate: string | null;
   daysRemaining: number | null;
   probability: number;

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   gamificationService,
   ScorePredictionData,
@@ -27,6 +28,7 @@ const SCORE_MILESTONES = [500, 600, 700, 800, 900];
 
 export const PredictionCard: React.FC = () => {
   const { language } = useLanguage();
+  const { refreshSession } = useAuth();
   const reduceMotion = useReducedMotion();
   const modalMotion = getModalMotion(reduceMotion);
 
@@ -46,8 +48,9 @@ export const PredictionCard: React.FC = () => {
       if (res && res.data) {
         setData(res.data);
         setNewScore(res.data.targetScore || 750);
-        if (res.data.targetDate) {
-          setNewDate(res.data.targetDate);
+        const examDateVal = res.data.examDate || res.data.targetDate;
+        if (examDateVal) {
+          setNewDate(examDateVal);
         }
       }
     } catch (err) {
@@ -80,11 +83,15 @@ export const PredictionCard: React.FC = () => {
     try {
       const res = await gamificationService.updateTargetGoal({
         targetScore: newScore,
+        examDate: newDate || undefined,
         targetDate: newDate || undefined,
       });
       if (res && res.success) {
         setUpdateMsg(language === 'en' ? 'Goal updated successfully!' : 'Cập nhật mục tiêu thành công!');
-        await fetchData();
+        await Promise.all([
+          fetchData(),
+          refreshSession(),
+        ]);
         setTimeout(() => {
           setIsModalOpen(false);
           setUpdateMsg(null);
@@ -121,12 +128,15 @@ export const PredictionCard: React.FC = () => {
     predictedListening,
     predictedReading,
     targetScore,
+    examDate,
     targetDate,
     daysRemaining,
     probability,
     suggestedDailyMinutes,
     aiSummary,
   } = data;
+
+  const displayExamDate = examDate || targetDate;
 
   const probColor =
     probability >= 75
@@ -331,8 +341,8 @@ export const PredictionCard: React.FC = () => {
                 <div className="flex items-center gap-1.5 text-xs text-content-muted">
                   <CalendarDays className="size-3.5 text-content-subtle" />
                   <span>
-                    {targetDate
-                      ? `${targetDate} ${daysRemaining !== null ? `(${daysRemaining} ${language === 'en' ? 'days left' : 'ngày nữa'})` : ''}`
+                    {displayExamDate
+                      ? `${displayExamDate} ${daysRemaining !== null ? `(${daysRemaining} ${language === 'en' ? 'days left' : 'ngày nữa'})` : ''}`
                       : (language === 'en' ? 'No exam date set' : 'Chưa đặt ngày thi')}
                   </span>
                 </div>

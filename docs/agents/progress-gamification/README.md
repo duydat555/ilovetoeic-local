@@ -114,3 +114,9 @@ CREATE INDEX idx_questions_skill_tag ON questions (skill_tag);
   - Điểm số: `ZINCRBY leaderboard:weekly:{key} <score_diff> {user_id}`
   - Lấy bảng xếp hạng: `ZREVRANGE leaderboard:weekly:{key} 0 49 WITHSCORES`
   - Đọc profile thông tin user từ MySQL bằng `WHERE id IN (...)` (chỉ query đúng Top N user, có index primary key).
+
+---
+
+## 4. Tài liệu Chi tiết liên quan
+
+- [Quy tắc Tính điểm & Xếp hạng 4 Tiêu chí (XP, Accuracy, Số câu, Streak)](ranking-metrics.md): Công thức toán học, nguyên tắc tie-break không làm tròn và ma trận các màn hình áp dụng.

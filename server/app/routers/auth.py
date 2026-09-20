@@ -383,6 +383,7 @@ def update_profile(payload: ProfileRequest, user=Depends(get_current_user)):
         )
     except IntegrityError as error:
         raise HTTPException(status_code=409, detail="Email này đã được sử dụng.") from error
+
     invalidate_user_session(user["id"])
     updated = db.fetch_one("SELECT * FROM users WHERE id = ?", (user["id"],), use_cache=False)
     return {"user": user_payload(updated), "email_confirmation_required": False}

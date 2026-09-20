@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from app.db import db
 from app.notifications import create_notification
-from app.security import get_vietnam_today, normalize_date
+from app.security import get_vietnam_today, normalize_date, invalidate_user_session
 from app.services.xp_service import award_daily_goal_xp, award_streak_milestone_xp
 
 logger = logging.getLogger(__name__)
@@ -338,30 +338,17 @@ def get_user_skills_radar(user_id: str) -> Dict[str, Any]:
 def update_user_target_goal(
     user_id: str,
     target_score: Optional[int] = None,
-    target_date: Optional[str] = None,
+    exam_date: Optional[str] = None,
     daily_goal_minutes: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Updates user_study_goals and syncs target_score/exam_date to users table."""
+    """Updates target_score and exam_date directly in users table (Single Source of Truth)."""
     user_row = db.fetch_one("SELECT target_score, exam_date FROM users WHERE id = ?", (user_id,), use_cache=False)
     current_target = int(user_row.get("target_score") or 750) if user_row else 750
 
     new_target = max(100, min(int(target_score or current_target), 990)) if target_score is not None else current_target
-    new_date = target_date if target_date else None
+    new_date = exam_date if exam_date else None
 
-    # Upsert user_study_goals
-    db.execute(
-        """
-        INSERT INTO user_study_goals (user_id, target_score, target_date, daily_goal_minutes)
-        VALUES (?, ?, ?, COALESCE(?, 30))
-        ON DUPLICATE KEY UPDATE
-            target_score = VALUES(target_score),
-            target_date = COALESCE(VALUES(target_date), target_date),
-            daily_goal_minutes = COALESCE(VALUES(daily_goal_minutes), daily_goal_minutes)
-        """,
-        (user_id, new_target, new_date, daily_goal_minutes),
-    )
-
-    # Sync to users table
+    # Update users table (Single Source of Truth)
     db.execute(
         """
         UPDATE users
@@ -371,9 +358,16 @@ def update_user_target_goal(
         (new_target, new_date, user_id),
     )
 
+    if daily_goal_minutes is not None:
+        update_daily_goal(user_id, daily_goal_minutes)
+
+    # Invalidate Redis session cache so /api/auth/me immediately reflects updated target score
+    invalidate_user_session(user_id)
+
     return {
         "success": True,
         "targetScore": new_target,
+        "examDate": new_date,
         "targetDate": new_date,
     }
 
@@ -385,21 +379,16 @@ def get_ai_score_prediction(user_id: str) -> Dict[str, Any]:
         (user_id,),
         use_cache=False,
     )
-    goal_row = db.fetch_one(
-        "SELECT target_score, target_date, daily_goal_minutes FROM user_study_goals WHERE user_id = ?",
-        (user_id,),
-        use_cache=False,
-    )
 
-    target_score = int((goal_row or {}).get("target_score") or (user_row or {}).get("target_score") or 750)
+    target_score = int((user_row or {}).get("target_score") or 750)
     current_score = int((user_row or {}).get("current_score") or 0)
-    target_date_raw = (goal_row or {}).get("target_date") or (user_row or {}).get("exam_date")
-    target_date_str = str(target_date_raw) if target_date_raw else None
+    exam_date_raw = (user_row or {}).get("exam_date")
+    exam_date_str = str(exam_date_raw) if exam_date_raw else None
 
     # Calculate days remaining
     days_remaining = None
-    if target_date_raw:
-        d = normalize_date(target_date_raw)
+    if exam_date_raw:
+        d = normalize_date(exam_date_raw)
         if d:
             days_remaining = max(0, (d - date.today()).days)
 
@@ -462,7 +451,8 @@ def get_ai_score_prediction(user_id: str) -> Dict[str, Any]:
         "predictedListening": pred_listening,
         "predictedReading": pred_reading,
         "targetScore": target_score,
-        "targetDate": target_date_str,
+        "examDate": exam_date_str,
+        "targetDate": exam_date_str,
         "daysRemaining": days_remaining,
         "probability": probability,
         "suggestedDailyMinutes": suggested_mins,

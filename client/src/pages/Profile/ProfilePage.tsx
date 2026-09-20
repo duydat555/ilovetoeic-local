@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   Calendar,
@@ -132,6 +132,8 @@ const DiceBearAvatarSelector: React.FC<{
   );
 };
 
+const STANDARD_TARGET_SCORES = [400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 990];
+
 export const ProfilePage: React.FC = () => {
   const { user, updateProfile, updatePassword } = useAuth();
   const { t, language } = useLanguage();
@@ -143,6 +145,14 @@ export const ProfilePage: React.FC = () => {
   const [examDate, setExamDate] = useState('');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState<Message>(null);
+
+  const availableTargetScores = useMemo(() => {
+    const scores = new Set(STANDARD_TARGET_SCORES);
+    if (targetScore && targetScore >= 10 && targetScore <= 990) {
+      scores.add(targetScore);
+    }
+    return Array.from(scores).sort((a, b) => a - b);
+  }, [targetScore]);
 
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -421,7 +431,7 @@ export const ProfilePage: React.FC = () => {
                   onChange={(event) => setTargetScore(Number(event.target.value))}
                   className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition focus:border-brand-400 focus:bg-white focus:ring-2 focus:ring-brand-100 dark:border-line dark:bg-surface-hover/50 dark:text-content dark:focus:border-brand dark:focus:bg-slate-800 dark:focus:ring-brand-500/10"
                 >
-                  {[450, 500, 600, 650, 750, 850, 900].map((score) => (
+                  {availableTargetScores.map((score) => (
                     <option key={score} value={score}>{score}+ TOEIC</option>
                   ))}
                 </select>

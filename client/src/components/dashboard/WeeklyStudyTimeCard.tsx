@@ -127,11 +127,20 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-xs text-content-muted">
-              {language === 'en'
-                ? `Total this week: ${formatMinutes(totalWeeklyMinutes)}`
-                : `Tổng tuần này: ${formatMinutes(totalWeeklyMinutes)}`}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 font-semibold text-content">
+                <span className="size-2 rounded-full bg-emerald-500 inline-block" />
+                {language === 'en' ? 'Today: ' : 'Hôm nay: '}
+                <strong className="font-extrabold text-emerald-600 dark:text-emerald-400">
+                  {formatMinutes(todayMinutes)}
+                </strong>
+              </span>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+              <span className="font-medium text-content-muted">
+                {language === 'en' ? '7 days total: ' : 'Tổng 7 ngày: '}
+                <strong className="font-bold text-content">{formatMinutes(totalWeeklyMinutes)}</strong>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -208,6 +217,13 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
                   {day.minutes} {language === 'en' ? 'min' : 'phút'} ({day.date.slice(5)})
                 </div>
 
+                {/* Today Badge on top of the bar */}
+                {isToday && (
+                  <span className="mb-1 rounded-md bg-emerald-500 px-1.5 py-0.2 text-[9px] font-black text-white shadow-2xs">
+                    {language === 'en' ? 'Today' : 'Hôm nay'}
+                  </span>
+                )}
+
                 {/* Bar */}
                 <div className="w-full flex justify-center items-end h-36">
                   <motion.div
@@ -215,15 +231,13 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
                     animate={{ height: `${heightPercent}%` }}
                     transition={{ duration: 0.6, ease: 'easeOut' }}
                     className={`w-full max-w-[28px] sm:max-w-[36px] rounded-t-xl transition-all ${
-                      isReached
-                        ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-xs shadow-emerald-500/20'
-                        : day.minutes > 0
-                        ? 'bg-gradient-to-t from-slate-300 to-slate-200 dark:from-slate-700 dark:to-slate-600'
-                        : 'bg-slate-100 dark:bg-surface-elevated/50'
-                    } ${
                       isToday
-                        ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-surface'
-                        : ''
+                        ? 'bg-emerald-500 ring-2 ring-emerald-500 ring-offset-2 ring-offset-surface shadow-xs shadow-emerald-500/30'
+                        : isReached
+                        ? 'bg-emerald-500 shadow-xs shadow-emerald-500/20'
+                        : day.minutes > 0
+                        ? 'bg-slate-300 dark:bg-slate-700'
+                        : 'bg-slate-100 dark:bg-surface-elevated/50'
                     }`}
                   />
                 </div>
@@ -233,7 +247,7 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
                   <span
                     className={`block text-xs font-black ${
                       isToday
-                        ? 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-emerald-600 dark:text-emerald-400 underline decoration-emerald-500 underline-offset-2'
                         : isReached
                         ? 'text-content'
                         : 'text-content-muted'
@@ -241,7 +255,7 @@ export const WeeklyStudyTimeCard: React.FC<WeeklyStudyTimeCardProps> = () => {
                   >
                     {day.dayOfWeek}
                   </span>
-                  <span className="block text-[9px] font-medium text-slate-400">
+                  <span className={`block text-[9px] ${isToday ? 'font-black text-emerald-600 dark:text-emerald-400' : 'font-medium text-slate-400'}`}>
                     {day.date.slice(8, 10)}
                   </span>
                 </div>

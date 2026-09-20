@@ -25,7 +25,6 @@ import { StudyAttempt } from '../../types';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivityPanel';
 import { WeeklyStudyTimeCard } from '../../components/dashboard/WeeklyStudyTimeCard';
-import { LevelProgressCard } from '../../components/dashboard/LevelProgressCard';
 import { SkillsRadarCard } from '../../components/dashboard/SkillsRadarCard';
 import { PredictionCard } from '../../components/dashboard/PredictionCard';
 import { CommunityChatWidget } from '../../components/dashboard/CommunityChatWidget';
@@ -205,42 +204,57 @@ export const DashboardLivePage: React.FC = () => {
   const currentScore = metrics.bestScore;
   const hasToeicScore = currentScore > 0;
   const targetScore = user.targetScore || 750;
-  const progress = Math.min(100, Math.round((currentScore / targetScore) * 100));
-  const pointsRemaining = Math.max(0, targetScore - currentScore);
+
+  // Kiểm tra ngày thi dự kiến nếu học viên có đặt exam_date
+  const examDateObj = user.examDate ? new Date(user.examDate) : null;
+  const now = new Date();
+  const daysToExam = examDateObj && !isNaN(examDateObj.getTime())
+    ? Math.ceil((examDateObj.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const hasFutureExam = daysToExam !== null && daysToExam > 0;
+  const formattedExamDate = examDateObj && !isNaN(examDateObj.getTime())
+    ? new Intl.DateTimeFormat(language === 'en' ? 'en-US' : 'vi-VN', { dateStyle: 'medium' }).format(examDateObj)
+    : '';
 
   const metricCards = [
     {
       label: t('dashboard.bestScore'),
       value: hasToeicScore ? `${currentScore} ${t('common.points')}` : t('dashboard.noScore'),
       subtext: hasToeicScore
-        ? (currentScore >= targetScore ? t('dashboard.goalAchieved') : t('dashboard.scoreNeeded', { points: pointsRemaining }))
+        ? t('dashboard.standardEtsScale')
         : t('dashboard.fullTestHint'),
       icon: Target,
       color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 dark:text-emerald-300 border-emerald-200/60 dark:border-emerald-900/40',
     },
     {
-      label: t('dashboard.targetScore'),
-      value: `${targetScore} ${t('common.points')}`,
-      subtext: `${progress}% ${t('common.completed')}`,
-      icon: TrendingUp,
+      label: hasFutureExam ? t('dashboard.examCountdown') : t('dashboard.practicesCompleted'),
+      value: hasFutureExam
+        ? t('dashboard.daysLeft', { days: daysToExam })
+        : t('dashboard.practicesCount', { count: metrics.totalAttempts }),
+      subtext: hasFutureExam
+        ? t('dashboard.examDateLabel', { date: formattedExamDate })
+        : (metrics.totalQuestions > 0
+            ? t('dashboard.questionsCorrect', { correct: metrics.totalCorrect, total: metrics.totalQuestions })
+            : t('dashboard.practicesSubtext')),
+      icon: hasFutureExam ? CalendarDays : BookOpenCheck,
       color: 'text-sky-600 bg-sky-50 dark:bg-sky-500/10 dark:text-sky-300 border-sky-200/60 dark:border-sky-900/40',
     },
     {
       label: t('dashboard.accuracy'),
       value: `${metrics.averageAccuracy}%`,
       subtext: metrics.totalQuestions > 0 ? t('dashboard.questionsCorrect', { correct: metrics.totalCorrect, total: metrics.totalQuestions }) : t('dashboard.noAnswersYet'),
-      icon: BookOpenCheck,
+      icon: TrendingUp,
       color: 'text-brand-700 bg-brand-50 dark:bg-brand-500/10 dark:text-brand-300 border-brand-200/60 dark:border-brand-900/40',
     },
   ];
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Welcome Back Card with Three.js Mascot */}
+      {/* Welcome Back Card with Mascot & Gamification Hub (XP, Level, Streak, Max streak) */}
       <div id="tour-db-welcome">
         <WelcomeBackCard
           userName={user.name}
-          xp={user.xp ?? user.questionsAnswered ?? 0}
+          targetScore={targetScore}
           level={user.level ?? 1}
           streakDays={user.streakDays}
           longestStreak={user.longestStreak ?? user.streakDays}
@@ -261,7 +275,7 @@ export const DashboardLivePage: React.FC = () => {
         </div>
       )}
 
-      {/* Metric Cards (Điểm cao nhất, Mục tiêu, Độ chính xác) */}
+      {/* Metric Cards (Hàng KPI ở giữa: Điểm cao nhất, Đếm ngược/Tổng bài luyện, Độ chính xác) */}
       <section id="tour-db-metrics" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {loading ? (
           [1, 2, 3].map((id) => (
@@ -288,9 +302,6 @@ export const DashboardLivePage: React.FC = () => {
         )}
       </section>
 
-      {/* Gamification Level */}
-      <LevelProgressCard />
-
       {/* Thời gian học 7 ngày qua & Biểu đồ Tiến trình điểm số */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <WeeklyStudyTimeCard />
@@ -304,8 +315,7 @@ export const DashboardLivePage: React.FC = () => {
                 <p className="mt-0.5 text-xs text-content-muted">{t('dashboard.scoreProgressDesc')}</p>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-xs font-black text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-                <CheckCircle2 className="size-3.5" /> {progress}% {language === 'en' ? 'of goal' : 'mục tiêu'}
-                ({hasToeicScore ? `${currentScore}/${targetScore}` : (language === 'en' ? 'No score yet' : 'Chưa có điểm')})
+                <TrendingUp className="size-3.5" /> {chartData.length > 0 ? `${chartData.length} ${language === 'en' ? 'tests recorded' : 'bài thi gần nhất'}` : (language === 'en' ? 'No data' : 'Chưa có dữ liệu')}
               </span>
             </div>
 

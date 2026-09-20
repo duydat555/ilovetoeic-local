@@ -238,7 +238,7 @@ const DASHBOARD_TOUR_STEPS: DriveStep[] = [
     element: '#tour-db-metrics',
     popover: {
       title: 'Chỉ số năng lực học tập',
-      description: 'Nắm bắt Điểm thi TOEIC cao nhất, Mục tiêu điểm cần đạt và Độ chính xác làm bài trung bình qua các đề thi.',
+      description: 'Nắm bắt Điểm thi TOEIC cao nhất, Số bài luyện tập đã hoàn thành và Độ chính xác làm bài trung bình qua các đề thi.',
       side: 'bottom',
       align: 'center',
     },
@@ -694,7 +694,7 @@ const EN_TOUR_MAP: Record<TourType, DriveStep[]> = {
       element: '#tour-db-metrics',
       popover: {
         title: 'Learning Competence Metrics',
-        description: 'See your highest mock test score, target goal, and average answer accuracy across tests.',
+        description: 'See your highest mock test score, completed practice sessions count, and average answer accuracy across tests.',
         side: 'bottom',
         align: 'center',
       },

@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Flame, Trophy, Award, ArrowRight, Star, Play } from 'lucide-react';
+import { ArrowRight, Star, Play } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { StatCard } from './StatCard';
 import { DogMascot } from '../DogMascot';
 import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
-import { XpExplanationTooltip } from '../common/XpExplanationTooltip';
 import quockhanhSvg from '../../assets/icons/quockhanh.svg';
 import './NationalDayBanner.css';
 
 export interface NationalDayBannerProps {
   userName: string;
-  xp: number;
-  streakDays: number;
-  longestStreak: number;
+  xp?: number;
+  targetScore?: number;
+  streakDays?: number;
+  longestStreak?: number;
   ctaLink?: string;
   isLoading?: boolean;
 }
@@ -30,7 +29,7 @@ const FESTIVE_MESSAGES = [
 
 export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
   userName,
-  xp,
+  targetScore = 750,
   streakDays,
   longestStreak,
   ctaLink = '/practice-by-level',
@@ -106,49 +105,6 @@ export const NationalDayBanner: React.FC<NationalDayBannerProps> = ({
               <p className="nd-subtext text-xs sm:text-base font-bold mt-1.5 max-w-md leading-relaxed">
                 Hào khí 2/9 — duy trì chuỗi luyện TOEIC rực rỡ cùng Tinh Tú và chinh phục mục tiêu hôm nay!
               </p>
-            </div>
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-3 gap-1.5 pt-1 sm:flex sm:flex-wrap sm:gap-3">
-              <XpExplanationTooltip align="left" side="bottom" className="w-full sm:w-auto">
-                <StatCard
-                  id="stat-xp-nd"
-                  icon={<Award className="size-4" />}
-                  label="Điểm XP"
-                  value={xp}
-                  badgeBg="bg-amber-400"
-                  iconColor="text-amber-950"
-                  cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-                  textColor="text-slate-900"
-                  labelColor="text-slate-600 font-bold"
-                  helpIcon={true}
-                  className="cursor-help w-full"
-                />
-              </XpExplanationTooltip>
-              <StatCard
-                id="stat-streak-nd"
-                icon={<Flame className="size-4" />}
-                label="Chuỗi ngày"
-                value={streakDays}
-                unit="ngày"
-                badgeBg="bg-orange-500"
-                iconColor="text-white"
-                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-                textColor="text-slate-900"
-                labelColor="text-slate-600 font-bold"
-              />
-              <StatCard
-                id="stat-longest-nd"
-                icon={<Trophy className="size-4" />}
-                label="Max Streak"
-                value={longestStreak}
-                unit="ngày"
-                badgeBg="bg-amber-500"
-                iconColor="text-white"
-                cardBg="bg-white/95 backdrop-blur-md border border-amber-200/90 shadow-md"
-                textColor="text-slate-900"
-                labelColor="text-slate-600 font-bold"
-              />
             </div>
           </div>
         </div>

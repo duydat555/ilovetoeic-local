@@ -43,11 +43,29 @@ const getAverageDescription = (level: number, language: string) => {
 };
 
 const getLevelAttempt = (attempt: StudyAttempt) => {
-  if (attempt.metadata?.source !== 'level_practice') return null;
-  const part = Number(attempt.part ?? attempt.metadata?.selected_part);
-  const level = Number(attempt.metadata?.selected_level);
-  if (!Number.isInteger(part) || !Number.isInteger(level)) return null;
-  return { part, level, passed: attempt.accuracyRate >= 70 };
+  const metadata = attempt.metadata || {};
+  const isRetry = Boolean(
+    metadata.is_wrong_retry
+    || metadata.wrong_source
+    || metadata.review_attempt_id
+    || metadata.source === 'wrong_practice',
+  );
+  if (metadata.source !== 'level_practice' || isRetry) return null;
+
+  const part = Number(attempt.part ?? metadata.selected_part);
+  const level = Number(attempt.level ?? metadata.selected_level);
+  const totalQuestions = Number(attempt.totalQuestions || 0);
+  const answeredQuestions = Number(attempt.answeredQuestions || 0);
+  const correctAnswers = Number(attempt.correctAnswers || 0);
+  if (!Number.isInteger(part) || part < 1 || part > 7) return null;
+  if (!Number.isInteger(level) || level < 1 || level > 5) return null;
+
+  const passed = totalQuestions > 0
+    && answeredQuestions === totalQuestions
+    && correctAnswers >= 0
+    && correctAnswers <= totalQuestions
+    && correctAnswers * 100 >= totalQuestions * 70;
+  return { part, level, passed };
 };
 
 export const PracticeByLevelPage: React.FC = () => {
@@ -163,17 +181,30 @@ export const PracticeByLevelPage: React.FC = () => {
     return result;
   }, [attempts]);
 
-  const currentPartLevels = useMemo(() => Object.entries(completedByPart)
-    .filter(([, levels]) => levels.length > 0)
-    .map(([part, levels]) => ({ part: Number(part), level: Math.max(...levels) }))
-    .sort((a, b) => a.part - b.part), [completedByPart]);
+  const currentPartLevels = useMemo(() => {
+    if (levelStats) {
+      return levelStats.parts
+        .filter((item) => Number.isInteger(item.part) && item.part >= 1 && item.part <= 7
+          && Number.isInteger(item.max_level) && item.max_level >= 1 && item.max_level <= 5)
+        .map((item) => ({ part: item.part, level: item.max_level }))
+        .sort((a, b) => a.part - b.part);
+    }
+
+    return Object.entries(completedByPart)
+      .filter(([, levels]) => levels.length > 0)
+      .map(([part, levels]) => ({ part: Number(part), level: Math.max(...levels) }))
+      .sort((a, b) => a.part - b.part);
+  }, [completedByPart, levelStats]);
 
   const averageLevel = useMemo(() => {
-    if (levelStats?.average_level !== undefined && levelStats.average_level !== null) {
-      return levelStats.average_level;
-    }
     if (currentPartLevels.length === 0) return null;
-    return currentPartLevels.reduce((total, item) => total + item.level, 0) / currentPartLevels.length;
+    const calculated = currentPartLevels.reduce((total, item) => total + item.level, 0) / currentPartLevels.length;
+    if (levelStats?.average_level !== undefined && levelStats.average_level !== null) {
+      return Math.abs(levelStats.average_level - calculated) < 0.01
+        ? levelStats.average_level
+        : calculated;
+    }
+    return calculated;
   }, [levelStats, currentPartLevels]);
 
   const visibleParts = PRACTICE_LEVEL_PARTS.filter((part) => part.skill === skill);
@@ -276,6 +307,13 @@ export const PracticeByLevelPage: React.FC = () => {
         const parsed = getLevelAttempt(attempt);
         return !parsed || parsed.part !== deleteScope.part || parsed.level !== deleteScope.level;
       }));
+      try {
+        const refreshedLevelStats = await backendService.getPracticeLevelStats();
+        setLevelStats(refreshedLevelStats);
+      } catch (statsError) {
+        console.warn('[!] Không thể làm mới thống kê Level sau khi xoá:', statsError);
+        setLevelStats(null);
+      }
       setWrongCounts((current) => ({ ...current, [key]: 0 }));
       const totalDeleted = Math.max(serverDeleted, deleteScope.displayCount || deleteScope.attemptCount || 0);
       setToastMessage(

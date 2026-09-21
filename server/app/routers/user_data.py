@@ -85,6 +85,38 @@ class StudyAttemptPayload(BaseModel):
     completedAt: str
 
 
+def _is_official_level_pass(
+    *,
+    mode: str,
+    part: Optional[int],
+    level: Optional[int],
+    metadata: dict,
+    correct_answers: int,
+    answered_questions: int,
+    total_questions: int,
+) -> bool:
+    """Return whether an attempt legitimately completes a Practice-by-Level set."""
+    is_retry = bool(
+        metadata.get("is_wrong_retry")
+        or metadata.get("wrong_source")
+        or metadata.get("review_attempt_id")
+        or metadata.get("source") == "wrong_practice"
+    )
+    return bool(
+        mode == "practice"
+        and part is not None
+        and 1 <= part <= 7
+        and level is not None
+        and 1 <= level <= 5
+        and metadata.get("source") == "level_practice"
+        and not is_retry
+        and total_questions > 0
+        and answered_questions == total_questions
+        and 0 <= correct_answers <= total_questions
+        and correct_answers * 100 >= total_questions * 70
+    )
+
+
 class QuestionActivityItem(BaseModel):
     questionId: str = Field(min_length=1, max_length=220)
     selectedAnswer: str = Field(min_length=1, max_length=5)
@@ -166,6 +198,7 @@ def _handle_study_attempt_side_effects(
     test_name: Optional[str],
     metadata: dict,
     correct_answers: int,
+    answered_questions: int,
     total_questions: int,
     accuracy_rate: float,
     time_spent_seconds: int = 0,
@@ -217,31 +250,15 @@ def _handle_study_attempt_side_effects(
         or metadata.get("review_attempt_id")
         or metadata.get("source") == "wrong_practice"
     )
-
-    # If this is a qualifying level practice attempt (accuracyRate >= 70%), incrementally update user_level_stats.
-    # Note: Retrying wrong questions or reviews must NEVER update user_level_stats.
-    if (
-        mode == "practice"
-        and part is not None
-        and level is not None
-        and accuracy_rate >= 70.0
-        and not is_wrong_retry
-        and metadata.get("source") == "level_practice"
-    ):
-        try:
-            db.execute(
-                """
-                INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
-                VALUES (?, ?, ?, NOW())
-                ON DUPLICATE KEY UPDATE
-                    max_level_achieved = GREATEST(max_level_achieved, VALUES(max_level_achieved)),
-                    updated_at = NOW()
-                """,
-                (user["id"], part, level),
-            )
-            cache_service.delete(f"user:level_stats:{user['id']}")
-        except Exception as exc:
-            logger.warning(f"Failed to update user_level_stats in background for {user.get('id')}: {exc}")
+    is_official_level_pass = _is_official_level_pass(
+        mode=mode,
+        part=part,
+        level=level,
+        metadata=metadata,
+        correct_answers=correct_answers,
+        answered_questions=answered_questions,
+        total_questions=total_questions,
+    )
 
     try:
         activity_name = test_name or metadata.get("test_name") or (
@@ -279,13 +296,7 @@ def _handle_study_attempt_side_effects(
             # For practice sessions, per-question XP is already awarded during answering (+5 correct, +1 incorrect).
             # Completion bonus (+30 XP) is ONLY awarded when passing a genuine Level practice set (accuracy >= 70%).
             # Retrying wrong questions, reviews, or failing (< 70%) NEVER awards completion bonus.
-            if (
-                not is_wrong_retry
-                and part is not None
-                and level is not None
-                and accuracy_rate >= 70.0
-                and metadata.get("source") == "level_practice"
-            ):
+            if is_official_level_pass:
                 award_level_completion_xp(
                     user_id=user["id"],
                     attempt_id=attempt_id,
@@ -322,53 +333,112 @@ def save_study_attempt(
         **({"test_year": payload.testYear} if payload.testYear else {}),
         **({"selected_level": level_val} if level_val is not None else {}),
     }
-    db.execute(
-        """
-        INSERT INTO test_attempts (
-            id, user_id, test_id, mode, part, level, total_questions, answered_questions,
-            correct_answers, accuracy_rate, time_spent_seconds, listening_correct,
-            reading_correct, listening_score, reading_score, total_score, answers,
-            question_ids, metadata, completed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-            test_id = VALUES(test_id), mode = VALUES(mode), part = VALUES(part),
-            level = VALUES(level),
-            total_questions = VALUES(total_questions),
-            answered_questions = VALUES(answered_questions),
-            correct_answers = VALUES(correct_answers),
-            accuracy_rate = VALUES(accuracy_rate),
-            time_spent_seconds = VALUES(time_spent_seconds),
-            listening_correct = VALUES(listening_correct),
-            reading_correct = VALUES(reading_correct),
-            listening_score = VALUES(listening_score),
-            reading_score = VALUES(reading_score),
-            total_score = VALUES(total_score), answers = VALUES(answers),
-            question_ids = VALUES(question_ids), metadata = VALUES(metadata),
-            completed_at = VALUES(completed_at)
-        """,
-        (
-            payload.id,
-            user["id"],
-            payload.testId,
-            payload.mode,
-            payload.part,
-            level_val,
-            payload.totalQuestions,
-            payload.answeredQuestions,
-            payload.correctAnswers,
-            payload.accuracyRate,
-            payload.timeSpentSeconds,
-            payload.listeningCorrect,
-            payload.readingCorrect,
-            payload.listeningScore,
-            payload.readingScore,
-            payload.totalScore,
-            json.dumps(payload.answers, ensure_ascii=False),
-            json.dumps(payload.questionIds, ensure_ascii=False),
-            json.dumps(metadata, ensure_ascii=False),
-            parse_datetime(payload.completedAt),
-        ),
+    is_official_level_attempt = bool(
+        payload.mode == "practice"
+        and payload.part is not None
+        and level_val is not None
+        and metadata.get("source") == "level_practice"
     )
+    is_official_level_pass = _is_official_level_pass(
+        mode=payload.mode,
+        part=payload.part,
+        level=level_val,
+        metadata=metadata,
+        correct_answers=payload.correctAnswers,
+        answered_questions=payload.answeredQuestions,
+        total_questions=payload.totalQuestions,
+    )
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO test_attempts (
+                    id, user_id, test_id, mode, part, level, total_questions, answered_questions,
+                    correct_answers, accuracy_rate, time_spent_seconds, listening_correct,
+                    reading_correct, listening_score, reading_score, total_score, answers,
+                    question_ids, metadata, completed_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    test_id = VALUES(test_id), mode = VALUES(mode), part = VALUES(part),
+                    level = VALUES(level),
+                    total_questions = VALUES(total_questions),
+                    answered_questions = VALUES(answered_questions),
+                    correct_answers = VALUES(correct_answers),
+                    accuracy_rate = VALUES(accuracy_rate),
+                    time_spent_seconds = VALUES(time_spent_seconds),
+                    listening_correct = VALUES(listening_correct),
+                    reading_correct = VALUES(reading_correct),
+                    listening_score = VALUES(listening_score),
+                    reading_score = VALUES(reading_score),
+                    total_score = VALUES(total_score), answers = VALUES(answers),
+                    question_ids = VALUES(question_ids), metadata = VALUES(metadata),
+                    completed_at = VALUES(completed_at)
+                """,
+                (
+                    payload.id,
+                    user["id"],
+                    payload.testId,
+                    payload.mode,
+                    payload.part,
+                    level_val,
+                    payload.totalQuestions,
+                    payload.answeredQuestions,
+                    payload.correctAnswers,
+                    payload.accuracyRate,
+                    payload.timeSpentSeconds,
+                    payload.listeningCorrect,
+                    payload.readingCorrect,
+                    payload.listeningScore,
+                    payload.readingScore,
+                    payload.totalScore,
+                    json.dumps(payload.answers, ensure_ascii=False),
+                    json.dumps(payload.questionIds, ensure_ascii=False),
+                    json.dumps(metadata, ensure_ascii=False),
+                    parse_datetime(payload.completedAt),
+                ),
+            )
+            if is_official_level_pass:
+                cursor.execute(
+                    """
+                    INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        max_level_achieved = GREATEST(max_level_achieved, VALUES(max_level_achieved)),
+                        updated_at = NOW()
+                    """,
+                    (user["id"], payload.part, level_val),
+                )
+            elif is_official_level_attempt:
+                cursor.execute(
+                    "DELETE FROM user_level_stats WHERE user_id = %s AND part = %s",
+                    (user["id"], payload.part),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+                    SELECT user_id, part, MAX(level), NOW()
+                    FROM test_attempts
+                    WHERE user_id = %s
+                      AND mode = 'practice'
+                      AND part = %s
+                      AND JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.source')) = 'level_practice'
+                      AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_wrong_retry')), 'false') NOT IN ('true', '1')
+                      AND JSON_EXTRACT(metadata, '$.wrong_source') IS NULL
+                      AND JSON_EXTRACT(metadata, '$.review_attempt_id') IS NULL
+                      AND level BETWEEN 1 AND 5
+                      AND total_questions > 0
+                      AND answered_questions = total_questions
+                      AND correct_answers BETWEEN 0 AND total_questions
+                      AND correct_answers * 100 >= total_questions * 70
+                    GROUP BY user_id, part
+                    """,
+                    (user["id"], payload.part),
+                )
+    if is_official_level_attempt:
+        try:
+            cache_service.delete(f"user:level_stats:{user['id']}")
+        except Exception as exc:
+            logger.warning(f"Failed to invalidate level_stats cache for {user.get('id')}: {exc}")
     if request.headers.get("x-test-force-sync") == "1":
         _handle_study_attempt_side_effects(
             user=user,
@@ -379,6 +449,7 @@ def save_study_attempt(
             test_name=payload.testName,
             metadata=metadata,
             correct_answers=payload.correctAnswers,
+            answered_questions=payload.answeredQuestions,
             total_questions=payload.totalQuestions,
             accuracy_rate=payload.accuracyRate,
             time_spent_seconds=payload.timeSpentSeconds,
@@ -394,6 +465,7 @@ def save_study_attempt(
             test_name=payload.testName,
             metadata=metadata,
             correct_answers=payload.correctAnswers,
+            answered_questions=payload.answeredQuestions,
             total_questions=payload.totalQuestions,
             accuracy_rate=payload.accuracyRate,
             time_spent_seconds=payload.timeSpentSeconds,
@@ -736,12 +808,29 @@ def delete_single_study_attempt(
 ):
     user_id = user["id"]
     attempt = db.fetch_one(
-        "SELECT id, test_id FROM test_attempts WHERE id = ? AND user_id = ?",
+        """
+        SELECT id, test_id, mode, part, level, metadata
+        FROM test_attempts
+        WHERE id = ? AND user_id = ?
+        """,
         (attempt_id, user_id),
         use_cache=False,
     )
     if not attempt:
         return {"success": True, "message": "Lượt làm bài không tồn tại hoặc đã được xoá trước đó."}
+
+    attempt_metadata = parse_json(attempt.get("metadata"), {})
+    affected_level_part = (
+        int(attempt["part"])
+        if attempt.get("mode") == "practice"
+        and attempt.get("part") is not None
+        and (attempt.get("level") is not None or attempt_metadata.get("selected_level") is not None)
+        and (
+            attempt_metadata.get("source") == "level_practice"
+            or attempt_metadata.get("selected_level") is not None
+        )
+        else None
+    )
 
     with db.transaction() as conn:
         with conn.cursor() as cursor:
@@ -774,6 +863,32 @@ def delete_single_study_attempt(
                 "DELETE FROM test_attempts WHERE id = %s AND user_id = %s",
                 (attempt_id, user_id),
             )
+            if affected_level_part is not None:
+                cursor.execute(
+                    "DELETE FROM user_level_stats WHERE user_id = %s AND part = %s",
+                    (user_id, affected_level_part),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
+                    SELECT user_id, part, MAX(level), NOW()
+                    FROM test_attempts
+                    WHERE user_id = %s
+                      AND mode = 'practice'
+                      AND part = %s
+                      AND JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.source')) = 'level_practice'
+                      AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_wrong_retry')), 'false') NOT IN ('true', '1')
+                      AND JSON_EXTRACT(metadata, '$.wrong_source') IS NULL
+                      AND JSON_EXTRACT(metadata, '$.review_attempt_id') IS NULL
+                      AND level BETWEEN 1 AND 5
+                      AND total_questions > 0
+                      AND answered_questions = total_questions
+                      AND correct_answers BETWEEN 0 AND total_questions
+                      AND correct_answers * 100 >= total_questions * 70
+                    GROUP BY user_id, part
+                    """,
+                    (user_id, affected_level_part),
+                )
             # Recompute user current_score to ensure goal score is updated if the deleted attempt was their best
             cursor.execute(
                 """
@@ -795,6 +910,11 @@ def delete_single_study_attempt(
                 """,
                 (user_id, user_id),
             )
+    if affected_level_part is not None:
+        try:
+            cache_service.delete(f"user:level_stats:{user_id}")
+        except Exception as exc:
+            logger.warning(f"Failed to invalidate level_stats cache for {user_id}: {exc}")
     return {"success": True, "message": "Đã xoá lượt làm bài thành công."}
 
 
@@ -1022,7 +1142,18 @@ def delete_study_attempts(
                         INSERT INTO user_level_stats (user_id, part, max_level_achieved, updated_at)
                         SELECT user_id, part, MAX(level), NOW()
                         FROM test_attempts
-                        WHERE user_id = %s AND mode = 'practice' AND part = %s AND accuracy_rate >= 70 AND level IS NOT NULL
+                        WHERE user_id = %s
+                          AND mode = 'practice'
+                          AND part = %s
+                          AND JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.source')) = 'level_practice'
+                          AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_wrong_retry')), 'false') NOT IN ('true', '1')
+                          AND JSON_EXTRACT(metadata, '$.wrong_source') IS NULL
+                          AND JSON_EXTRACT(metadata, '$.review_attempt_id') IS NULL
+                          AND level BETWEEN 1 AND 5
+                          AND total_questions > 0
+                          AND answered_questions = total_questions
+                          AND correct_answers BETWEEN 0 AND total_questions
+                          AND correct_answers * 100 >= total_questions * 70
                         GROUP BY user_id, part
                         """,
                         (user_id, part),

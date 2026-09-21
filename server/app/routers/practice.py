@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from app.db import db
 from app.security import get_current_user
@@ -88,8 +88,6 @@ def get_practice_by_level_summary(response: Response):
     response.headers["Cache-Control"] = "public, max-age=180, stale-while-revalidate=300"
     return result
 
-
-from typing import Dict, Any, Optional, Literal
 
 @router.get("/practice-by-level/questions")
 def get_practice_by_level_questions(
@@ -365,9 +363,16 @@ def get_user_level_stats(
             FROM test_attempts
             WHERE user_id = ?
               AND mode = 'practice'
-              AND accuracy_rate >= 70
-              AND level IS NOT NULL
-              AND part IS NOT NULL
+              AND JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.source')) = 'level_practice'
+              AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_wrong_retry')), 'false') NOT IN ('true', '1')
+              AND JSON_EXTRACT(metadata, '$.wrong_source') IS NULL
+              AND JSON_EXTRACT(metadata, '$.review_attempt_id') IS NULL
+              AND level BETWEEN 1 AND 5
+              AND part BETWEEN 1 AND 7
+              AND total_questions > 0
+              AND answered_questions = total_questions
+              AND correct_answers BETWEEN 0 AND total_questions
+              AND correct_answers * 100 >= total_questions * 70
             GROUP BY user_id, part
             ON DUPLICATE KEY UPDATE
                 max_level_achieved = VALUES(max_level_achieved),
@@ -399,7 +404,7 @@ def get_user_level_stats(
 
     # 4. Cache in Redis
     try:
-        cache_service.set(cache_key, data, ttl_seconds=86400)
+        cache_service.set(cache_key, data, ttl_seconds=300)
     except Exception as err:
         logger.warning(f"Error saving Redis level stats for {user_id}: {err}")
 

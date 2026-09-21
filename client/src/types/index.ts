@@ -265,6 +265,7 @@ export interface StudyAttempt {
   testYear?: number;
   mode: StudyAttemptMode;
   part?: number;
+  level?: number;
   totalQuestions: number;
   answeredQuestions: number;
   correctAnswers: number;

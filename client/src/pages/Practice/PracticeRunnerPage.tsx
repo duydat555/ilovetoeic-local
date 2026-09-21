@@ -367,6 +367,7 @@ export const PracticeRunnerPage: React.FC = () => {
       testId: testId || undefined,
       mode: 'practice',
       part: selectedParts.length === 1 ? selectedParts[0] : undefined,
+      level: isLevelPractice ? selectedLevel || undefined : undefined,
       totalQuestions: questions.length,
       answeredQuestions: questions.filter((question) => Boolean(userAnswers[question.id])).length,
       correctAnswers: correctCount,

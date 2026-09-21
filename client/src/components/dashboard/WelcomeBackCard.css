@@ -1,59 +1,65 @@
-/* ─── Modern Harmonious Welcome Card ─── */
-
 .welcome-dashboard-card {
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.04);
+  isolation: isolate;
 }
 
-/* Waving Hand keyframe */
-@keyframes wave-hand {
-  0%, 100% {
+.welcome-card-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.25rem;
+  background: rgb(var(--color-brand-primary));
+}
+
+.welcome-speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: -0.4rem;
+  left: 50%;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-top: 1px solid rgb(var(--color-border-subtle));
+  border-left: 1px solid rgb(var(--color-border-subtle));
+  background: rgb(var(--color-bg-surface));
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes welcome-wave {
+  0%,
+  100% {
     transform: rotate(0deg);
   }
-  15%, 45% {
-    transform: rotate(14deg);
+
+  20% {
+    transform: rotate(13deg);
   }
-  30%, 60% {
-    transform: rotate(-8deg);
+
+  40% {
+    transform: rotate(-7deg);
+  }
+
+  60% {
+    transform: rotate(9deg);
+  }
+
+  80% {
+    transform: rotate(-3deg);
   }
 }
 
-/* Slow Spinning Icon */
-@keyframes spin-slow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.welcome-wave {
+  animation: welcome-wave 2.4s ease-in-out infinite;
+  transform-origin: 70% 80%;
 }
 
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
-}
-
-/* Shine Sweep light streak effect for CTA button */
-@keyframes shine-sweep {
-  0% {
-    transform: translateX(-150%) skewX(-12deg);
-  }
-  30%, 100% {
-    transform: translateX(250%) skewX(-12deg);
+@media (min-width: 640px) {
+  .welcome-speech-bubble::before {
+    top: 50%;
+    left: -0.4rem;
+    transform: translateY(-50%) rotate(-45deg);
   }
 }
 
-.cta-shine-sweep {
-  animation: shine-sweep 3.8s ease-in-out infinite;
-}
-
-/* ─── Accessibility: Reduced Motion ─── */
 @media (prefers-reduced-motion: reduce) {
-  .welcome-dashboard-card,
-  .animate-[wave-hand_2s_ease-in-out_infinite],
-  .animate-[tail-wag_1s_ease-in-out_infinite_alternate],
-  .animate-spin-slow,
-  .cta-shine-sweep {
-    transform: none !important;
-    animation: none !important;
-    transition: none !important;
+  .welcome-wave {
+    animation: none;
   }
 }

@@ -254,6 +254,7 @@ export const DashboardLivePage: React.FC = () => {
       <div id="tour-db-welcome">
         <WelcomeBackCard
           userName={user.name}
+          xp={user.xp}
           targetScore={targetScore}
           level={user.level ?? 1}
           streakDays={user.streakDays}

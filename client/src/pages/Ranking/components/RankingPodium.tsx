@@ -147,7 +147,7 @@ const PodiumCard: React.FC<{
               </div>
             )}
 
-            <div className={`relative mx-auto ${isWinner ? 'size-20 sm:size-22' : 'size-16 sm:size-18'}`}>
+            <div className={`relative mx-auto ${isWinner ? 'size-20 sm:size-24' : 'size-16 sm:size-20'}`}>
               <div
                 className={`absolute inset-0 rounded-full bg-gradient-to-tr ${config.avatarAura} blur-md transition-transform duration-300 group-hover:scale-110`}
               />

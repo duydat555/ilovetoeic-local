@@ -54,7 +54,7 @@ export const RankingWeeklyGoalCard: React.FC<RankingWeeklyGoalCardProps> = ({
           </div>
           <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-elevated">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 to-accent transition-all duration-500"
               style={{ width: `${Math.max(6, progressPercent)}%` }}
             />
           </div>

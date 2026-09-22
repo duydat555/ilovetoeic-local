@@ -568,7 +568,7 @@ export const PracticeByLevelPage: React.FC = () => {
                 {/* Phần đầu Card: Tiêu đề Part & Nút thao tác */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-black ${
                         isListening
                           ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
@@ -589,13 +589,25 @@ export const PracticeByLevelPage: React.FC = () => {
                     <h2 className="mt-2 text-base sm:text-lg font-black tracking-tight text-content">
                       {partTitle}
                     </h2>
-                    <p className="mt-1 text-xs leading-relaxed text-content-muted">
+                    <p className="mt-1 text-xs leading-relaxed text-content-muted sm:min-h-[2.5rem]">
                       {partDesc}
                     </p>
                   </div>
 
-                  {/* Nút xoá lịch sử làm bài */}
-                  <div className="flex shrink-0 items-center gap-1">
+                  {/* Nút thao tác: Luyện câu sai & Xoá lịch sử */}
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    {wrongCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
+                        aria-label={language === 'en' ? `Retry ${wrongCount} incorrect questions` : `Luyện lại ${wrongCount} câu sai`}
+                        title={language === 'en' ? `Retry ${wrongCount} incorrect questions` : `Luyện lại ${wrongCount} câu sai ở Level ${selectedLevel}`}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 px-2.5 py-1 text-xs font-black text-rose-700 transition hover:bg-rose-500/20 active:scale-95 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                      >
+                        <RotateCcw className="size-3 stroke-[2.5]" />
+                        <span>{language === 'en' ? `${wrongCount} wrong` : `${wrongCount} câu sai`}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -617,32 +629,7 @@ export const PracticeByLevelPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Banner Câu Sai (nếu có câu sai tại Level này) */}
-                {wrongCount > 0 && (
-                  <div className="mt-3.5 flex items-center justify-between gap-3 rounded-2xl border border-rose-200/80 bg-rose-50/70 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
-                    <div className="flex items-center gap-2 text-xs font-bold text-rose-800 dark:text-rose-300">
-                      <span className="grid size-6 place-items-center rounded-lg bg-rose-600 text-white font-mono text-[10px] font-black">
-                        {wrongCount}
-                      </span>
-                      <span>
-                        {language === 'en'
-                          ? `${wrongCount} incorrect question(s) to review`
-                          : `Có ${wrongCount} câu sai cần ôn lại ở Level ${selectedLevel}`}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
-                      className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-rose-700 shadow-2xs transition hover:bg-rose-100 dark:bg-rose-900/40 dark:text-rose-200 active:scale-95 shrink-0"
-                    >
-                      <RotateCcw className="size-3" />
-                      <span>{language === 'en' ? 'Retry' : 'Luyện lại'}</span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Slider chọn độ khó tương tác */}
+                {/* Slider chọn độ khó tương tác - Luôn giữ vị trí cố định */}
                 <div className="mt-2">
                   <LevelSlider
                     value={selectedLevel}
@@ -680,7 +667,7 @@ export const PracticeByLevelPage: React.FC = () => {
                     type="button"
                     disabled={isLoading || usingFallback || questionCount === 0}
                     onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}`)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-contrast shadow-sm transition hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-50 sm:w-auto whitespace-nowrap"
+                    className="btn-primary min-h-10 w-full whitespace-nowrap px-5 py-2 text-xs font-black sm:w-auto"
                   >
                     {usingFallback || questionCount === 0 ? (
                       <RefreshCcw className="size-3.5" />

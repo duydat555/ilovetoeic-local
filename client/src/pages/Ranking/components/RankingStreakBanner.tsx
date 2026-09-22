@@ -34,16 +34,16 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({
 
         {/* Left Side: User Position & Motivation */}
         <div className="flex items-start sm:items-center gap-4 min-w-0">
-          <div className="relative shrink-0">
+          <div className="relative size-14 sm:size-16 shrink-0">
             {userAvatar ? (
               <img
                 src={userAvatar}
                 alt={userName || 'Avatar'}
-                className="size-13 rounded-2xl object-cover ring-2 ring-primary/40 bg-surface-elevated"
+                className="size-full rounded-2xl object-cover ring-2 ring-accent/40 bg-surface-elevated"
               />
             ) : (
-              <div className="grid size-13 place-items-center rounded-2xl bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/30 font-black text-sm">
-                <Flame className="size-6 fill-current" />
+              <div className="grid size-full place-items-center rounded-2xl bg-amber-500/10 text-amber-500 ring-2 ring-amber-500/30 font-black text-sm">
+                <Flame className="size-6 sm:size-7 fill-current" />
               </div>
             )}
 
@@ -56,7 +56,7 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({
                     ? 'bg-slate-300 text-slate-900 font-black'
                     : currentRank === 3
                     ? 'bg-amber-700 text-amber-50 font-black'
-                    : 'bg-primary text-primary-contrast'
+                    : 'bg-accent text-accent-contrast'
                 }`}
                 title={language === 'en' ? `Rank #${currentRank}` : `Hạng #${currentRank}`}
               >
@@ -129,11 +129,11 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({
           )}
 
           <div className="flex items-center gap-2.5 rounded-2xl bg-surface-elevated border border-line/50 px-3.5 py-2">
-            <Flame className="size-4 text-primary fill-primary shrink-0" />
+            <Flame className="size-4 text-amber-500 fill-amber-500 shrink-0" />
             <div>
               <div className="flex items-baseline gap-1 font-mono font-black text-content text-sm sm:text-base leading-none">
                 {streakDays}
-                <span className="font-sans text-[11px] font-extrabold text-primary">ngày</span>
+                <span className="font-sans text-[11px] font-extrabold text-amber-600 dark:text-amber-400">ngày</span>
               </div>
               <div className="text-[10px] text-content-muted font-semibold mt-0.5">Chuỗi học</div>
             </div>
@@ -141,7 +141,7 @@ export const RankingStreakBanner: React.FC<RankingStreakBannerProps> = ({
 
           <Link
             to="/practice-by-level"
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-2xl bg-primary px-5 text-xs font-black text-primary-contrast shadow-md shadow-primary/20 transition hover:opacity-90 active:scale-95"
+            className="btn-primary min-h-10 px-5 text-xs font-black shadow-md"
           >
             <Target className="size-3.5" />
             <span>{language === 'en' ? 'Climb Rankings' : 'Luyện tập thăng hạng'}</span>

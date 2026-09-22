@@ -1,5 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Award, ChevronDown, Database, Play, RefreshCcw, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  Award,
+  BookOpen,
+  BookOpenText,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  Database,
+  Headphones,
+  Info,
+  Layers,
+  Play,
+  RefreshCcw,
+  RotateCcw,
+  Sparkles,
+  Target,
+  Trash2,
+  Zap,
+} from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
@@ -209,43 +227,54 @@ export const PracticeByLevelPage: React.FC = () => {
 
   const visibleParts = PRACTICE_LEVEL_PARTS.filter((part) => part.skill === skill);
 
+  // Tổng số câu hỏi khả dụng trong kỹ năng hiện tại
+  const totalQuestionsInSkill = useMemo(() => {
+    return visibleParts.reduce((acc, part) => {
+      const partCounts = counts[part.part];
+      if (!partCounts) return acc;
+      const sumForPart = Object.values(partCounts).reduce((s, c) => s + c, 0);
+      return acc + sumForPart;
+    }, 0);
+  }, [counts, visibleParts]);
+
   if (isLoading) {
     return (
       <div
-        className="mx-auto w-full max-w-7xl space-y-4 pb-10 text-content"
+        className="mx-auto w-full max-w-7xl space-y-6 pb-16 text-content"
         role="status"
         aria-label={t('common.loading')}
         aria-busy="true"
       >
-        <header>
-          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{t('practiceByLevel.title')}</h1>
-          <p className="mt-1 text-xs text-content-muted sm:text-sm">{t('practiceByLevel.subtitle')}</p>
+        <header className="space-y-2">
+          <BoneyardSkeleton name="pbl-skel-title" height={28} width={280} className="rounded-xl" />
+          <BoneyardSkeleton name="pbl-skel-sub" variant="text" width={420} />
         </header>
 
         <BoneyardSkeleton
           name="practice-level-summary"
-          height={108}
-          className="rounded-2xl"
+          height={160}
+          className="rounded-3xl"
         />
 
-        <div className="flex justify-center sm:justify-start">
+        <div className="flex justify-between items-center">
           <BoneyardSkeleton
             name="practice-level-skill-toggle"
             variant="button"
-            width={224}
-            height={40}
+            width={240}
+            height={44}
             className="rounded-full"
           />
+          <BoneyardSkeleton name="pbl-skel-stat" height={32} width={160} className="rounded-xl" />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden="true">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-hidden="true">
           {Array.from({ length: 4 }, (_, index) => (
             <BoneyardSkeleton
               key={index}
               name={`practice-level-part-${index + 1}`}
               variant="card"
-              height={238}
-              className="rounded-2xl"
+              height={260}
+              className="rounded-3xl"
             />
           ))}
         </div>
@@ -277,10 +306,8 @@ export const PracticeByLevelPage: React.FC = () => {
         serverDeleted = historyResult?.deletedCount || 0;
       }
 
-      // Dọn dẹp phiên làm bài local sau khi lệnh server thành công
       deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
 
-      // Cập nhật state UI và đóng modal
       const key = `${deleteScope.part}:${deleteScope.level}`;
       setAttempts((current) => current.filter((attempt) => {
         const parsed = getLevelAttempt(attempt);
@@ -314,93 +341,207 @@ export const PracticeByLevelPage: React.FC = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-4 pb-10 text-content">
-      <header>
-        <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">{t('practiceByLevel.title')}</h1>
-        <p className="mt-1 text-xs text-content-muted sm:text-sm">{t('practiceByLevel.subtitle')}</p>
-      </header>
+    <div className="mx-auto w-full max-w-7xl space-y-6 pb-16 text-content">
+      {/* Toast thông báo */}
+      {toastMessage && (
+        <TopToast message={toastMessage} />
+      )}
 
-      <section id="tour-pbl-summary" className="surface overflow-hidden rounded-2xl p-4 sm:p-5" aria-labelledby="current-level-title">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="icon-box size-9 rounded-xl"><Award className="size-4" /></div>
-            <div>
-              <h2 id="current-level-title" className="text-xs font-bold text-content-muted">{t('practiceByLevel.averageLevel')}</h2>
-              <div className="mt-0.5 flex items-baseline gap-2">
-                <strong className="text-3xl font-black tracking-tight text-content">
-                  {averageLevel === null ? '--' : averageLevel.toFixed(1)}
-                </strong>
-                <span className="text-xs font-bold text-content-muted">
-                  {averageLevel === null ? t('practiceByLevel.noData') : getAverageDescription(averageLevel, language)}
-                </span>
-              </div>
-              <p className="mt-0.5 text-[11px] font-semibold text-content-muted">
-                {t('practiceByLevel.partsIdentified', { count: currentPartLevels.length })}
-              </p>
-            </div>
+      {/* HEADER TRANG */}
+      <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-2xl border border-brand-200/80 bg-brand-50 text-brand-700 dark:border-brand-900/40 dark:bg-brand-500/10 dark:text-brand-300">
+              <Layers className="size-5" />
+            </span>
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl">{t('practiceByLevel.title')}</h1>
           </div>
-          <p className="max-w-md text-xs leading-relaxed text-content-muted">
-            {averageLevel === null
-              ? (language === 'en'
-                ? 'Complete a test with at least 70% correct answers to begin recording your Level.'
-                : 'Hoàn thành một bài với ít nhất 70% câu đúng để bắt đầu ghi nhận Level.')
-              : (language === 'en'
-                ? 'Calculated from the highest completed Level in each Part.'
-                : 'Kết quả được tính từ Level cao nhất bạn đã hoàn thành ở từng Part.')}
+          <p className="mt-1.5 text-xs font-semibold text-content-muted sm:text-sm">
+            {t('practiceByLevel.subtitle')}
           </p>
         </div>
 
-        <details className="group mt-4 border-t border-line pt-3">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-extrabold text-content marker:hidden">
-            <span>{language === 'en' ? 'How Average Level is calculated' : 'Cách tính Level trung bình'}</span>
+        <div className="mt-2 sm:mt-0 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-elevated/70 px-3 py-1 text-xs font-bold text-content-muted">
+            <CheckCircle2 className="size-3.5 text-emerald-500" />
+            <span>{language === 'en' ? 'Pass threshold: ≥ 70%' : 'Ngưỡng đạt: ≥ 70%'}</span>
+          </span>
+        </div>
+      </header>
+
+      {/* KHỐI 1: BẢNG CHỈ SỐ NĂNG LỰC & MA TRẬN 7 PART (SCORECARD & MASTERY MATRIX) */}
+      <section
+        id="tour-pbl-summary"
+        className="relative overflow-hidden rounded-3xl border border-line bg-surface p-5 sm:p-6 shadow-xs"
+        aria-labelledby="current-level-title"
+      >
+        <div className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-amber-500/5 blur-3xl" />
+        <div className="pointer-events-none absolute -left-16 -bottom-16 size-48 rounded-full bg-brand-500/5 blur-3xl" />
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-center">
+          {/* CỘT 1: CHỈ SỐ LEVEL TRUNG BÌNH */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-4 border-b border-line pb-5 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">
+            <div className="flex items-start gap-4">
+              <span className="grid size-12 place-items-center rounded-2xl border border-amber-200/80 bg-amber-50 text-amber-600 dark:border-amber-900/40 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">
+                <Award className="size-6" />
+              </span>
+              <div>
+                <h2 id="current-level-title" className="text-xs font-black uppercase tracking-wider text-content-muted">
+                  {t('practiceByLevel.averageLevel')}
+                </h2>
+                <div className="mt-1 flex items-baseline gap-2.5">
+                  <span className="font-mono text-3xl sm:text-4xl font-black tracking-tight text-content">
+                    {averageLevel === null ? '--' : averageLevel.toFixed(1)}
+                  </span>
+                  <span className="rounded-lg bg-amber-500/10 px-2 py-0.5 text-xs font-black text-amber-700 dark:text-amber-300">
+                    {averageLevel === null ? t('practiceByLevel.noData') : getAverageDescription(averageLevel, language)}
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs font-bold text-content-muted">
+                  {t('practiceByLevel.partsIdentified', { count: currentPartLevels.length })}
+                </p>
+              </div>
+            </div>
+
+            {/* Thước đo 5 mốc Level */}
+            <div className="space-y-1.5 pt-2">
+              <div className="flex justify-between text-[10px] font-extrabold text-content-muted">
+                <span>Lv.1 Cơ bản</span>
+                <span>Lv.3 Trung bình</span>
+                <span>Lv.5 Nâng cao</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-surface-elevated">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-orange-500 transition-all duration-500"
+                  style={{ width: `${averageLevel === null ? 0 : Math.min(100, Math.max(10, ((averageLevel - 1) / 4) * 100))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CỘT 2: MA TRẬN TRÌNH ĐỘ 7 PHẦN (PART MASTERY MATRIX) */}
+          <div className="lg:col-span-7 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-content-muted">
+                {language === 'en' ? '7-Part Mastery Status' : 'Độ Thành Thạo 7 Phần Thi'}
+              </h3>
+              <span className="text-[11px] font-semibold text-content-muted">
+                {language === 'en' ? 'Click to jump to Part' : 'Bấm để chuyển nhanh tới Part'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {PRACTICE_LEVEL_PARTS.map((part) => {
+                const partLevel = currentPartLevels.find((p) => p.part === part.part)?.level;
+                const isListening = part.skill === 'listening';
+                return (
+                  <button
+                    key={part.part}
+                    type="button"
+                    onClick={() => {
+                      setSkill(part.skill);
+                      window.requestAnimationFrame(() => {
+                        const targetCard = document.getElementById(`part-card-${part.part}`);
+                        if (targetCard) {
+                          targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                      });
+                    }}
+                    className={`group flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 ${
+                      partLevel
+                        ? 'border-emerald-300/80 bg-emerald-50/60 dark:border-emerald-800/40 dark:bg-emerald-950/20'
+                        : 'border-line/70 bg-surface-elevated/40 hover:border-brand-500/40'
+                    }`}
+                  >
+                    <span className="text-[10px] font-black text-content-muted uppercase">
+                      P{part.part}
+                    </span>
+                    <span className={`mt-0.5 text-xs font-black ${
+                      partLevel
+                        ? 'text-emerald-700 dark:text-emerald-300 font-mono'
+                        : 'text-content-muted'
+                    }`}>
+                      {partLevel ? `Lv.${partLevel}` : '--'}
+                    </span>
+                    <span className="mt-0.5 text-[9px] font-bold text-content-muted truncate max-w-full">
+                      {isListening ? (language === 'en' ? 'Listen' : 'Nghe') : (language === 'en' ? 'Read' : 'Đọc')}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Accordion Giải Thích Cách Tính Level */}
+        <details className="group mt-5 border-t border-line/80 pt-3.5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-xs font-extrabold text-content transition hover:text-brand-600 dark:hover:text-brand-400 marker:hidden">
+            <span className="flex items-center gap-1.5">
+              <Info className="size-3.5 text-brand-600 dark:text-brand-400" />
+              <span>{language === 'en' ? 'How Average Level is calculated' : 'Công thức tính & điều kiện đạt chuẩn Level'}</span>
+            </span>
             <ChevronDown className="size-3.5 shrink-0 text-content-muted transition-transform duration-200 group-open:rotate-180" aria-hidden="true" />
           </summary>
-          <div className="mt-3 rounded-xl bg-surface-elevated px-3.5 py-3 text-xs leading-relaxed text-content-muted">
-            <ol className="space-y-1.5">
-              <li><strong className="text-content">1.</strong> {language === 'en' ? 'A Level is completed when you answer at least 70% of questions correctly.' : 'Một Level được hoàn thành khi bạn trả lời đúng ít nhất 70% số câu.'}</li>
-              <li><strong className="text-content">2.</strong> {language === 'en' ? 'For each Part, the system takes the highest completed Level.' : 'Với mỗi Part, hệ thống lấy Level cao nhất bạn đã hoàn thành.'}</li>
-              <li><strong className="text-content">3.</strong> {language === 'en' ? 'Sum the qualifying Parts, divide by the number of Parts, and round to one decimal place.' : 'Cộng Level của các Part đủ điều kiện, chia cho số Part đó và làm tròn một chữ số thập phân.'}</li>
+          <div className="mt-3 rounded-2xl bg-surface-elevated/60 border border-line/50 p-4 text-xs leading-relaxed text-content-muted space-y-2.5">
+            <ol className="space-y-1.5 font-medium">
+              <li><strong className="text-content">1. Điều kiện đạt Level:</strong> {language === 'en' ? 'A Level is completed when you answer at least 70% of questions correctly.' : 'Một Level được tính là hoàn thành khi bạn trả lời đúng ít nhất 70% số câu hỏi.'}</li>
+              <li><strong className="text-content">2. Lấy đỉnh cao nhất:</strong> {language === 'en' ? 'For each Part, the system takes the highest completed Level.' : 'Với mỗi Part, hệ thống ghi nhận Level cao nhất bạn đã vượt qua.'}</li>
+              <li><strong className="text-content">3. Trung bình cộng:</strong> {language === 'en' ? 'Sum the qualifying Parts, divide by the number of Parts, and round to one decimal place.' : 'Cộng Level của các Part đủ điều kiện, chia cho số Part đó và làm tròn 1 chữ số thập phân.'}</li>
             </ol>
             {currentPartLevels.length > 0 ? (
-              <div className="mt-3 border-t border-line pt-2.5">
-                <p className="font-bold text-content">
-                  {language === 'en' ? 'Current formula' : 'Công thức hiện tại'}: ({currentPartLevels.map((item) => item.level).join(' + ')}) ÷ {currentPartLevels.length} = {averageLevel?.toFixed(1)}
+              <div className="mt-2 border-t border-line/60 pt-2.5">
+                <p className="font-mono font-black text-content">
+                  {language === 'en' ? 'Current formula' : 'Công thức hiện tại'}: ({currentPartLevels.map((item) => item.level).join(' + ')}) ÷ {currentPartLevels.length} = <span className="text-emerald-600 dark:text-emerald-400">{averageLevel?.toFixed(1)}</span>
                 </p>
-                <p className="mt-1">
-                  {currentPartLevels.map((item) => `Part ${item.part}: Level ${item.level}`).join(', ')}
+                <p className="mt-1 text-[11px] font-semibold">
+                  {currentPartLevels.map((item) => `Part ${item.part}: Lv.${item.level}`).join(' • ')}
                 </p>
               </div>
             ) : (
-              <p className="mt-3 border-t border-line pt-2.5 font-semibold text-content">
+              <p className="mt-2 border-t border-line/60 pt-2.5 font-bold text-amber-700 dark:text-amber-300">
                 {language === 'en'
                   ? 'No Part has reached the 70% threshold yet. Your first result will appear after completing a Level.'
-                  : 'Chưa có Part nào đạt ngưỡng 70%. Kết quả đầu tiên sẽ xuất hiện sau khi bạn hoàn thành một Level.'}
+                  : 'Chưa có Part nào đạt ngưỡng 70%. Điểm Level đầu tiên sẽ xuất hiện ngay sau khi bạn hoàn thành bài thi đạt chuẩn.'}
               </p>
             )}
           </div>
         </details>
       </section>
 
-      <div id="tour-pbl-skill" className="flex justify-center sm:justify-start">
+      {/* KHỐI 2: THANH CHUYỂN KỸ NĂNG (SKILL TOGGLE) & SỐ LIỆU TỔNG QUAN */}
+      <div id="tour-pbl-skill" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SkillToggle value={skill} onChange={setSkill} />
+
+        <div className="flex items-center gap-2 text-xs font-bold text-content-muted">
+          <span className="rounded-full bg-surface-elevated border border-line px-3 py-1">
+            {skill === 'listening'
+              ? (language === 'en' ? 'Part 1 to 4 • Listening' : 'Part 1 đến 4 • Kỹ năng Nghe')
+              : (language === 'en' ? 'Part 5 to 7 • Reading' : 'Part 5 đến 7 • Kỹ năng Đọc')}
+          </span>
+          <span className="rounded-full bg-brand-500/10 px-3 py-1 text-brand-600 dark:text-brand-400 font-mono font-black">
+            {totalQuestionsInSkill.toLocaleString('vi-VN')} {language === 'en' ? 'questions' : 'câu khả dụng'}
+          </span>
+        </div>
       </div>
 
+      {/* CẢNH BÁO NẾU DÙNG DỮ LIỆU DỰ PHÒNG */}
       {usingFallback && (
         <div className="flex items-start gap-3 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-200" role="status">
-          <Database className="mt-0.5 size-3.5 shrink-0" />
+          <Database className="mt-0.5 size-4 shrink-0" />
           <span>
             {language === 'en'
               ? 'Could not connect to live question counts. Displaying sample figures; will recheck on reload.'
-              : 'Chưa kết nối được dữ liệu số lượng thực. Trang đang hiển thị số liệu mẫu và sẽ kiểm tra lại khi tải lại.'}
+              : 'Chưa kết nối được dữ liệu số lượng thực từ máy chủ. Trang đang hiển thị số liệu mẫu và sẽ cập nhật khi tải lại.'}
           </span>
         </div>
       )}
 
+      {/* KHỐI 3: LƯỚI CARD CÁC PART THUỘC KỸ NĂNG ĐANG CHỌN */}
       <section
         id="tour-pbl-grid"
         role="tabpanel"
         aria-labelledby={`practice-skill-${skill}`}
-        className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2"
+        className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2"
       >
         {visibleParts.map((part) => {
           const selectedLevel = selectedLevels[part.part];
@@ -414,82 +555,145 @@ export const PracticeByLevelPage: React.FC = () => {
           const displayCount = Math.max(attemptCount, savedSessionCount);
           const partTitle = language === 'en' && part.title_en ? part.title_en : part.title;
           const partDesc = language === 'en' && part.description_en ? part.description_en : part.description;
+          const isLevelPassed = (completedByPart[part.part] || []).includes(selectedLevel);
+          const isListening = part.skill === 'listening';
+
           return (
-            <article key={part.part} className="surface flex flex-col rounded-2xl p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className="text-base font-extrabold tracking-tight">Part {part.part}: {partTitle}</h2>
-                  <p className="mt-1 text-xs leading-relaxed text-content-muted">{partDesc}</p>
+            <article
+              id={`part-card-${part.part}`}
+              key={part.part}
+              className="group flex flex-col justify-between rounded-3xl border border-line bg-surface p-5 sm:p-6 shadow-xs transition-all duration-200 hover:border-brand-500/40 hover:shadow-sm"
+            >
+              <div>
+                {/* Phần đầu Card: Tiêu đề Part & Nút thao tác */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-xs font-black ${
+                        isListening
+                          ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300'
+                          : 'bg-violet-500/10 text-violet-700 dark:text-violet-300'
+                      }`}>
+                        {isListening ? <Headphones className="size-3" /> : <BookOpenText className="size-3" />}
+                        <span>Part {part.part}</span>
+                      </span>
+
+                      {isLevelPassed && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300">
+                          <Check className="size-2.5 stroke-[3]" />
+                          <span>{language === 'en' ? 'Passed' : 'Đã đạt'}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="mt-2 text-base sm:text-lg font-black tracking-tight text-content">
+                      {partTitle}
+                    </h2>
+                    <p className="mt-1 text-xs leading-relaxed text-content-muted">
+                      {partDesc}
+                    </p>
+                  </div>
+
+                  {/* Nút xoá lịch sử làm bài */}
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDeleteError('');
+                        setDeleteScope({
+                          part: part.part,
+                          level: selectedLevel,
+                          label: `Part ${part.part} - Level ${selectedLevel}`,
+                          attemptCount,
+                          displayCount,
+                        });
+                      }}
+                      aria-label={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
+                      title={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
+                      className="grid size-8 place-items-center rounded-xl text-content-muted transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 active:scale-95"
+                    >
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-1 text-content-muted">
-                  {wrongCount > 0 && (
+
+                {/* Banner Câu Sai (nếu có câu sai tại Level này) */}
+                {wrongCount > 0 && (
+                  <div className="mt-3.5 flex items-center justify-between gap-3 rounded-2xl border border-rose-200/80 bg-rose-50/70 p-3 dark:border-rose-900/40 dark:bg-rose-950/20">
+                    <div className="flex items-center gap-2 text-xs font-bold text-rose-800 dark:text-rose-300">
+                      <span className="grid size-6 place-items-center rounded-lg bg-rose-600 text-white font-mono text-[10px] font-black">
+                        {wrongCount}
+                      </span>
+                      <span>
+                        {language === 'en'
+                          ? `${wrongCount} incorrect question(s) to review`
+                          : `Có ${wrongCount} câu sai cần ôn lại ở Level ${selectedLevel}`}
+                      </span>
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}&wrongSource=level`)}
-                      aria-label={language === 'en' ? `Retry ${wrongCount} incorrect questions for Part ${part.part} Level ${selectedLevel}` : `Làm lại ${wrongCount} câu sai Part ${part.part} Level ${selectedLevel}`}
-                      title={language === 'en' ? `Retry ${wrongCount} incorrect questions` : `Làm lại ${wrongCount} câu sai`}
-                      className="relative grid size-8 place-items-center rounded-lg transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
+                      className="inline-flex items-center gap-1 rounded-xl bg-white px-2.5 py-1 text-xs font-black text-rose-700 shadow-2xs transition hover:bg-rose-100 dark:bg-rose-900/40 dark:text-rose-200 active:scale-95 shrink-0"
                     >
-                      <RotateCcw className="size-3.5" />
-                      <span className="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-negative px-1 text-[9px] font-black leading-none text-white">
-                        {wrongCount}
-                      </span>
+                      <RotateCcw className="size-3" />
+                      <span>{language === 'en' ? 'Retry' : 'Luyện lại'}</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDeleteError('');
-                      setDeleteScope({
-                        part: part.part,
-                        level: selectedLevel,
-                        label: `Part ${part.part} - Level ${selectedLevel}`,
-                        attemptCount,
-                        displayCount,
-                      });
-                    }}
-                    aria-label={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
-                    title={language === 'en' ? `Delete practice history for Part ${part.part} Level ${selectedLevel}` : `Xoá lịch sử làm bài Part ${part.part} Level ${selectedLevel}`}
-                    className="grid size-8 place-items-center rounded-lg text-content-muted transition-colors hover:bg-negative/10 hover:text-negative active:scale-95"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
-                  <span className="ml-1 grid size-8 place-items-center rounded-lg bg-accent/15 text-[11px] font-black text-accent-strong ring-1 ring-accent/25 dark:text-brand-300">
-                    {part.part}
-                  </span>
+                  </div>
+                )}
+
+                {/* Slider chọn độ khó tương tác */}
+                <div className="mt-2">
+                  <LevelSlider
+                    value={selectedLevel}
+                    onChange={(level) => updatePartLevel(part.part, level)}
+                    completedLevels={completedByPart[part.part] || []}
+                    className="mt-2"
+                    label={language === 'en' ? `Select difficulty for Part ${part.part}` : `Chọn độ khó cho Part ${part.part}`}
+                  />
                 </div>
               </div>
 
-              <LevelSlider
-                value={selectedLevel}
-                onChange={(level) => updatePartLevel(part.part, level)}
-                completedLevels={completedByPart[part.part] || []}
-                className="mt-4"
-                label={language === 'en' ? `Select difficulty for Part ${part.part}` : `Chọn độ khó cho Part ${part.part}`}
-              />
-
-              <div className="mt-4 flex flex-col gap-3 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between">
-                <div aria-live="polite">
-                  <p className="text-xs font-extrabold">Level {selectedLevel}: {labels[selectedLevel - 1]}</p>
-                  <p className="mt-0.5 text-xs font-semibold text-content-muted">
-                    {isLoading
-                      ? (language === 'en' ? 'Checking question count...' : 'Đang kiểm tra số câu...')
-                      : (language === 'en' ? `${questionCount} questions available` : `${questionCount} câu khả dụng`)}
+              {/* Phần chân Card: Thông tin Level & Nút Bắt Đầu Luyện Tập */}
+              <div className="mt-5 flex flex-col gap-3 border-t border-line/80 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-black text-content">
+                      Level {selectedLevel}: {labels[selectedLevel - 1]}
+                    </p>
+                    <span className="text-line">•</span>
+                    <p className="text-xs font-bold text-content-muted font-mono">
+                      {isLoading
+                        ? (language === 'en' ? 'Checking...' : 'Đang kiểm tra...')
+                        : (language === 'en' ? `${questionCount} questions` : `${questionCount} câu khả dụng`)}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-[11px] font-medium text-content-muted">
+                    {isLevelPassed
+                      ? (language === 'en' ? '🎉 You have passed the ≥ 70% threshold' : '🎉 Bạn đã vượt ngưỡng đạt chuẩn 70%')
+                      : (language === 'en' ? 'Target: Answer ≥ 70% correctly to pass' : 'Mục tiêu: Đúng ít nhất 70% số câu để đạt chuẩn')}
                   </p>
                 </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto">
+
+                <div className="w-full sm:w-auto">
                   <button
                     type="button"
                     disabled={isLoading || usingFallback || questionCount === 0}
                     onClick={() => navigate(`/practice/runner/${part.part}?level=${selectedLevel}`)}
-                    className="btn-primary w-full whitespace-nowrap text-xs sm:w-auto"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-xs font-black text-primary-contrast shadow-sm transition hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-50 sm:w-auto whitespace-nowrap"
                   >
-                    {usingFallback || questionCount === 0 ? <RefreshCcw className="size-3.5" /> : <Play className="size-3.5 fill-current" />}
-                    {usingFallback
-                      ? (language === 'en' ? 'Retry later' : 'Thử lại sau')
-                      : questionCount === 0
-                        ? (language === 'en' ? 'No questions' : 'Chưa có câu hỏi')
-                        : (language === 'en' ? 'Start Practice' : 'Bắt đầu luyện tập')}
+                    {usingFallback || questionCount === 0 ? (
+                      <RefreshCcw className="size-3.5" />
+                    ) : (
+                      <Play className="size-3.5 fill-current" />
+                    )}
+                    <span>
+                      {usingFallback
+                        ? (language === 'en' ? 'Retry later' : 'Thử lại sau')
+                        : questionCount === 0
+                          ? (language === 'en' ? 'No questions' : 'Chưa có câu hỏi')
+                          : (language === 'en' ? 'Start Practice' : 'Bắt đầu luyện tập')}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -497,6 +701,8 @@ export const PracticeByLevelPage: React.FC = () => {
           );
         })}
       </section>
+
+      {/* MODAL XÁC NHẬN XOÁ LỊCH SỬ LÀM BÀI */}
       <AnimatePresence initial={false}>
         {deleteScope && (
           <DeleteWrongQuestionsModal
@@ -519,22 +725,15 @@ export const PracticeByLevelPage: React.FC = () => {
                 language === 'en' ? (
                   <>Are you sure you want to clean up all data, saved incorrect questions, and draft sessions for <strong className="text-content">{deleteScope.label}</strong>?</>
                 ) : (
-                  <>Bạn có chắc muốn dọn sạch toàn bộ dữ liệu, câu sai đã lưu và bản nháp luyện tập của <strong className="text-content">{deleteScope.label}</strong>? Thao tác này sẽ đảm bảo dữ liệu của bạn được làm mới hoàn toàn.</>
+                  <>Bạn có chắc chắn muốn dọn sạch toàn bộ dữ liệu, danh sách câu sai và phiên làm nháp của <strong className="text-content">{deleteScope.label}</strong> không?</>
                 )
               )
             }
-            confirmLabel={deleteScope.displayCount > 0
-              ? (language === 'en' ? 'Delete all history' : 'Xoá toàn bộ lịch sử')
-              : (language === 'en' ? 'Clean up data' : 'Dọn sạch dữ liệu')}
-            closeLabel={language === 'en' ? 'Close confirmation' : 'Đóng xác nhận xoá lịch sử làm bài'}
-            onConfirm={() => void handleDeleteHistory()}
             onClose={closeDeleteModal}
+            onConfirm={() => void handleDeleteHistory()}
           />
         )}
-        {toastMessage && <TopToast key={toastMessage} message={toastMessage} />}
       </AnimatePresence>
     </div>
   );
 };
-
-export default PracticeByLevelPage;

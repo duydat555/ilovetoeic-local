@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, GraduationCap } from 'lucide-react';
+import { Globe, Users, GraduationCap } from 'lucide-react';
 import type { RankingScope } from './rankingUi';
 import { useLanguage } from '../../../context/LanguageContext';
 
@@ -10,38 +10,65 @@ interface RankingScopeSelectorProps {
   onChange: (scope: RankingScope) => void;
 }
 
-export const RankingScopeSelector: React.FC<RankingScopeSelectorProps> = ({ scope, currentCohort, memberCount, onChange }) => {
+export const RankingScopeSelector: React.FC<RankingScopeSelectorProps> = ({
+  scope,
+  currentCohort,
+  memberCount,
+  onChange,
+}) => {
   const { language } = useLanguage();
 
   return (
-    <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm sm:p-5">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-        <div className="min-w-0 flex-1">
-          <label htmlFor="ranking-scope-select" className="block text-xs font-bold text-content-muted">
-            {language === 'en' ? 'Viewing cohort' : 'Khoá đang xem'}
-          </label>
-          <div className="relative mt-1.5">
-            <select
-              id="ranking-scope-select"
-              value={scope}
-              onChange={(event) => onChange(event.target.value as RankingScope)}
-              className="min-h-11 w-full appearance-none rounded-xl border border-line bg-canvas px-4 pr-10 text-sm font-extrabold text-content outline-none transition-all hover:border-brand-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10"
-            >
-              <option value="course">{language === 'en' ? 'All Students (Entire Course)' : 'Tất cả học sinh (Toàn khoá)'}</option>
-              <option value="cohort">
-                {currentCohort
-                  ? (language === 'en' ? `Class ${currentCohort} (My Class)` : `Khoá ${currentCohort} (Khoá của tôi)`)
-                  : (language === 'en' ? 'Students in cohort' : 'Học sinh trong khoá')}
-              </option>
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" aria-hidden="true" />
-          </div>
-        </div>
-        <div className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-xl border border-line bg-canvas px-3 py-2 text-xs font-bold text-content-muted sm:w-auto sm:min-w-28">
-          <GraduationCap className="size-4 text-brand-600 dark:text-brand-300" aria-hidden="true" />
-          <span>{memberCount.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN')} {language === 'en' ? 'learners' : 'học viên'}</span>
-        </div>
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-2xl border border-line bg-surface p-2 shadow-xs">
+      {/* Segmented Tabs */}
+      <div className="inline-flex rounded-xl bg-surface-elevated p-1 text-xs font-bold w-full sm:w-auto">
+        <button
+          type="button"
+          onClick={() => onChange('course')}
+          className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 transition active:scale-98 ${
+            scope === 'course'
+              ? 'bg-surface text-content shadow-xs font-black'
+              : 'text-content-muted hover:text-content'
+          }`}
+        >
+          <Globe className="size-3.5" />
+          <span>{language === 'en' ? 'Entire Course' : 'Toàn khoá'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChange('cohort')}
+          className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 transition active:scale-98 ${
+            scope === 'cohort'
+              ? 'bg-surface text-content shadow-xs font-black'
+              : 'text-content-muted hover:text-content'
+          }`}
+          title={!currentCohort ? (language === 'en' ? 'You are not enrolled in any class' : 'Bạn chưa được xếp vào lớp nào') : undefined}
+        >
+          <Users className="size-3.5" />
+          <span>
+            {currentCohort
+              ? (language === 'en' ? `Class ${currentCohort}` : `Khoá ${currentCohort}`)
+              : (language === 'en' ? 'My Class' : 'Khoá của tôi')}
+          </span>
+          {!currentCohort && (
+            <span className="rounded bg-line/80 px-1.5 py-0.2 text-[9px] font-bold text-content-muted">
+              {language === 'en' ? 'Not enrolled' : 'Chưa xếp lớp'}
+            </span>
+          )}
+        </button>
       </div>
-    </section>
+
+      {/* Member count pill */}
+      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-content-muted justify-end sm:justify-start">
+        <GraduationCap className="size-4 text-accent" />
+        <span>
+          <strong className="font-bold text-content">
+            {memberCount.toLocaleString(language === 'en' ? 'en-US' : 'vi-VN')}
+          </strong>{' '}
+          {language === 'en' ? 'learners' : 'học viên'}
+        </span>
+      </div>
+    </div>
   );
 };

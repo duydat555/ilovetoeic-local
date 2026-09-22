@@ -48,6 +48,10 @@ const expireMissedStreak = (streak: StudyStreak): StudyStreak => {
   };
 };
 
+export const getTestHistoryAttemptId = (result: TestResultData, index: number) =>
+  String(result.attemptId || (result as TestResultData & { id?: string }).id ||
+    `${result.testId}-${result.completedAt || index}`);
+
 export const storage = {
   // Save active exam draft to Local Storage
   saveExamDraft(testId: string, answers: Record<string, string>, timeSpentSeconds: number) {
@@ -147,10 +151,9 @@ export const storage = {
     try {
       const history = this.getTestHistory();
       const targetStr = String(attemptId).trim().toLowerCase();
-      const remaining = history.filter((result) => {
-        const currentId = String(result.attemptId || (result as any).id || '').trim().toLowerCase();
-        return currentId !== targetStr;
-      });
+      const remaining = history.filter((result, index) =>
+        getTestHistoryAttemptId(result, index).trim().toLowerCase() !== targetStr,
+      );
       localStorage.setItem(KEYS.EXAM_HISTORY, JSON.stringify(remaining));
       return history.length - remaining.length;
     } catch (e) {

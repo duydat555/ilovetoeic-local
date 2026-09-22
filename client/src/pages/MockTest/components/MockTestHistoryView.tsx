@@ -13,6 +13,7 @@ import {
   AlertCircle,
   AlertTriangle,
   BookOpen,
+  ChevronDown,
   Headphones,
   Loader2,
   X,
@@ -25,8 +26,9 @@ import { TopToast } from '../../../components/common/TopToast';
 import { getModalMotion } from '../../../components/common/modalMotion';
 import { backendService } from '../../../services/backend';
 import { MockTestItem, StudyAttempt } from '../../../types';
-import { storage } from '../../../utils/storage';
+import { getTestHistoryAttemptId, storage } from '../../../utils/storage';
 import { deleteTestPracticeSessions, deleteAllPracticeSessions } from '../../../utils/practiceSessions';
+import { normalizeTestParts, serializeTestPartScope } from '../../../utils/testScope';
 
 interface MockTestHistoryViewProps {
   userId?: string;
@@ -170,11 +172,11 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     setError('');
     try {
       // 1. Đọc lịch sử đã lưu tại trình duyệt
-      const localAttempts: StudyAttempt[] = storage.getTestHistory().map((item) => {
+      const localAttempts: StudyAttempt[] = storage.getTestHistory().map((item, index) => {
         const listeningPart = item.partBreakdown?.find((p) => p.part.toLowerCase().includes('listening'));
         const readingPart = item.partBreakdown?.find((p) => p.part.toLowerCase().includes('reading'));
         const totalQ = item.questionIds?.length || (item.correctAnswers + item.wrongAnswers + item.skippedAnswers);
-        const attId = String(item.attemptId || (item as any).id || `${item.testId}-${item.completedAt}`);
+        const attId = getTestHistoryAttemptId(item, index);
         return {
           id: attId,
           userId: userId || 'local',
@@ -442,65 +444,65 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
   return (
     <div className="space-y-6">
       {/* 1. Overview KPI Cards */}
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
         {/* Total Attempts */}
-        <div className="surface flex items-center gap-3.5 rounded-2xl border border-line p-4 hover:border-amber-500/30">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="surface flex items-center gap-3 rounded-2xl border border-line p-3 sm:p-4 transition-colors hover:border-line-hover">
+          <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl bg-surface-elevated text-content-muted">
             <History className="size-5" />
           </div>
-          <div>
-            <div className="font-mono text-2xl font-black text-content tabular-nums">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-xl sm:text-2xl font-black text-content tabular-nums truncate">
               {loading ? '—' : stats.totalAttempts}
             </div>
-            <div className="text-[11px] font-bold text-content-muted">Tổng lượt làm bài</div>
+            <div className="text-[11px] font-bold text-content-muted truncate">Tổng lượt làm</div>
           </div>
         </div>
 
         {/* Highest Score */}
-        <div className="surface flex items-center gap-3.5 rounded-2xl border border-line p-4 hover:border-amber-500/30">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+        <div className="surface flex items-center gap-3 rounded-2xl border border-line p-3 sm:p-4 transition-colors hover:border-brand/40">
+          <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl bg-brand/15 text-brand-ink dark:text-brand-300">
             <Trophy className="size-5" />
           </div>
-          <div>
-            <div className="flex items-baseline gap-1.5 font-mono text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-1 font-mono text-xl sm:text-2xl font-black text-brand-ink dark:text-brand-300 tabular-nums truncate">
               {loading ? '—' : stats.bestScore || '—'}
-              {stats.bestScore > 0 && <span className="text-xs font-bold text-content-muted">/990</span>}
+              {stats.bestScore > 0 && <span className="text-[10px] sm:text-xs font-bold text-content-muted">/990</span>}
             </div>
-            <div className="text-[11px] font-bold text-content-muted">
+            <div className="text-[11px] font-bold text-content-muted truncate">
               {stats.bestScore > 0 ? (
                 <span>
                   L:{stats.bestListening} · R:{stats.bestReading}
                 </span>
               ) : (
-                'Điểm thi cao nhất'
+                'Điểm cao nhất'
               )}
             </div>
           </div>
         </div>
 
         {/* Average Score */}
-        <div className="surface flex items-center gap-3.5 rounded-2xl border border-line p-4 hover:border-blue-500/30">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+        <div className="surface flex items-center gap-3 rounded-2xl border border-line p-3 sm:p-4 transition-colors hover:border-line-hover">
+          <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl bg-surface-elevated text-content-muted">
             <Target className="size-5" />
           </div>
-          <div>
-            <div className="font-mono text-2xl font-black text-content tabular-nums">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-xl sm:text-2xl font-black text-content tabular-nums truncate">
               {loading ? '—' : stats.avgScore || '—'}
             </div>
-            <div className="text-[11px] font-bold text-content-muted">Điểm trung bình</div>
+            <div className="text-[11px] font-bold text-content-muted truncate">Điểm trung bình</div>
           </div>
         </div>
 
         {/* Average Accuracy */}
-        <div className="surface flex items-center gap-3.5 rounded-2xl border border-line p-4 hover:border-emerald-500/30">
-          <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className="surface flex items-center gap-3 rounded-2xl border border-line p-3 sm:p-4 transition-colors hover:border-positive/30">
+          <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-xl bg-positive/10 text-positive">
             <TrendingUp className="size-5" />
           </div>
-          <div>
-            <div className="font-mono text-2xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+          <div className="min-w-0 flex-1">
+            <div className="font-mono text-xl sm:text-2xl font-black text-positive tabular-nums truncate">
               {loading ? '—' : `${stats.avgAccuracy}%`}
             </div>
-            <div className="text-[11px] font-bold text-content-muted">Độ chính xác TB</div>
+            <div className="text-[11px] font-bold text-content-muted truncate">Độ chính xác TB</div>
           </div>
         </div>
       </section>
@@ -521,10 +523,10 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                 key={mode.id}
                 type="button"
                 onClick={() => setModeFilter(mode.id)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-bold shrink-0 ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-bold shrink-0 transition-colors ${
                   modeFilter === mode.id
-                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
-                    : 'text-content-muted hover:text-content'
+                    ? 'bg-accent text-brand-ink shadow-xs'
+                    : 'text-content-muted hover:text-content hover:bg-surface-hover'
                 }`}
               >
                 {mode.label}
@@ -535,13 +537,12 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
           {/* Right: Select Year, Test, Sort, and Reset */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Year Selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-content-muted hidden sm:inline">Năm:</span>
+            <div className="relative flex items-center">
               <select
                 value={selectedYearFilter}
                 onChange={(e) => handleYearChange(e.target.value)}
                 aria-label="Lọc theo năm thi"
-                className="rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs font-semibold text-content focus:border-amber-500 focus:outline-none"
+                className="appearance-none cursor-pointer rounded-xl border border-line bg-surface-elevated pl-3 pr-8 py-1.5 text-xs font-semibold text-content hover:border-line-hover focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-colors"
               >
                 <option value="all">Tất cả năm ({attempts.length})</option>
                 {availableYears.map((yr) => {
@@ -559,11 +560,11 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                   );
                 })}
               </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-content-muted" />
             </div>
 
             {/* Test Selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-medium text-content-muted hidden sm:inline">Đề:</span>
+            <div className="relative flex items-center">
               <select
                 value={selectedTestId}
                 onChange={(e) => {
@@ -573,7 +574,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                   }
                 }}
                 aria-label="Lọc theo đề thi"
-                className="rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs font-semibold text-content focus:border-amber-500 focus:outline-none max-w-[200px] truncate"
+                className="appearance-none cursor-pointer rounded-xl border border-line bg-surface-elevated pl-3 pr-8 py-1.5 text-xs font-semibold text-content hover:border-line-hover focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-colors max-w-[200px] truncate"
               >
                 <option value="all">
                   {selectedYearFilter !== 'all'
@@ -608,20 +609,22 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                   })
                 )}
               </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-content-muted" />
             </div>
 
             {/* Sort Selector */}
-            <div className="flex items-center gap-1.5">
+            <div className="relative flex items-center">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
                 aria-label="Sắp xếp kết quả"
-                className="rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs font-semibold text-content focus:border-amber-500 focus:outline-none"
+                className="appearance-none cursor-pointer rounded-xl border border-line bg-surface-elevated pl-3 pr-8 py-1.5 text-xs font-semibold text-content hover:border-line-hover focus:border-brand focus:ring-1 focus:ring-brand focus:outline-none transition-colors"
               >
                 <option value="newest">Mới nhất trước</option>
                 <option value="highest_score">Điểm cao nhất</option>
                 <option value="highest_accuracy">Chính xác cao nhất</option>
               </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 size-3.5 text-content-muted" />
             </div>
 
             {/* Reset Filters action button */}
@@ -629,7 +632,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
               <button
                 type="button"
                 onClick={resetAllFilters}
-                className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs font-bold text-content-muted hover:text-amber-600 dark:hover:text-amber-400 hover:border-amber-500/40"
+                className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-elevated px-2.5 py-1.5 text-xs font-bold text-content-muted hover:text-content hover:border-line-hover transition-colors"
                 title="Xoá toàn bộ bộ lọc đang áp dụng"
               >
                 <RotateCcw className="size-3" />
@@ -691,7 +694,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
           <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-line/60 text-xs">
             <span className="text-[11px] font-bold text-content-muted">Đang lọc:</span>
             {selectedYearFilter !== 'all' && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+              <span className="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand-ink dark:text-brand-200">
                 Năm {selectedYearFilter}
                 <button
                   type="button"
@@ -704,7 +707,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
               </span>
             )}
             {selectedTestId !== 'all' && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-900 dark:text-amber-200">
+              <span className="inline-flex items-center gap-1 rounded-lg border border-brand/30 bg-brand/10 px-2 py-0.5 text-[11px] font-bold text-brand-ink dark:text-brand-200">
                 Đề: {allTests.find((t) => t.id === selectedTestId)?.title || selectedTestId}
                 <button
                   type="button"
@@ -738,9 +741,9 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
             <button
               type="button"
               onClick={resetAllFilters}
-              className="ml-auto text-[11px] font-bold text-amber-700 dark:text-amber-300 hover:underline"
+              className="ml-auto text-[11px] font-bold text-brand-ink dark:text-brand-300 hover:underline"
             >
-              Xoá tất cả
+              Xoá bộ lọc
             </button>
           </div>
         )}
@@ -777,6 +780,12 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
               attempt.answeredQuestions - attempt.correctAnswers,
               0,
             );
+            const selectedParts = Array.isArray(attempt.metadata?.selected_parts)
+              ? normalizeTestParts(attempt.metadata.selected_parts.map(Number))
+              : attempt.part ? [attempt.part] : [];
+            const retryScope = selectedParts.length > 0
+              ? serializeTestPartScope(selectedParts)
+              : 'all';
             const attemptYear =
               attempt.testYear ||
               allTests.find((t) => t.id === attempt.testId)?.year ||
@@ -790,7 +799,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
             return (
               <article
                 key={attempt.id}
-                className="surface group relative overflow-hidden rounded-2xl border border-line p-4 sm:p-5 hover:border-amber-500/40"
+                className="surface group relative overflow-hidden rounded-2xl border border-line p-4 sm:p-5 transition-colors hover:border-brand/40"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   {/* Left Column: Test & Mode Meta */}
@@ -799,7 +808,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                       <span
                         className={`rounded-lg px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${
                           isFullExam
-                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30'
+                            ? 'bg-brand/15 text-brand-ink dark:text-brand-200 border border-brand/30'
                             : 'bg-surface-elevated text-content-muted border border-line'
                         }`}
                       >
@@ -807,7 +816,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                       </span>
 
                       {attemptYear && (
-                        <span className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-extrabold text-amber-800 dark:text-amber-300">
+                        <span className="rounded-lg border border-brand/30 bg-brand/10 px-2 py-0.5 font-mono text-[10px] font-extrabold text-brand-ink dark:text-brand-200">
                           Năm {attemptYear}
                         </span>
                       )}
@@ -823,7 +832,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                       ) : null}
                     </div>
 
-                    <h3 className="text-base font-extrabold text-content group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                    <h3 className="text-base font-extrabold text-content group-hover:text-brand-ink dark:group-hover:text-brand-300 transition-colors">
                       {attemptYear && !testTitle.includes(String(attemptYear))
                         ? `${testTitle} · Năm ${attemptYear}`
                         : testTitle}
@@ -848,7 +857,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                       <div className="text-[10px] font-bold text-content-muted uppercase tracking-wider">
                         {isFullExam ? 'Tổng điểm' : 'Điểm ước tính'}
                       </div>
-                      <div className="flex items-baseline gap-1 font-mono text-2xl font-black text-amber-600 dark:text-amber-400 tabular-nums">
+                      <div className="flex items-baseline gap-1 font-mono text-2xl font-black text-brand-ink dark:text-brand-300 tabular-nums">
                         {attempt.totalScore ? attempt.totalScore : '—'}
                         {attempt.totalScore ? (
                           <span className="text-xs font-semibold text-content-muted">/990</span>
@@ -859,7 +868,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                     {/* Breakdown L & R */}
                     <div className="text-xs space-y-1">
                       <div className="flex items-center gap-1.5">
-                        <Headphones className="size-3 text-amber-600 dark:text-amber-400" />
+                        <Headphones className="size-3 text-brand-ink dark:text-brand-300" />
                         <span className="text-content-muted">Listening:</span>
                         <strong className="font-mono text-content">
                           {attempt.listeningScore || 0}
@@ -869,7 +878,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <BookOpen className="size-3 text-emerald-600 dark:text-emerald-400" />
+                        <BookOpen className="size-3 text-positive" />
                         <span className="text-content-muted">Reading:</span>
                         <strong className="font-mono text-content">
                           {attempt.readingScore || 0}
@@ -886,7 +895,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                         Chính xác
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-base font-black text-emerald-600 dark:text-emerald-400 tabular-nums">
+                        <span className="font-mono text-base font-black text-positive tabular-nums">
                           {attempt.accuracyRate}%
                         </span>
                         <span className="text-xs text-content-muted">
@@ -902,7 +911,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                     <button
                       type="button"
                       onClick={() => navigate(`/results?attemptId=${encodeURIComponent(attempt.id)}`)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-2 text-xs font-bold text-amber-700 dark:text-amber-300 transition-all hover:bg-amber-500/20 active:scale-95 shadow-xs"
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-3.5 py-2 text-xs font-bold text-brand-ink shadow-xs transition-all hover:bg-accent/90 active:scale-95"
                       title="Xem lại từng câu, đối chiếu đáp án và lời giải chi tiết"
                     >
                       <Eye className="size-3.5" />
@@ -935,7 +944,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                         type="button"
                         onClick={() =>
                           navigate(
-                            `/practice/runner/all?testId=${encodeURIComponent(attempt.testId!)}&wrongSource=test`,
+                            `/practice/runner/${retryScope}?testId=${encodeURIComponent(attempt.testId!)}&reviewAttempt=${encodeURIComponent(attempt.id)}&reviewResult=wrong`,
                           )
                         }
                         className="inline-flex items-center gap-1.5 rounded-xl border border-negative/25 bg-negative/10 px-3 py-2 text-xs font-bold text-negative transition-all hover:bg-negative/15 active:scale-95"
@@ -978,9 +987,9 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                             <span
                               className={`font-mono font-bold ${
                                 rate >= 80
-                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                  ? 'text-positive'
                                   : rate >= 50
-                                    ? 'text-amber-600 dark:text-amber-400'
+                                    ? 'text-brand-ink dark:text-brand-300'
                                     : 'text-negative'
                               }`}
                             >
@@ -999,7 +1008,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
       ) : (
         /* Empty State */
         <div className="rounded-3xl border border-dashed border-line bg-surface p-10 text-center">
-          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-brand/10 text-brand-ink dark:text-brand-300">
             <History className="size-6" />
           </div>
           <h3 className="mt-4 text-base font-black text-content">

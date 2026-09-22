@@ -1,5 +1,5 @@
 import React from 'react';
-import { GraduationCap, RefreshCw } from 'lucide-react';
+import { Trophy, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../../../context/LanguageContext';
 
 interface RankingHeaderProps {
@@ -22,28 +22,29 @@ export const RankingHeader: React.FC<RankingHeaderProps> = ({ updatedAt, loading
   const { language } = useLanguage();
 
   return (
-    <header className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <header className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-4">
       <div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
-          <GraduationCap className="size-4 text-amber-600 dark:text-amber-400" aria-hidden="true" />
-          ilovetoeic
-        </span>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-content sm:text-3xl">
-          {language === 'en' ? 'Leaderboard' : 'Bảng xếp hạng'}
+        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-content-muted">
+          <Trophy className="size-3.5 text-accent" />
+          <span>{language === 'en' ? 'TOEICMaster Competitive Arena' : 'Đấu Trường Thi Đua TOEICMaster'}</span>
+        </div>
+        <h1 className="mt-1 text-2xl font-black tracking-tight text-content sm:text-3xl">
+          {language === 'en' ? 'Learner Leaderboard' : 'Bảng Xếp Hạng Học Viên'}
         </h1>
-        <p className="mt-1 text-xs font-semibold text-content-muted sm:text-sm">
+        <p className="mt-1 text-xs font-semibold text-content-muted sm:text-sm max-w-2xl leading-relaxed">
           {language === 'en'
-            ? 'Track your progress and engage in healthy competition with learners.'
-            : 'Theo dõi tiến độ và thi đua lành mạnh cùng các học viên trong lớp.'}
+            ? 'Honoring learners with outstanding study streaks, high accuracy, and top accumulated XP.'
+            : 'Vinh danh học viên nỗ lực luyện đề, duy trì chuỗi học và tích luỹ điểm XP cao nhất.'}
         </p>
       </div>
+
       <button
         type="button"
         onClick={onRefresh}
         disabled={loading}
-        className="inline-flex min-h-9 shrink-0 items-center gap-2 rounded-xl border border-line bg-surface px-3.5 py-1.5 text-xs font-bold text-content-muted shadow-sm transition-all hover:bg-surface-hover hover:text-content active:scale-95 disabled:cursor-wait disabled:opacity-60"
+        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-2 text-xs font-bold text-content-muted shadow-xs transition-all hover:bg-surface-hover hover:text-content active:scale-95 disabled:cursor-wait disabled:opacity-60 self-start sm:self-auto"
       >
-        <RefreshCw className={`size-3.5 text-brand-700 dark:text-brand-300 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
+        <RefreshCw className={`size-3.5 text-accent ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
         <span>
           {loading
             ? (language === 'en' ? 'Updating...' : 'Đang cập nhật')
@@ -53,4 +54,3 @@ export const RankingHeader: React.FC<RankingHeaderProps> = ({ updatedAt, loading
     </header>
   );
 };
-

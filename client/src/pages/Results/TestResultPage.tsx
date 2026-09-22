@@ -25,7 +25,7 @@ import { apiService } from '../../services/api';
 import { backendService } from '../../services/backend';
 import { vocabularyService } from '../../services/vocabulary';
 import { Question, TestResultData } from '../../types';
-import { storage } from '../../utils/storage';
+import { getTestHistoryAttemptId, storage } from '../../utils/storage';
 
 export const TestResultPage: React.FC = () => {
   const { user } = useAuth();
@@ -35,8 +35,8 @@ export const TestResultPage: React.FC = () => {
 
   const [result, setResult] = useState<TestResultData | null>(() => {
     if (attemptIdParam) {
-      const match = storage.getTestHistory().find((h) => h.attemptId === attemptIdParam);
-      if (match) return match;
+      const match = storage.getTestHistory().find((h, index) => getTestHistoryAttemptId(h, index) === attemptIdParam);
+      return match ? { ...match, attemptId: attemptIdParam } : null;
     }
     return storage.getTestHistory()[0] || null;
   });
@@ -369,7 +369,7 @@ export const TestResultPage: React.FC = () => {
       navigate(
         `/practice/runner/${scopeParam}?testId=${encodeURIComponent(
           result.testId
-        )}&reviewAttemptId=${encodeURIComponent(targetAttemptId)}&reviewResult=wrong`
+        )}&reviewAttempt=${encodeURIComponent(targetAttemptId)}&reviewResult=wrong`
       );
     } else if (result.testId) {
       navigate(`/practice/runner/${scopeParam}?testId=${encodeURIComponent(result.testId)}`);

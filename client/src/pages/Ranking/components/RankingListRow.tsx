@@ -50,6 +50,22 @@ export const RankingListRow: React.FC<RankingListRowProps> = ({
               </span>
             )}
 
+            {rank === 1 && (
+              <span className="shrink-0 rounded-md bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-black text-amber-700 dark:text-amber-400">
+                {language === 'en' ? 'CHAMPION' : 'QUÁN QUÂN'}
+              </span>
+            )}
+            {rank === 2 && (
+              <span className="shrink-0 rounded-md bg-slate-300/30 border border-slate-400/30 px-1.5 py-0.5 text-[9px] font-black text-slate-700 dark:text-slate-300">
+                {language === 'en' ? 'RUNNER-UP 1' : 'Á QUÂN 1'}
+              </span>
+            )}
+            {rank === 3 && (
+              <span className="shrink-0 rounded-md bg-orange-500/15 border border-orange-500/30 px-1.5 py-0.5 text-[9px] font-black text-orange-700 dark:text-orange-400">
+                {language === 'en' ? 'RUNNER-UP 2' : 'Á QUÂN 2'}
+              </span>
+            )}
+
             {isCurrent && (
               <span className="shrink-0 rounded-md bg-brand px-1.5 py-0.5 text-[10px] font-black text-brand-ink">
                 {language === 'en' ? 'YOU' : 'BẠN'}

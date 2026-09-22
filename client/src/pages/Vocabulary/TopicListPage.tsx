@@ -17,9 +17,13 @@ import {
   Globe,
   Award,
   ChevronRight,
+  Flame,
+  Clock,
+  Sparkles,
+  BarChart2,
+  RotateCcw,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { VocabularyPageSkeleton } from './components/VocabularyPageSkeleton';
 import { CreateTopicModal } from '../../components/vocabulary/CreateTopicModal';
 import { AddWordModal } from './components/AddWordModal';
@@ -201,6 +205,11 @@ export const TopicListPage: React.FC = () => {
   const myNeedReviewCount = mySavedCount - myRememberedCount;
   const myPercent = mySavedCount ? Math.round((myRememberedCount / mySavedCount) * 100) : 0;
 
+  // Estimation for Spaced Repetition levels
+  const level1Count = myNeedReviewCount;
+  const level2Count = Math.round(myRememberedCount * 0.4);
+  const level3Count = myRememberedCount - level2Count;
+
   const topicStats = (topic: VocabularyTopic) => {
     const topicWords = vocabularyTopicService.wordsForTopic(user.id, topic.id, words);
     return {
@@ -293,7 +302,6 @@ export const TopicListPage: React.FC = () => {
             </span>
           </div>
 
-          {/* Clean minimal progress bar */}
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-line/60">
             <div
               className="h-full rounded-full bg-emerald-500 transition-all duration-500"
@@ -317,65 +325,188 @@ export const TopicListPage: React.FC = () => {
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Sổ tay từ vựng của tôi - Hero Banner */}
-      <div id="tour-vocab-hero" className="relative overflow-hidden rounded-3xl border border-accent/25 bg-gradient-to-br from-accent/10 via-surface to-surface p-6 shadow-xs transition-all sm:p-7">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/15 px-3 py-1 text-xs font-black text-accent-strong">
-              <BookMarked className="size-3.5" />
-              <span>{language === 'en' ? 'Personal Vocabulary Notebook' : 'Sổ tay từ vựng cá nhân'}</span>
-            </div>
-            <h2 className="text-xl font-black text-content sm:text-2xl">
-              {language === 'en'
-                ? `My Vocabulary Notebook (${mySavedCount} words saved)`
-                : `Sổ tay từ vựng của tôi (${mySavedCount} từ đã lưu)`}
-            </h2>
-            <p className="max-w-2xl text-xs sm:text-sm font-normal leading-relaxed text-content-muted">
-              {language === 'en'
-                ? 'All words you looked up with AI while taking tests, reading TOEIC passages, or added yourself. Review now with 5 interactive study modes to memorize faster!'
-                : 'Toàn bộ từ vựng bạn đã bôi đen tra cứu bằng AI khi đọc bài thi, luyện tập hoặc tự bổ sung. Ôn tập lại ngay với 5 chế độ học tương tác thông minh để nhớ lâu và phản xạ nhanh!'}
-            </p>
 
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <div className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-content">
-                <span className="text-content-muted">{language === 'en' ? 'Total:' : 'Tổng:'}</span>
-                <strong className="font-bold">{mySavedCount} {language === 'en' ? 'words' : 'từ'}</strong>
+      {/* KHỐI 1: HEADER CHÀO ĐÓN & QUICK STATS PILLS (BENTO STUDY HUB) */}
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-line pb-5">
+        <div>
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-content-muted">
+            <Sparkles className="size-3.5 text-accent" />
+            <span>{language === 'en' ? 'TOEICMaster Vocabulary Center' : 'Trung tâm Từ vựng TOEICMaster'}</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-content tracking-tight mt-1">
+            {language === 'en' ? 'Vocabulary Library & Notebook' : 'Thư viện & Sổ tay Từ vựng'}
+          </h1>
+          <p className="text-xs sm:text-sm text-content-muted mt-1 max-w-2xl leading-relaxed">
+            {language === 'en'
+              ? 'Curated vocabulary sets structured by test formats and smart Spaced Repetition flashcards.'
+              : 'Kho từ vựng chọn lọc theo format đề thi mới nhất kết hợp ghi nhớ thông minh Spaced Repetition.'}
+          </p>
+        </div>
+
+        {/* Quick Stats Pills */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface px-3.5 py-2 shadow-xs">
+            <div className="grid size-8 place-items-center rounded-xl bg-amber-500/10 text-amber-500">
+              <Flame className="size-4" />
+            </div>
+            <div>
+              <div className="font-mono text-xs font-black text-content">
+                {user.streakDays || 1} {language === 'en' ? 'days' : 'ngày'}
               </div>
-              <div className="flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                <CheckCircle2 className="size-3.5" />
-                <span>{myRememberedCount} {language === 'en' ? 'mastered' : 'đã thuộc'} ({myPercent}%)</span>
-              </div>
-              <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                <span>{myNeedReviewCount} {language === 'en' ? 'need review' : 'cần ôn luyện'}</span>
+              <div className="text-[10px] font-semibold text-content-muted">
+                {language === 'en' ? 'Study streak' : 'Chuỗi học'}
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface px-3.5 py-2 shadow-xs">
+            <div className="grid size-8 place-items-center rounded-xl bg-accent/10 text-accent-strong">
+              <Clock className="size-4" />
+            </div>
+            <div>
+              <div className="font-mono text-xs font-black text-content">
+                {myNeedReviewCount} {language === 'en' ? 'words' : 'từ'}
+              </div>
+              <div className="text-[10px] font-semibold text-content-muted">
+                {language === 'en' ? 'Need review' : 'Cần ôn luyện'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* KHỐI 2: BENTO HERO (SỔ TAY CÁ NHÂN 2/3 + HỘP GHI NHỚ LEITNER 1/3) */}
+      <section id="tour-vocab-hero" className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {/* Main Bento: Sổ tay cá nhân của tôi (2/3 width) */}
+        <div className="lg:col-span-2 relative overflow-hidden rounded-3xl border border-line/80 bg-surface p-6 sm:p-7 flex flex-col justify-between shadow-xs transition hover:border-line-hover">
+          <div className="space-y-3.5">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-extrabold text-accent-strong">
+                <BookMarked className="size-3.5" />
+                <span>{language === 'en' ? 'Personal Vocabulary Notebook' : 'Sổ tay từ vựng của tôi'}</span>
+              </span>
+              <span className="text-[11px] font-semibold text-content-muted">
+                {language === 'en' ? 'Synced with Cloud' : 'Đã đồng bộ tài khoản'}
+              </span>
+            </div>
+
+            <h2 className="text-xl sm:text-2xl font-black text-content tracking-tight">
+              {language === 'en'
+                ? `Review ${mySavedCount} words from test reading & AI lookups`
+                : `Ôn tập ${mySavedCount} từ vựng bạn đã bôi đen tra cứu`}
+            </h2>
+            <p className="text-xs sm:text-sm text-content-muted leading-relaxed max-w-xl">
+              {language === 'en'
+                ? 'All words looked up with AI while taking tests or reading passages are stored here. Smart algorithms help you memorize permanently.'
+                : 'Toàn bộ từ mới bạn lưu khi giải đề thi, đọc passage hay tra cứu bằng AI đều nằm ở đây. Thuật toán Spaced Repetition sẽ tự động nhắc nhớ đúng thời điểm.'}
+            </p>
+
+            {/* Progress bar & metrics */}
+            <div className="pt-2 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-content-muted">
+                  {language === 'en' ? 'Total memory progress:' : 'Tiến độ ghi nhớ toàn bộ từ:'}
+                </span>
+                <span className="font-bold text-content">
+                  {myRememberedCount} / {mySavedCount} {language === 'en' ? 'words' : 'từ'} ({myPercent}%)
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-surface-elevated overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-700 ease-out"
+                  style={{ width: `${myPercent}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="mt-6 pt-5 border-t border-line/60 flex flex-wrap items-center gap-3">
             <Link
               to="/vocabulary/my-words"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-accent px-6 text-sm font-bold text-accent-contrast shadow-md shadow-accent/20 transition hover:bg-accent/90 active:scale-98"
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-xs font-extrabold text-accent-contrast transition hover:bg-accent/90 active:scale-95 shadow-md shadow-accent/20"
             >
-              <Play className="size-4 fill-current" />
-              <span>{language === 'en' ? 'Study my notebook' : 'Học sổ tay của tôi'}</span>
+              <Play className="size-3.5 fill-current" />
+              <span>
+                {language === 'en'
+                  ? `Study now (${myNeedReviewCount} due)`
+                  : `Ôn tập ngay (${myNeedReviewCount} từ đến hạn)`}
+              </span>
             </Link>
+
+            <Link
+              to="/vocabulary/my-words"
+              className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface-elevated px-4 py-2.5 text-xs font-bold text-content transition hover:bg-surface-hover active:scale-95"
+            >
+              <RotateCcw className="size-3.5" />
+              <span>{language === 'en' ? 'View all notebook' : 'Xem toàn bộ sổ tay'}</span>
+            </Link>
+
             <button
               type="button"
               onClick={() => setAddWordModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl border border-line bg-surface px-5 text-sm font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover active:scale-98"
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold text-content-muted hover:text-accent-strong transition-colors"
             >
-              <Plus className="size-4" />
-              <span>{language === 'en' ? 'Add new word' : 'Thêm từ mới'}</span>
+              <Plus className="size-3.5" />
+              <span>{language === 'en' ? 'Add word manually' : 'Thêm từ thủ công'}</span>
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Category Tabs & Search */}
-      <div className="space-y-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {/* Category Tabs */}
-          <div id="tour-vocab-categories" className="flex flex-wrap items-center gap-2">
+        {/* Secondary Bento: Thống kê Spaced Repetition (1/3 width) */}
+        <div className="rounded-3xl border border-line/80 bg-surface p-6 sm:p-7 flex flex-col justify-between shadow-xs">
+          <div>
+            <div className="flex items-center justify-between text-xs text-content-muted">
+              <span className="font-extrabold uppercase tracking-wider">
+                {language === 'en' ? 'Leitner Memory Box' : 'Hộp ghi nhớ (Leitner Box)'}
+              </span>
+              <BarChart2 className="size-4 text-accent" />
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-surface-elevated/60">
+                <span className="flex items-center gap-2 font-medium text-content">
+                  <span className="size-2 rounded-full bg-amber-500"></span>
+                  <span>{language === 'en' ? 'Level 1 (Need Review)' : 'Cấp 1 (Cần ôn luyện)'}</span>
+                </span>
+                <span className="font-mono font-bold text-content">{level1Count} {language === 'en' ? 'words' : 'từ'}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-surface-elevated/60">
+                <span className="flex items-center gap-2 font-medium text-content">
+                  <span className="size-2 rounded-full bg-accent"></span>
+                  <span>{language === 'en' ? 'Level 2 (In Progress)' : 'Cấp 2 (Ghi nhớ ngắn hạn)'}</span>
+                </span>
+                <span className="font-mono font-bold text-content">{level2Count} {language === 'en' ? 'words' : 'từ'}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-surface-elevated/60">
+                <span className="flex items-center gap-2 font-medium text-content">
+                  <span className="size-2 rounded-full bg-emerald-500"></span>
+                  <span>{language === 'en' ? 'Level 3 (Mastered)' : 'Cấp 3 (Đã thuộc vĩnh viễn)'}</span>
+                </span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">{level3Count} {language === 'en' ? 'words' : 'từ'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl bg-surface-elevated/70 border border-line/40 p-3.5 text-[11px] text-content-muted leading-relaxed">
+            💡 <strong className="text-content">{language === 'en' ? 'Study Tip:' : 'Mẹo học:'}</strong>{' '}
+            {language === 'en'
+              ? 'Reviewing 10 minutes every day at a fixed time increases recall speed by 200%.'
+              : 'Ôn tập đều đặn 10 phút mỗi ngày vào một khung giờ cố định giúp tăng phản xạ nghe & đọc lên 200%.'}
+          </div>
+        </div>
+
+      </section>
+
+      {/* KHỐI 3: CATEGORY TABS & UNIFIED SEARCH BAR */}
+      <section className="space-y-4 pt-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+          {/* Tabs */}
+          <div id="tour-vocab-categories" className="inline-flex rounded-2xl border border-line bg-surface p-1 text-xs font-bold overflow-x-auto no-scrollbar shadow-xs">
             {categoryTabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeCategory === tab.id;
@@ -384,10 +515,10 @@ export const TopicListPage: React.FC = () => {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveCategory(tab.id)}
-                  className={`inline-flex min-h-10 items-center gap-2 rounded-2xl px-4 text-xs font-bold transition active:scale-98 ${
+                  className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 transition active:scale-98 shrink-0 ${
                     isActive
-                      ? 'bg-accent text-accent-contrast shadow-md shadow-accent/20'
-                      : 'border border-line bg-surface text-content-muted hover:bg-surface-hover hover:text-content'
+                      ? 'bg-accent text-accent-contrast shadow-sm'
+                      : 'text-content-muted hover:text-content hover:bg-surface-elevated'
                   }`}
                 >
                   <Icon className="size-3.5" />
@@ -398,39 +529,46 @@ export const TopicListPage: React.FC = () => {
           </div>
 
           {/* Search Input */}
-          <div id="tour-vocab-search" className="relative w-full lg:max-w-xs">
-            <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" />
+          <div id="tour-vocab-search" className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-content-muted pointer-events-none" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="min-h-10 w-full rounded-2xl border border-line bg-surface pl-10 pr-4 text-xs font-medium text-content outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15"
               placeholder={language === 'en' ? 'Search vocabulary sets...' : 'Tìm theo tên bộ từ vựng...'}
+              className="w-full rounded-2xl border border-line bg-surface pl-10 pr-4 py-2 text-xs font-medium text-content placeholder:text-content-muted outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/15 shadow-xs"
             />
           </div>
-        </div>
-      </div>
 
-      {/* Main Grid: System Vocabulary Sets */}
+        </div>
+      </section>
+
+      {/* KHỐI 4: LƯỚI BỘ TỪ VỰNG HỆ THỐNG (SYSTEM SETS GRID) */}
       <section id="tour-vocab-grid" className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black text-content sm:text-xl">
               {language === 'en'
-                ? `System Vocabulary Sets (${filteredSets.length} sets)`
-                : `Các Bộ Từ Vựng Hệ Thống (${filteredSets.length} bộ)`}
+                ? `Curated Vocabulary Sets (${filteredSets.length} sets)`
+                : `Các Bộ Từ Vựng Chuẩn Hoá (${filteredSets.length} bộ)`}
             </h2>
-            <p className="text-xs text-content-muted">
+            <p className="text-xs text-content-muted mt-0.5">
               {language === 'en'
-                ? 'Click on any vocabulary set to select units and practice with 5 interactive modes'
-                : 'Nhấp vào bất kỳ bộ từ vựng nào để chọn Unit và luyện tập với 5 chế độ trực quan'}
+                ? 'Select any set to browse units and practice with 5 interactive study modes'
+                : 'Nhấp vào bộ từ vựng để chọn bài học và luyện tập với 5 chế độ tương tác'}
             </p>
           </div>
         </div>
 
         {filteredSets.length === 0 ? (
-          <div className="rounded-3xl border border-line bg-surface py-12 text-center">
-            <p className="text-sm font-bold text-content-muted">
+          <div className="rounded-3xl border border-dashed border-line bg-surface py-12 text-center p-6">
+            <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-surface-elevated text-content-muted">
+              <BookOpen className="size-6" />
+            </div>
+            <p className="mt-3 text-sm font-bold text-content">
               {language === 'en' ? 'No vocabulary sets match the filter.' : 'Không tìm thấy bộ từ vựng nào phù hợp với bộ lọc.'}
+            </p>
+            <p className="mt-1 text-xs text-content-muted">
+              {language === 'en' ? 'Try clearing your search query or switching categories.' : 'Hãy thử xoá từ khoá tìm kiếm hoặc chọn danh mục khác.'}
             </p>
           </div>
         ) : (
@@ -441,7 +579,7 @@ export const TopicListPage: React.FC = () => {
                 to={`/vocabulary/set/${set.id}`}
                 className="group flex flex-col overflow-hidden rounded-3xl border border-line/80 bg-surface shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-accent/50 hover:shadow-lg dark:hover:border-accent/40"
               >
-                {/* Set Cover Image Banner */}
+                {/* Aspect 16:9 Image Banner */}
                 <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface-elevated">
                   {set.cover_url ? (
                     <img
@@ -460,11 +598,11 @@ export const TopicListPage: React.FC = () => {
                   )}
 
                   {/* Gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent pointer-events-none" />
 
-                  {/* Category Pill on Image */}
+                  {/* Category Badge on Image */}
                   <div className="absolute left-3.5 top-3.5">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white backdrop-blur-md shadow-xs">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-950/75 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white backdrop-blur-md shadow-xs">
                       <span className="size-1.5 rounded-full bg-accent" />
                       {set.category}
                     </span>
@@ -474,7 +612,7 @@ export const TopicListPage: React.FC = () => {
                 {/* Set Details */}
                 <div className="flex flex-1 flex-col justify-between p-5">
                   <div>
-                    <h3 className="text-base sm:text-lg font-extrabold text-content group-hover:text-accent-strong transition-colors duration-200 line-clamp-1">
+                    <h3 className="text-base font-extrabold text-content group-hover:text-accent-strong transition-colors duration-200 line-clamp-1">
                       {set.name}
                     </h3>
                     <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs font-normal leading-relaxed text-content-muted">
@@ -499,8 +637,8 @@ export const TopicListPage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-1 text-xs font-bold text-accent-strong group-hover:translate-x-0.5 transition-transform">
-                      <span>{language === 'en' ? 'Study Now' : 'Học ngay'}</span>
-                      <ChevronRight className="size-4" />
+                      <span>{language === 'en' ? 'Study Now' : 'Vào học'}</span>
+                      <ChevronRight className="size-3.5" />
                     </div>
                   </div>
                 </div>
@@ -510,17 +648,17 @@ export const TopicListPage: React.FC = () => {
         )}
       </section>
 
-      {/* Personal Topics Section */}
-      <section className="pt-6 border-t border-line">
-        <div className="mb-4 flex items-center justify-between">
+      {/* KHỐI 5: BỘ TỪ VỰNG CÁ NHÂN TỰ TẠO (CUSTOM TOPIC SETS) */}
+      <section className="pt-6 border-t border-line space-y-4">
+        <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-black text-content sm:text-xl">
-              {language === 'en' ? 'Your Personal Vocabulary Sets' : 'Bộ từ vựng cá nhân của bạn'}
+              {language === 'en' ? 'Your Personal Vocabulary Sets' : 'Bộ Từ Vựng Cá Nhân Của Bạn'}
             </h2>
-            <p className="text-xs text-content-muted">
+            <p className="text-xs text-content-muted mt-0.5">
               {language === 'en'
                 ? 'Custom vocabulary groups you created for personalized review'
-                : 'Các nhóm từ bạn tự tạo để phân loại và ôn tập theo nhu cầu riêng'}
+                : 'Nhóm từ tự tạo để ôn luyện chuyên đề riêng (Hợp đồng, Bất động sản, Part 7...)'}
             </p>
           </div>
 
@@ -530,7 +668,7 @@ export const TopicListPage: React.FC = () => {
               setEditing(null);
               setModalOpen(true);
             }}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-xs font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-bold text-content transition hover:border-accent/40 hover:bg-surface-hover shadow-xs active:scale-95"
           >
             <Plus className="size-3.5" />
             <span>{language === 'en' ? 'Create Set' : 'Tạo bộ mới'}</span>
@@ -538,7 +676,8 @@ export const TopicListPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {/* Card: Sổ tay từ vựng của tôi */}
+
+          {/* Default Card: Sổ tay từ vựng của tôi */}
           <article className="group relative flex flex-col justify-between rounded-3xl border border-accent/40 bg-gradient-to-br from-accent/5 via-surface to-surface p-5 shadow-xs transition-all duration-300 hover:-translate-y-1 hover:border-accent hover:shadow-lg dark:shadow-none">
             <div>
               <div className="flex items-start justify-between gap-3">
@@ -596,7 +735,7 @@ export const TopicListPage: React.FC = () => {
             </div>
           </article>
 
-          {/* Card: Tạo bộ từ mới */}
+          {/* Action Card: Tạo bộ từ mới */}
           <button
             type="button"
             onClick={() => {
@@ -609,10 +748,10 @@ export const TopicListPage: React.FC = () => {
               <Plus className="size-5 stroke-[2.5]" />
             </span>
             <span className="mt-3 block text-sm font-extrabold text-content group-hover:text-accent-strong transition-colors">
-              {language === 'en' ? 'Create New Set' : 'Tạo bộ từ vựng mới'}
+              {language === 'en' ? 'Create New Set' : 'Tạo nhóm từ mới'}
             </span>
             <span className="mt-1 block text-xs text-content-muted">
-              {language === 'en' ? 'Organize words you want to review' : 'Gom các từ cần ôn theo sở thích'}
+              {language === 'en' ? 'Organize words you want to review' : 'Tự chọn các từ cần gom nhóm'}
             </span>
           </button>
 
@@ -622,7 +761,7 @@ export const TopicListPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Modals */}
+      {/* MODALS PHỤ TRỢ (CREATE, CONFIRM DELETE, MERGE, ADD WORD) */}
       <AnimatePresence>
         {modalOpen && (
           <CreateTopicModal

@@ -334,7 +334,7 @@ export const MockTestPage: React.FC = () => {
               className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
                 currentTab === 'history'
                   ? 'bg-brand-ink/20 text-brand-ink'
-                  : 'bg-accent/15 text-accent-dark'
+                  : 'bg-brand/15 text-brand-ink dark:text-brand-200'
               }`}
             >
               {totalHistoryCount}

@@ -45,9 +45,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePrefetchImages } from '../../hooks/usePrefetchImages';
 import { apiService } from '../../services/api';
-import { backendService } from '../../services/backend';
+import { ApiError, backendService } from '../../services/backend';
 import { Question } from '../../types';
 import { createClientId } from '../../utils/id';
+import { getTestHistoryAttemptId, storage } from '../../utils/storage';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
@@ -170,22 +171,37 @@ export const PracticeRunnerPage: React.FC = () => {
             testId: wrongSource === 'test' ? testId || undefined : undefined,
             part: wrongSource === 'level' ? scopeParts[0] : undefined,
             level: wrongSource === 'level' ? selectedLevel || undefined : undefined,
-          }).catch(() => []);
+          });
           const selectedIds = new Set(wrongQuestions.map((question) => question.questionId));
           filtered = filtered.filter((question) => selectedIds.has(question.id));
           if (filtered.length === 0) {
             throw new Error('Bạn không còn câu sai nào trong mục này để luyện lại.');
           }
         } else if (reviewAttemptId) {
-          const review = await backendService.getStudyAttemptReview(reviewAttemptId).catch(() => null);
-          if (review && review.questions) {
-            const targetStatus = reviewResult === 'correct' ? 'correct' : 'wrong';
-            const matchedQuestions = review.questions.filter((q) => q.status === targetStatus);
-            const targetIds = new Set(matchedQuestions.map((q) => q.id));
-            filtered = filtered.filter((question) => targetIds.has(question.id));
-            if (filtered.length === 0) {
-              throw new Error(`Không tìm thấy câu ${targetStatus === 'correct' ? 'đúng' : 'sai'} nào trong lượt làm bài này để luyện lại.`);
-            }
+          const targetStatus = reviewResult === 'correct' ? 'correct' : 'wrong';
+          let targetIds: Set<string>;
+          try {
+            const review = await backendService.getStudyAttemptReview(reviewAttemptId);
+            targetIds = new Set(review.questions.filter((q) => q.status === targetStatus).map((q) => q.id));
+          } catch (reviewError) {
+            if (!(reviewError instanceof ApiError && (reviewError.status === 404 || (!user && reviewError.status === 401)))) throw reviewError;
+            const localAttempt = storage.getTestHistory().find((item, index) =>
+              getTestHistoryAttemptId(item, index) === reviewAttemptId && item.testId === testId,
+            );
+            if (!localAttempt?.answers) throw reviewError;
+            const questionById = new Map(source.map((question) => [question.id, question]));
+            const questionIds = localAttempt.questionIds?.length
+              ? localAttempt.questionIds
+              : Object.keys(localAttempt.answers);
+            targetIds = new Set(questionIds.filter((id) => {
+              const selected = localAttempt.answers?.[id]?.trim().toUpperCase();
+              const correct = questionById.get(id)?.correctAnswer?.trim().toUpperCase();
+              return Boolean(selected && correct && (selected === correct) === (targetStatus === 'correct'));
+            }));
+          }
+          filtered = filtered.filter((question) => targetIds.has(question.id));
+          if (filtered.length === 0) {
+            throw new Error(`Không tìm thấy câu ${targetStatus === 'correct' ? 'đúng' : 'sai'} nào trong lượt làm bài này để luyện lại.`);
           }
         }
 

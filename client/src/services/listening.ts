@@ -9,6 +9,7 @@ import type {
   ListeningTestSummary,
   UserListeningProgress,
 } from '../types';
+import { normalizeMediaUrl } from '../utils/mediaUrl';
 
 export interface GetSetsParams {
   viewMode?: 'study' | 'difficulty' | 'needs_review' | 'progress';
@@ -35,6 +36,18 @@ interface MixRandomResponse {
   audioCount: number;
   sets: ListeningSet[];
 }
+
+const normalizeListeningSet = (set: ListeningSet): ListeningSet => ({
+  ...set,
+  audioUrl: normalizeMediaUrl(set.audioUrl),
+  coverImage: normalizeMediaUrl(set.coverImage) || set.coverImage,
+});
+
+const normalizeListeningSentence = (sentence: ListeningSentence): ListeningSentence => ({
+  ...sentence,
+  audioUrl: normalizeMediaUrl(sentence.audioUrl),
+  imageUrl: normalizeMediaUrl(sentence.imageUrl),
+});
 
 const getAuthHeaders = (): HeadersInit => {
   const token = sessionService.getToken();
@@ -149,7 +162,12 @@ export const listeningService = {
       const message = errorData.detail || 'Không thể tải chi tiết bộ đề luyện nghe.';
       throw new Error(message);
     }
-    return await response.json();
+    const data = await response.json() as SetDetailResponse;
+    return {
+      ...data,
+      set: normalizeListeningSet(data.set),
+      sentences: (data.sentences || []).map(normalizeListeningSentence),
+    };
   },
 
   async saveProgress(payload: {

@@ -121,6 +121,7 @@ export const ListeningPracticePage: React.FC = () => {
   }, [setId]);
 
   const currentSentence = sentences[currentSentenceIndex];
+  const currentAudioUrl = currentSentence?.audioUrl || setData?.audioUrl;
   const prevSentence =
     currentSentenceIndex > 0 ? sentences[currentSentenceIndex - 1] : null;
   const nextSentence =
@@ -537,7 +538,7 @@ export const ListeningPracticePage: React.FC = () => {
               <ListeningMediaPlayer
                 ref={mediaPlayerRef}
                 sentenceId={currentSentence.id}
-                audioUrl={currentSentence.audioUrl || setData?.audioUrl}
+                audioUrl={currentAudioUrl}
                 videoUrl={currentSentence.videoUrl}
                 autoPlayNext={autoPlayNext}
                 onToggleAutoPlayNext={setAutoPlayNext}
@@ -548,8 +549,8 @@ export const ListeningPracticePage: React.FC = () => {
                 hasNextSentence={currentSentenceIndex < totalSentences - 1}
                 startTime={currentSentence.startTime}
                 endTime={currentSentence.endTime}
-                prevSentenceEndTime={prevSentence?.audioUrl === (currentSentence.audioUrl || setData?.audioUrl) ? (prevSentence?.endTime ?? null) : null}
-                nextSentenceStartTime={nextSentence?.audioUrl === (currentSentence.audioUrl || setData?.audioUrl) ? (nextSentence?.startTime ?? null) : null}
+                prevSentenceEndTime={(prevSentence?.audioUrl || setData?.audioUrl) === currentAudioUrl ? (prevSentence?.endTime ?? null) : null}
+                nextSentenceStartTime={(nextSentence?.audioUrl || setData?.audioUrl) === currentAudioUrl ? (nextSentence?.startTime ?? null) : null}
                 text={currentSentence.text}
                 words={currentSentence.words}
                 phoneticUs={currentSentence.phoneticUs}

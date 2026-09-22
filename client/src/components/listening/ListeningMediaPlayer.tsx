@@ -8,12 +8,14 @@ import React, {
   useState,
 } from 'react';
 import {
+  AlertCircle,
   Check,
   ChevronDown,
   FastForward,
   Flame,
   Gauge,
   Loader2,
+  RefreshCw,
   Maximize2,
   Minimize2,
   Pause,
@@ -103,6 +105,21 @@ export function isShortSentence(
   );
 }
 
+type NativeMediaStatus = 'idle' | 'loading' | 'ready' | 'playing' | 'blocked' | 'stalled' | 'error';
+
+interface PendingNativePlayback {
+  sourceUrl: string;
+  targetTime: number;
+  shouldPlay: boolean;
+  requestId: number;
+}
+
+const MEDIA_STALL_TIMEOUT_MS = 8000;
+
+const isAutoplayBlocked = (error: unknown) => (
+  error instanceof DOMException && error.name === 'NotAllowedError'
+);
+
 const SPEED_OPTIONS = [
   { value: 0.5, label: '0.5x' },
   { value: 0.75, label: '0.75x' },
@@ -187,9 +204,15 @@ export const ListeningMediaPlayer = forwardRef<
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ytPlayerRef = useRef<any>(null);
   const ytContainerRef = useRef<HTMLDivElement | null>(null);
-  const wordSegmentTimeoutRef = useRef<any>(null);
+  const wordSegmentTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingWordSegmentRef = useRef<{ end: number } | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
+  const [nativeMediaStatus, setNativeMediaStatus] = useState<NativeMediaStatus>('idle');
+  const [nativeRetryCount, setNativeRetryCount] = useState(0);
+  const nativeRequestIdRef = useRef(0);
+  const pendingNativePlaybackRef = useRef<PendingNativePlayback | null>(null);
+  const nativeStallTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onIsPlayingChange?.(isPlaying);
@@ -297,7 +320,6 @@ export const ListeningMediaPlayer = forwardRef<
   const prevSentenceStartRef = useRef<number | undefined>(undefined);
   const pendingSeekAndPlayRef = useRef<{ start: number; autoPlay: boolean } | null>(null);
   const prevAudioUrlRef = useRef<string | undefined>(audioUrl);
-  const pendingAudioUrlPlayRef = useRef<boolean>(false);
 
   // Clear pending loop timeouts when sentence changes or unmount
   useEffect(() => {
@@ -309,6 +331,7 @@ export const ListeningMediaPlayer = forwardRef<
       clearTimeout(wordSegmentTimeoutRef.current);
       wordSegmentTimeoutRef.current = null;
     }
+    pendingWordSegmentRef.current = null;
     repeatCounterRef.current = 1;
     setCurrentRepeat(1);
     setIsWaitingBetweenLoops(false);
@@ -321,29 +344,7 @@ export const ListeningMediaPlayer = forwardRef<
     };
   }, [startTime]);
 
-  const restartCurrent = useCallback(() => {
-    if (replayTimeoutRef.current) {
-      clearTimeout(replayTimeoutRef.current);
-      replayTimeoutRef.current = null;
-    }
-    setIsWaitingBetweenLoops(false);
-    setIsSentenceEnded(false);
-    const target = loopA !== null ? loopA : safeStart;
-    setCurrentTime(startTime || 0);
-    seekGraceUntilRef.current = Date.now() + 600;
-
-    if (isYouTube && ytPlayerRef.current) {
-      ytPlayerRef.current.seekTo(target, true);
-      ytPlayerRef.current.playVideo();
-      setIsPlaying(true);
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = target;
-      audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => console.warn('[!] Audio replay error:', err));
-    }
-  }, [loopA, safeStart, startTime, isYouTube]);
+  const restartCurrentRef = useRef<() => void>(() => {});
 
   const handleSentenceFinished = useCallback(() => {
     const isInfinite = autoReplayConfig.repeatCount === 0;
@@ -361,7 +362,7 @@ export const ListeningMediaPlayer = forwardRef<
       if (replayTimeoutRef.current) clearTimeout(replayTimeoutRef.current);
       replayTimeoutRef.current = setTimeout(() => {
         setIsWaitingBetweenLoops(false);
-        restartCurrent();
+        restartCurrentRef.current();
       }, delayMs);
     } else {
       // Đã hoàn thành tất cả các lần lặp
@@ -383,7 +384,6 @@ export const ListeningMediaPlayer = forwardRef<
     hasNextSentence,
     onNextSentence,
     onSentenceCompleteAudioEnd,
-    restartCurrent,
   ]);
 
   const handleSentenceFinishedRef = useRef(handleSentenceFinished);
@@ -394,6 +394,117 @@ export const ListeningMediaPlayer = forwardRef<
 
   const startTimeRef = useRef(startTime);
   startTimeRef.current = startTime;
+
+  const clearNativeStallTimeout = useCallback(() => {
+    if (nativeStallTimeoutRef.current) {
+      clearTimeout(nativeStallTimeoutRef.current);
+      nativeStallTimeoutRef.current = null;
+    }
+  }, []);
+
+  const armNativeStallTimeout = useCallback(() => {
+    clearNativeStallTimeout();
+    nativeStallTimeoutRef.current = setTimeout(() => {
+      const audio = audioRef.current;
+      if (audio && audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+        setNativeMediaStatus('stalled');
+        setIsPlaying(false);
+      }
+    }, MEDIA_STALL_TIMEOUT_MS);
+  }, [clearNativeStallTimeout]);
+
+  const performNativePlayback = useCallback(async (request: PendingNativePlayback) => {
+    const audio = audioRef.current;
+    if (!audio || !audioUrl || request.sourceUrl !== audioUrl) return false;
+    if (request.requestId !== nativeRequestIdRef.current) return false;
+    if (audio.readyState < HTMLMediaElement.HAVE_METADATA) return false;
+
+    try {
+      audio.currentTime = Math.max(0, request.targetTime);
+      audio.playbackRate = playbackRate;
+      setCurrentTime(request.targetTime);
+      if (!request.shouldPlay) {
+        pendingNativePlaybackRef.current = null;
+        setNativeMediaStatus('ready');
+        return true;
+      }
+
+      await audio.play();
+      if (request.requestId !== nativeRequestIdRef.current) {
+        audio.pause();
+        return false;
+      }
+      pendingNativePlaybackRef.current = null;
+      clearNativeStallTimeout();
+      setNativeMediaStatus('playing');
+      setIsPlaying(true);
+      return true;
+    } catch (error) {
+      if (request.requestId !== nativeRequestIdRef.current) return false;
+      console.warn('[!] Native listening audio play failed:', error);
+      pendingNativePlaybackRef.current = null;
+      setIsPlaying(false);
+      setNativeMediaStatus(isAutoplayBlocked(error) ? 'blocked' : 'error');
+      return false;
+    }
+  }, [audioUrl, clearNativeStallTimeout, playbackRate]);
+
+  const requestNativePlayback = useCallback((targetTime: number, shouldPlay = true) => {
+    if (!audioUrl || isYouTube) return;
+    const request: PendingNativePlayback = {
+      sourceUrl: audioUrl,
+      targetTime: Math.max(0, targetTime),
+      shouldPlay,
+      requestId: nativeRequestIdRef.current,
+    };
+    pendingNativePlaybackRef.current = request;
+    const audio = audioRef.current;
+    if (!audio || audio.readyState < HTMLMediaElement.HAVE_METADATA) {
+      setNativeMediaStatus('loading');
+      armNativeStallTimeout();
+      return;
+    }
+    void performNativePlayback(request);
+  }, [armNativeStallTimeout, audioUrl, isYouTube, performNativePlayback]);
+
+  const flushPendingNativePlayback = useCallback(() => {
+    const pending = pendingNativePlaybackRef.current;
+    if (!pending) {
+      setNativeMediaStatus((current) => current === 'loading' || current === 'stalled' ? 'ready' : current);
+      return;
+    }
+    void performNativePlayback(pending);
+  }, [performNativePlayback]);
+
+  const retryNativeAudio = useCallback(() => {
+    if (!audioUrl || isYouTube) return;
+    clearNativeStallTimeout();
+    setIsPlaying(false);
+    setIsSentenceEnded(false);
+    setNativeMediaStatus('loading');
+    setNativeRetryCount((count) => count + 1);
+  }, [audioUrl, clearNativeStallTimeout, isYouTube]);
+
+  const restartCurrent = useCallback(() => {
+    if (replayTimeoutRef.current) {
+      clearTimeout(replayTimeoutRef.current);
+      replayTimeoutRef.current = null;
+    }
+    setIsWaitingBetweenLoops(false);
+    setIsSentenceEnded(false);
+    const target = loopA !== null ? loopA : safeStart;
+    setCurrentTime(startTime || 0);
+    seekGraceUntilRef.current = Date.now() + 600;
+
+    if (isYouTube && ytPlayerRef.current) {
+      ytPlayerRef.current.seekTo(target, true);
+      ytPlayerRef.current.playVideo();
+      setIsPlaying(true);
+    } else {
+      requestNativePlayback(target, true);
+    }
+  }, [isYouTube, loopA, requestNativePlayback, safeStart, startTime]);
+  restartCurrentRef.current = restartCurrent;
 
   // Initialize YouTube IFrame Player API - ONLY runs when youtubeVideoId changes
   useEffect(() => {
@@ -614,57 +725,58 @@ export const ListeningMediaPlayer = forwardRef<
     };
   }, [isPlaying, isYouTube, endTime, safeStart, safeEnd, loopA, loopB, onTimeUpdate]);
 
-  // When sentence changes (via clicking another sentence, Next/Prev, or Auto): seek directly to sentence safeStart and AUTOMATICALLY PLAY!
+  // Load a new native source only after React has committed the new `src`.
+  // Playback is completed by media readiness events, never by the old resource's readyState.
+  useEffect(() => {
+    if (isYouTube || !audioUrl) return undefined;
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+
+    nativeRequestIdRef.current += 1;
+    const requestId = nativeRequestIdRef.current;
+    prevAudioUrlRef.current = audioUrl;
+    pendingNativePlaybackRef.current = {
+      sourceUrl: audioUrl,
+      targetTime: safeStart,
+      shouldPlay: true,
+      requestId,
+    };
+    setDuration(0);
+    setCurrentTime(startTime || 0);
+    setIsSentenceEnded(false);
+    setIsPlaying(false);
+    setNativeMediaStatus('loading');
+    clearNativeStallTimeout();
+    audio.pause();
+    audio.load();
+    armNativeStallTimeout();
+
+    return () => {
+      if (nativeRequestIdRef.current === requestId) {
+        pendingNativePlaybackRef.current = null;
+      }
+      clearNativeStallTimeout();
+      audio.pause();
+    };
+  }, [armNativeStallTimeout, audioUrl, clearNativeStallTimeout, isYouTube, nativeRetryCount]);
+
+  // Sentence navigation inside the same media file reuses the loaded resource.
   useEffect(() => {
     const isFirstMount = isFirstMountRef.current;
-    if (isFirstMount) {
-      isFirstMountRef.current = false;
-      prevSentenceIdRef.current = sentenceId;
-      prevSentenceStartRef.current = startTime;
-      setIsSentenceEnded(false);
-      const initialStart = safeStart;
-      setCurrentTime(startTime || 0);
-      seekGraceUntilRef.current = Date.now() + 800;
-
-      if (isYouTube) {
-        if (ytPlayerRef.current?.seekTo) {
-          try {
-            ytPlayerRef.current.seekTo(initialStart, true);
-            ytPlayerRef.current.playVideo();
-            setIsPlaying(true);
-          } catch {}
-        } else {
-          pendingSeekAndPlayRef.current = { start: initialStart, autoPlay: true };
-        }
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = initialStart;
-        audioRef.current.playbackRate = playbackRate;
-        void audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => console.warn('[!] Initial audio play error:', err));
-      }
-      return;
-    }
-
-    // Check if sentence actually changed (by sentenceId or by startTime)
     const hasSentenceChanged =
       (sentenceId !== undefined && sentenceId !== prevSentenceIdRef.current) ||
       (startTime !== undefined && startTime !== prevSentenceStartRef.current);
 
-    if (!hasSentenceChanged) return;
+    if (isFirstMount) isFirstMountRef.current = false;
+    if (!isFirstMount && !hasSentenceChanged) return;
 
     prevSentenceIdRef.current = sentenceId;
     prevSentenceStartRef.current = startTime;
     setIsSentenceEnded(false);
-
-    const targetStart = safeStart;
     setCurrentTime(startTime || 0);
     setLoopA(null);
     setLoopB(null);
     seekGraceUntilRef.current = Date.now() + 800;
-
-    // Reset loop counter for the new sentence
     repeatCounterRef.current = 1;
     setCurrentRepeat(1);
     setIsWaitingBetweenLoops(false);
@@ -676,55 +788,22 @@ export const ListeningMediaPlayer = forwardRef<
     if (isYouTube) {
       if (ytPlayerRef.current?.seekTo) {
         try {
-          ytPlayerRef.current.seekTo(targetStart, true);
+          ytPlayerRef.current.seekTo(safeStart, true);
           ytPlayerRef.current.playVideo();
           setIsPlaying(true);
-        } catch (e) {
-          console.warn('[!] YouTube auto-play error on sentence change:', e);
-        }
-
-        // Double ensure playVideo takes effect after seek
-        setTimeout(() => {
-          if (ytPlayerRef.current?.playVideo) {
-            try {
-              const state = ytPlayerRef.current.getPlayerState?.();
-              if (state !== 1 && state !== 3) {
-                ytPlayerRef.current.playVideo();
-                setIsPlaying(true);
-              }
-            } catch {}
-          }
-        }, 120);
-      } else {
-        pendingSeekAndPlayRef.current = { start: targetStart, autoPlay: true };
-      }
-    } else if (audioRef.current) {
-      const isDifferentAudio = audioUrl !== prevAudioUrlRef.current;
-      prevAudioUrlRef.current = audioUrl;
-
-      if (isDifferentAudio) {
-        pendingAudioUrlPlayRef.current = true;
-        if (audioRef.current.readyState >= 1) {
-          audioRef.current.currentTime = targetStart;
-          audioRef.current.playbackRate = playbackRate;
-          void audioRef.current
-            .play()
-            .then(() => {
-              setIsPlaying(true);
-              pendingAudioUrlPlayRef.current = false;
-            })
-            .catch((err) => console.warn('[!] Audio play error on url change:', err));
+        } catch (error) {
+          console.warn('[!] YouTube auto-play error on sentence change:', error);
         }
       } else {
-        audioRef.current.currentTime = targetStart;
-        audioRef.current.playbackRate = playbackRate;
-        void audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => console.warn('[!] Audio auto-play error on sentence change:', err));
+        pendingSeekAndPlayRef.current = { start: safeStart, autoPlay: true };
       }
+      return;
     }
-  }, [sentenceId, startTime, safeStart, isYouTube, playbackRate, audioUrl]);
+
+    if (audioUrl === prevAudioUrlRef.current) {
+      requestNativePlayback(safeStart, true);
+    }
+  }, [audioUrl, isYouTube, requestNativePlayback, safeStart, sentenceId, startTime]);
 
   // Sentence-level timeline calculations (showing sentence duration, not full 10-minute video)
   const sentenceDuration = useMemo(() => {
@@ -804,20 +883,19 @@ export const ListeningMediaPlayer = forwardRef<
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
+        setNativeMediaStatus('ready');
       } else {
         seekGraceUntilRef.current = Date.now() + 600;
-        if (stopThreshold && audioRef.current.currentTime >= stopThreshold) {
-          audioRef.current.currentTime = safeStart;
-        } else if (audioRef.current.currentTime < safeStart) {
-          audioRef.current.currentTime = safeStart;
-        }
-        audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch((err) => console.warn('[!] Audio play error:', err));
+        const current = audioRef.current.currentTime;
+        const target = stopThreshold && current >= stopThreshold
+          ? safeStart
+          : current < safeStart
+            ? safeStart
+            : current;
+        requestNativePlayback(target, true);
       }
     }
-  }, [isPlaying, isYouTube, safeStart, safeEnd, endTime, isSentenceEnded, restartCurrent]);
+  }, [endTime, isPlaying, isSentenceEnded, isYouTube, requestNativePlayback, restartCurrent, safeEnd, safeStart]);
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     setIsSentenceEnded(false);
@@ -840,12 +918,8 @@ export const ListeningMediaPlayer = forwardRef<
       ytPlayerRef.current.seekTo(wordStart, true);
       ytPlayerRef.current.playVideo();
       setIsPlaying(true);
-    } else if (audioRef.current) {
-      audioRef.current.currentTime = wordStart;
-      void audioRef.current
-        .play()
-        .then(() => setIsPlaying(true))
-        .catch((err) => console.warn('[!] Jump play error:', err));
+    } else {
+      requestNativePlayback(wordStart, true);
     }
   };
 
@@ -859,8 +933,8 @@ export const ListeningMediaPlayer = forwardRef<
       if (isYouTube && ytPlayerRef.current?.playVideo) {
         ytPlayerRef.current.playVideo();
         setIsPlaying(true);
-      } else if (audioRef.current) {
-        void audioRef.current.play().then(() => setIsPlaying(true));
+      } else {
+        requestNativePlayback(audioRef.current?.currentTime ?? safeStart, true);
       }
     },
     pause: () => {
@@ -895,20 +969,9 @@ export const ListeningMediaPlayer = forwardRef<
             setIsPlaying(false);
           } catch {}
         }, durationMs);
-      } else if (audioRef.current) {
-        audioRef.current.currentTime = paddedStart;
-        void audioRef.current
-          .play()
-          .then(() => {
-            setIsPlaying(true);
-            wordSegmentTimeoutRef.current = setTimeout(() => {
-              if (audioRef.current) {
-                audioRef.current.pause();
-                setIsPlaying(false);
-              }
-            }, durationMs);
-          })
-          .catch((err) => console.warn('[!] playSegment error:', err));
+      } else {
+        pendingWordSegmentRef.current = { end: paddedEnd };
+        requestNativePlayback(paddedStart, true);
       }
     },
   }));
@@ -1020,25 +1083,112 @@ export const ListeningMediaPlayer = forwardRef<
         <audio
           ref={audioRef}
           src={audioUrl}
-          preload="metadata"
-          onEnded={handleNativeAudioEnded}
-          onTimeUpdate={handleNativeAudioTimeUpdate}
+          preload="auto"
+          onLoadStart={() => {
+            setNativeMediaStatus('loading');
+            armNativeStallTimeout();
+          }}
           onLoadedMetadata={() => {
             if (audioRef.current) {
-              setDuration(audioRef.current.duration || 0);
-              if (pendingAudioUrlPlayRef.current) {
-                pendingAudioUrlPlayRef.current = false;
-                audioRef.current.currentTime = safeStart;
-                audioRef.current.playbackRate = playbackRate;
-                void audioRef.current
-                  .play()
-                  .then(() => setIsPlaying(true))
-                  .catch((err) => console.warn('[!] Audio play onLoadedMetadata error:', err));
-              }
+              setDuration(Number.isFinite(audioRef.current.duration) ? audioRef.current.duration : 0);
+            }
+            flushPendingNativePlayback();
+          }}
+          onCanPlay={() => {
+            clearNativeStallTimeout();
+            flushPendingNativePlayback();
+          }}
+          onPlaying={() => {
+            clearNativeStallTimeout();
+            setNativeMediaStatus('playing');
+            setIsPlaying(true);
+            const pendingSegment = pendingWordSegmentRef.current;
+            if (pendingSegment && audioRef.current) {
+              pendingWordSegmentRef.current = null;
+              if (wordSegmentTimeoutRef.current) clearTimeout(wordSegmentTimeoutRef.current);
+              const remainingMs = Math.max(
+                120,
+                ((pendingSegment.end - audioRef.current.currentTime) / playbackRate) * 1000,
+              );
+              wordSegmentTimeoutRef.current = setTimeout(() => {
+                if (audioRef.current) {
+                  audioRef.current.pause();
+                  setIsPlaying(false);
+                  setNativeMediaStatus('ready');
+                }
+              }, remainingMs);
             }
           }}
-          onError={(e) => console.warn('[!] Audio load error:', e)}
+          onPause={() => {
+            setIsPlaying(false);
+            setNativeMediaStatus((current) => {
+              if (current === 'error' || current === 'blocked' || current === 'loading' || current === 'stalled') {
+                return current;
+              }
+              return 'ready';
+            });
+          }}
+          onWaiting={() => {
+            setNativeMediaStatus('loading');
+            armNativeStallTimeout();
+          }}
+          onStalled={() => {
+            setNativeMediaStatus('stalled');
+            armNativeStallTimeout();
+          }}
+          onEmptied={() => setNativeMediaStatus('loading')}
+          onAbort={() => {
+            if (pendingNativePlaybackRef.current) setNativeMediaStatus('stalled');
+          }}
+          onEnded={handleNativeAudioEnded}
+          onTimeUpdate={handleNativeAudioTimeUpdate}
+          onError={() => {
+            clearNativeStallTimeout();
+            pendingNativePlaybackRef.current = null;
+            setIsPlaying(false);
+            setNativeMediaStatus('error');
+            console.warn('[!] Audio load error:', audioUrl);
+          }}
         />
+      )}
+
+      {!isYouTube && audioUrl && nativeMediaStatus !== 'idle' && nativeMediaStatus !== 'ready' && nativeMediaStatus !== 'playing' && (
+        <div
+          className={`mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs ${
+            nativeMediaStatus === 'error'
+              ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300'
+              : nativeMediaStatus === 'blocked'
+                ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                : 'border-line bg-surface-elevated text-content-muted'
+          }`}
+          role={nativeMediaStatus === 'error' ? 'alert' : 'status'}
+          aria-live="polite"
+        >
+          <span className="inline-flex items-center gap-2 font-semibold">
+            {nativeMediaStatus === 'loading' ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            ) : (
+              <AlertCircle className="size-4" aria-hidden="true" />
+            )}
+            {nativeMediaStatus === 'blocked'
+              ? (language === 'en' ? 'Autoplay was blocked. Select Play to start.' : 'Trình duyệt đã chặn tự phát. Hãy nhấn Phát để bắt đầu.')
+              : nativeMediaStatus === 'error'
+                ? (language === 'en' ? 'The audio could not be loaded.' : 'Không thể tải âm thanh của bài này.')
+                : nativeMediaStatus === 'stalled'
+                  ? (language === 'en' ? 'The connection paused while loading audio.' : 'Kết nối bị gián đoạn khi tải âm thanh.')
+                  : (language === 'en' ? 'Loading audio…' : 'Đang tải âm thanh…')}
+          </span>
+          {(nativeMediaStatus === 'error' || nativeMediaStatus === 'stalled') && (
+            <button
+              type="button"
+              onClick={retryNativeAudio}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-current/20 bg-surface px-2.5 py-1 font-bold text-content transition hover:bg-surface-hover"
+            >
+              <RefreshCw className="size-3.5" aria-hidden="true" />
+              {language === 'en' ? 'Retry audio' : 'Thử tải lại âm thanh'}
+            </button>
+          )}
+        </div>
       )}
 
       {/* Embedded YouTube Player: directly produces audio and video */}

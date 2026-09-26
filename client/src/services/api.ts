@@ -170,6 +170,8 @@ export const apiService = {
     return {
       section,
       items: Array.isArray(data.items) ? data.items : [],
+      translatedItems: Array.isArray(data.translated_items) ? data.translated_items : undefined,
+      translationProvider: data.translation_provider,
       aiSource: 'gemini',
     };
   },

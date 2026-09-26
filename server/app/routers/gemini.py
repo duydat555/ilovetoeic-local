@@ -52,6 +52,8 @@ async def translate_single(req: TranslationRequest, request: Request):
             detail=result.get("error", "Quá giới hạn tra từ mới. Vui lòng thử lại sau."),
             headers={"Retry-After": str(result.get("retry_after", 60))},
         )
+    if result.get("status_code") == 400:
+        raise HTTPException(status_code=400, detail=result.get("error", "Nội dung dịch không hợp lệ."))
     if result.get("cache_source") == "error":
         raise HTTPException(status_code=503, detail=result.get("error", "Dịch vụ Gemini tạm thời không khả dụng."))
     return result

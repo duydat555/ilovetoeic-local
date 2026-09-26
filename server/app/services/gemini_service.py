@@ -28,6 +28,7 @@ except ImportError:
 
 from app import config
 from app.db import db
+from app.services.translation.router import TranslationRouter
 
 
 class TranslationExample(BaseModel):
@@ -183,6 +184,7 @@ class GeminiTranslationService:
             cooldown_seconds=getattr(config, "CIRCUIT_BREAKER_COOLDOWN_SECONDS", 30),
         )
         self._local_rate_limits: Dict[str, List[float]] = {}
+        self.translation_router = TranslationRouter(self.get_redis)
         self.stats = {
             "total_requests": 0,
             "passage_cache_hits": 0,
@@ -452,6 +454,7 @@ class GeminiTranslationService:
                 pass
             self._flush_task = None
         await self.flush_all_buffered_writes()
+        await self.translation_router.close()
         if hasattr(self, "_redis_clients"):
             for client in list(self._redis_clients.values()):
                 try:
@@ -1224,7 +1227,25 @@ class GeminiTranslationService:
             asyncio.create_task(self._save_to_redis_cache(context_hash, res, ttl=7 * 86400))
             return res
 
-        # Tier 4: Gemini API fallback with Circuit Breaker, Rate Limiting & Request Coalescing
+        # Tier 4a: Optional machine-translation gateway for phrases/sentences only.
+        # Single-word dictionary lookups and /details keep the existing Gemini path.
+        if getattr(config, "TRANSLATION_MULTI_PROVIDER_ENABLED", False) and len(clean_text.split()) >= 2:
+            machine_result = await self.translation_router.translate(
+                text=clean_text,
+                source_language=src_lang,
+                target_language=target_lang,
+                text_hash=context_hash,
+            )
+            if machine_result.get("degraded"):
+                degraded = await self._degraded_fallback(clean_text)
+                degraded["degraded_reason"] = machine_result.get(
+                    "degraded_reason", "translation_capacity_exhausted"
+                )
+                degraded["translation_provider"] = "degraded"
+                return degraded
+            return machine_result
+
+        # Tier 4b: Gemini API fallback with Circuit Breaker, Rate Limiting & Request Coalescing
         # 1. Circuit Breaker Fast-Fail Check (<0.01ms)
         can_call, cb_state = await self.circuit_breaker.can_attempt()
         if not can_call:
@@ -1472,12 +1493,34 @@ class GeminiTranslationService:
         # L0 memory cache check
         memory_result = self._get_from_memory_cache(text_hash) or self._get_from_memory_cache(word_only_hash)
         if memory_result:
+            if (
+                getattr(config, "TRANSLATION_MULTI_PROVIDER_ENABLED", False)
+                and memory_result.get("translation_provider") not in ("deepl", "deepl_partial")
+            ):
+                memory_result = await self.translation_router.enrich_dictionary_detail(
+                    section, memory_result
+                )
+                self._save_to_memory_cache(text_hash, memory_result)
+                self._save_to_memory_cache(word_only_hash, memory_result)
+                asyncio.create_task(
+                    self._save_to_redis_cache(word_only_hash, memory_result, ttl=30 * 86400)
+                )
             return memory_result
 
         # L1 Redis shared cache check
         redis_result = await self._get_from_redis_cache(text_hash) or await self._get_from_redis_cache(word_only_hash)
         if redis_result:
             self.stats["redis_hit_count"] += 1
+            if (
+                getattr(config, "TRANSLATION_MULTI_PROVIDER_ENABLED", False)
+                and redis_result.get("translation_provider") not in ("deepl", "deepl_partial")
+            ):
+                redis_result = await self.translation_router.enrich_dictionary_detail(
+                    section, redis_result
+                )
+                asyncio.create_task(
+                    self._save_to_redis_cache(word_only_hash, redis_result, ttl=30 * 86400)
+                )
             self._save_to_memory_cache(text_hash, redis_result)
             self._save_to_memory_cache(word_only_hash, redis_result)
             return {
@@ -1491,6 +1534,9 @@ class GeminiTranslationService:
         if system_detail:
             self.stats["direct_system_hits"] += 1
             self.stats["system_vocabulary_hits"] += 1
+            system_detail = await self.translation_router.enrich_dictionary_detail(
+                section, system_detail
+            )
             self._save_to_memory_cache(text_hash, system_detail)
             self._save_to_memory_cache(word_only_hash, system_detail)
             asyncio.create_task(self._save_to_redis_cache(text_hash, system_detail, ttl=7 * 86400))
@@ -1567,6 +1613,7 @@ class GeminiTranslationService:
                 "cached": False,
                 "cache_source": "gemini_api",
             })
+            res = await self.translation_router.enrich_dictionary_detail(section, res)
             self._save_to_memory_cache(text_hash, res)
             self._save_to_memory_cache(word_only_hash, res)
             asyncio.create_task(self._save_to_redis_cache(text_hash, res, ttl=30 * 86400))
@@ -1591,6 +1638,8 @@ class GeminiTranslationService:
             return f"Model Gemini '{config.GEMINI_MODEL}' không khả dụng với API key hiện tại."
         if "response_schema" in message or "response schema" in message or "json schema" in message:
             return "Phiên bản google-genai trên máy chủ không tương thích structured output. Hãy cập nhật dependencies."
+        if status == 503 or "unavailable" in message or "high demand" in message:
+            return "Gemini đang quá tải tạm thời. Vui lòng thử lại sau."
         if "timeout" in message or "timed out" in message:
             return "Gemini phản hồi quá chậm. Vui lòng thử lại."
         return "Gemini gặp lỗi khi phân tích từ. Chi tiết đã được ghi trong /api/v1/translate/cache-stats."
@@ -1841,6 +1890,7 @@ Keep every item concise and accurate for a Vietnamese learner.
         except Exception:
             pass
 
+        translation_telemetry = self.translation_router.get_telemetry()
         return {
             "metrics": self.stats,
             "hit_rate_percent": round((local_hits / total) * 100, 2) if total else 0.0,
@@ -1858,6 +1908,19 @@ Keep every item concise and accurate for a Vietnamese learner.
                 "consecutive_failures": self.circuit_breaker.consecutive_failures,
                 "cooldown_until": self.circuit_breaker.cooldown_until,
             },
+            "gemini_dictionary_lookup": {
+                "api_calls": self.stats.get("gemini_api_calls", 0),
+                "errors": self.stats.get("errors", 0),
+                "circuit_rejections": self.stats.get("circuit_breaker_rejections", 0),
+                "rate_limit_rejections": self.stats.get("rate_limit_rejections", 0),
+                "circuit_breaker": {
+                    "state": self.circuit_breaker.state,
+                    "consecutive_failures": self.circuit_breaker.consecutive_failures,
+                    "cooldown_until": self.circuit_breaker.cooldown_until,
+                },
+            },
+            "gemini_translation_overflow": translation_telemetry.get("gemini_overflow", {}),
+            "translation_providers": translation_telemetry,
             "rate_limit_per_minute": getattr(config, "GEMINI_RATE_LIMIT_PER_MINUTE", 30),
             "word_inflections_count": inflections_count,
             "community_translations_count": community_count,

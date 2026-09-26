@@ -13,7 +13,7 @@ import {
 } from '../../services/vocabulary';
 import {
   AiSource, DictionaryCollocation, DictionaryDetailResult, DictionaryDetailSection,
-  DictionaryExample, DictionaryWordFamily, WordTranslation,
+  DictionaryExample, DictionarySynonym, DictionaryWordFamily, WordTranslation,
 } from '../../types';
 
 interface Position {
@@ -617,12 +617,15 @@ export const SelectionTranslator: React.FC = () => {
     }
 
     if (activeDetail.section === 'synonyms') {
+      const translatedByWord = new Map(
+        (activeDetail.translatedItems || []).map((item: DictionarySynonym) => [item.word, item.meaningVi]),
+      );
       return (
         <div>
           <p className="mb-3 text-xs leading-relaxed text-slate-500 dark:text-content-muted">
             Chọn một từ để tra tiếp ngay trong cửa sổ này.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {(activeDetail.items as string[]).map((synonym) => (
               <button
                 key={synonym}
@@ -630,9 +633,14 @@ export const SelectionTranslator: React.FC = () => {
                   const cached = dictionaryService.getCachedWord(synonym);
                   void lookupWord(synonym, contextRef.current, cached);
                 }}
-                className="rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1.5 text-xs font-semibold text-brand-700 transition hover:-translate-y-0.5 hover:bg-brand-100 dark:border-brand-900 dark:bg-brand-500/10 dark:text-brand-200 dark:hover:bg-brand-500/20"
+                className="rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-left transition hover:-translate-y-0.5 hover:bg-brand-100 dark:border-brand-900 dark:bg-brand-500/10 dark:hover:bg-brand-500/20"
               >
-                {synonym}
+                <strong className="block text-xs text-brand-700 dark:text-brand-200">{synonym}</strong>
+                {translatedByWord.get(synonym) && (
+                  <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-content-muted">
+                    {translatedByWord.get(synonym)}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -653,7 +661,12 @@ export const SelectionTranslator: React.FC = () => {
           >
             <span>
               <strong className="block text-sm text-slate-900 dark:text-content">{item.word}</strong>
-              <span className="text-[11px] text-slate-400">{item.phonetic}</span>
+              {item.meaningVi && (
+                <span className="mt-0.5 block text-[11px] font-medium text-slate-500 dark:text-content-muted">
+                  {item.meaningVi}
+                </span>
+              )}
+              <span className="block text-[11px] text-slate-400">{item.phonetic}</span>
             </span>
             <span className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-500 dark:bg-surface-elevated dark:text-content-muted">
               {item.partOfSpeech}

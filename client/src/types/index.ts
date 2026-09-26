@@ -350,15 +350,23 @@ export interface DictionaryExample {
   context?: string;
 }
 
+export interface DictionarySynonym {
+  word: string;
+  meaningVi: string;
+}
+
 export interface DictionaryWordFamily {
   word: string;
   partOfSpeech: string;
   phonetic: string;
+  meaningVi?: string;
 }
 
 export interface DictionaryDetailResult {
   section: DictionaryDetailSection;
   items: Array<DictionaryCollocation | DictionaryExample | DictionaryWordFamily | string>;
+  translatedItems?: DictionarySynonym[];
+  translationProvider?: string;
   aiSource: AiSource;
 }
 

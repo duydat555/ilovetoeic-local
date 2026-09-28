@@ -228,45 +228,140 @@ PART_METADATA = {
 
 
 def get_user_skills_radar(user_id: str) -> Dict[str, Any]:
-    """Calculates accuracy and mastery across TOEIC Parts 1-7 for Spider/Radar Chart."""
+    """Calculate Part 1-7 mastery without hiding legacy attempt history.
+
+    Per-question activity and completed attempts overlap during the gradual rollout.
+    Merge them by (attempt_id, question_id) rather than switching sources at an
+    arbitrary activity-count threshold.
+    """
     import json
 
-    # 1. Query user_question_activity (using idx_question_activity_user_part_date)
-    rows = db.fetch_all(
+    activity_rows = db.fetch_all(
         """
-        SELECT part, COUNT(*) AS total_count, COALESCE(SUM(is_correct), 0) AS correct_count
+        SELECT attempt_id, question_id, part, is_correct
         FROM user_question_activity
         WHERE user_id = ? AND part BETWEEN 1 AND 7
-        GROUP BY part
         """,
         (user_id,),
         use_cache=False,
     )
+    stats_by_part: Dict[int, Dict[str, int]] = {}
+    synced_questions_by_attempt = {}
+    synced_stats_by_attempt_part = {}
+    for row in activity_rows or []:
+        part = int(row["part"])
+        is_correct = int(bool(row.get("is_correct")))
+        stats = stats_by_part.setdefault(part, {"total": 0, "correct": 0})
+        stats["total"] += 1
+        stats["correct"] += is_correct
+        attempt_id = str(row["attempt_id"])
+        synced_questions_by_attempt.setdefault(attempt_id, set()).add(str(row["question_id"]))
+        synced_stats = synced_stats_by_attempt_part.setdefault(attempt_id, {}).setdefault(
+            part, {"total": 0, "correct": 0}
+        )
+        synced_stats["total"] += 1
+        synced_stats["correct"] += is_correct
 
-    stats_by_part = {
-        int(r["part"]): {"total": int(r["total_count"]), "correct": int(r["correct_count"])}
-        for r in (rows or [])
-    }
+    attempts = db.fetch_all(
+        """
+        SELECT id, part, answered_questions, correct_answers, answers,
+               question_ids, metadata
+        FROM test_attempts
+        WHERE user_id = ?
+        """,
+        (user_id,),
+        use_cache=False,
+    )
+    parsed_attempts = []
+    missing_question_ids = set()
+    for attempt in attempts or []:
+        attempt_id = str(attempt.get("id") or "")
+        synced_ids = synced_questions_by_attempt.get(attempt_id, set())
+        raw_answers = attempt.get("answers")
+        raw_question_ids = attempt.get("question_ids")
+        try:
+            answers = json.loads(raw_answers) if isinstance(raw_answers, str) else (raw_answers or {})
+        except (TypeError, ValueError):
+            answers = {}
+        try:
+            question_ids = json.loads(raw_question_ids) if isinstance(raw_question_ids, str) else (raw_question_ids or [])
+        except (TypeError, ValueError):
+            question_ids = []
 
-    # 2. If user_question_activity has few entries, complement from test_attempts metadata
-    total_q_count = sum(s["total"] for s in stats_by_part.values())
-    if total_q_count < 10:
-        attempts = db.fetch_all(
-            "SELECT metadata FROM test_attempts WHERE user_id = ? ORDER BY completed_at DESC LIMIT 10",
-            (user_id,),
+        countable_ids = [
+            str(question_id)
+            for question_id in question_ids
+            if str(question_id) not in synced_ids
+            and str(answers.get(str(question_id)) or "").strip()
+        ]
+        missing_question_ids.update(countable_ids)
+        parsed_attempts.append((attempt, answers, countable_ids, attempt_id))
+
+    question_lookup = {}
+    question_id_list = list(missing_question_ids)
+    for offset in range(0, len(question_id_list), 500):
+        chunk = question_id_list[offset:offset + 500]
+        placeholders = ", ".join("?" for _ in chunk)
+        question_rows = db.fetch_all(
+            f"SELECT id, part, correct_answer FROM questions WHERE id IN ({placeholders})",
+            tuple(chunk),
             use_cache=False,
         )
-        for att in (attempts or []):
-            raw_meta = att.get("metadata")
-            if not raw_meta:
+        question_lookup.update({str(row["id"]): row for row in question_rows})
+
+    for attempt, answers, countable_ids, attempt_id in parsed_attempts:
+        mapped_count = 0
+        for question_id in countable_ids:
+            question = question_lookup.get(question_id)
+            if not question:
                 continue
-            meta = json.loads(raw_meta) if isinstance(raw_meta, str) else raw_meta
-            for ps in meta.get("partStats", []):
-                p = ps.get("part")
-                if p and 1 <= p <= 7:
-                    stats_by_part.setdefault(p, {"total": 0, "correct": 0})
-                    stats_by_part[p]["total"] += int(ps.get("total") or 0)
-                    stats_by_part[p]["correct"] += int(ps.get("correct") or 0)
+            part = int(question.get("part") or 0)
+            if not 1 <= part <= 7:
+                continue
+            selected = str(answers.get(question_id) or "").strip().upper()
+            correct = str(question.get("correct_answer") or "").strip().upper()
+            stats = stats_by_part.setdefault(part, {"total": 0, "correct": 0})
+            stats["total"] += 1
+            stats["correct"] += int(bool(selected) and selected == correct)
+            mapped_count += 1
+
+        if mapped_count:
+            continue
+
+        # Backward compatibility for legacy attempts that predate answer/question
+        # snapshots. Metadata is exact by Part when available; a single-Part row
+        # can safely fall back to its materialized counters.
+        raw_meta = attempt.get("metadata")
+        try:
+            metadata = json.loads(raw_meta) if isinstance(raw_meta, str) else (raw_meta or {})
+        except (TypeError, ValueError):
+            metadata = {}
+        part_stats = metadata.get("partStats") if isinstance(metadata, dict) else None
+        synced_part_stats = synced_stats_by_attempt_part.get(attempt_id, {})
+        if isinstance(part_stats, list) and part_stats:
+            for item in part_stats:
+                part = int(item.get("part") or 0)
+                if not 1 <= part <= 7:
+                    continue
+                legacy_total = max(0, int(item.get("answered") or item.get("total") or 0))
+                legacy_correct = max(0, int(item.get("correct") or 0))
+                already_synced = synced_part_stats.get(part, {"total": 0, "correct": 0})
+                remaining_total = max(0, legacy_total - already_synced["total"])
+                remaining_correct = max(0, legacy_correct - already_synced["correct"])
+                stats = stats_by_part.setdefault(part, {"total": 0, "correct": 0})
+                stats["total"] += remaining_total
+                stats["correct"] += min(remaining_correct, remaining_total)
+        elif attempt.get("part") is not None:
+            part = int(attempt["part"])
+            if 1 <= part <= 7:
+                legacy_total = max(0, int(attempt.get("answered_questions") or 0))
+                legacy_correct = max(0, int(attempt.get("correct_answers") or 0))
+                already_synced = synced_part_stats.get(part, {"total": 0, "correct": 0})
+                remaining_total = max(0, legacy_total - already_synced["total"])
+                remaining_correct = max(0, legacy_correct - already_synced["correct"])
+                stats = stats_by_part.setdefault(part, {"total": 0, "correct": 0})
+                stats["total"] += remaining_total
+                stats["correct"] += min(remaining_correct, remaining_total)
 
     radar_data = []
     listening_correct = 0

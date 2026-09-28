@@ -168,6 +168,10 @@ class VocabularyPayload(BaseModel):
     createdAt: Optional[str] = None
 
 
+class VocabularyBatchPayload(BaseModel):
+    items: List[VocabularyPayload] = Field(min_length=1, max_length=20)
+
+
 class TopicOverridePayload(BaseModel):
     wordKey: str = Field(min_length=1, max_length=255)
     topicId: str = Field(min_length=1, max_length=100)
@@ -1718,6 +1722,94 @@ def get_vocabulary(user=Depends(get_current_user)):
         if row.get("created_at"):
             row["created_at"] = row["created_at"].isoformat()
     return {"data": rows}
+
+
+@router.put("/vocabulary/batch")
+def save_vocabulary_batch(
+    payload: VocabularyBatchPayload,
+    user=Depends(get_current_user),
+):
+    unique_items: List[VocabularyPayload] = []
+    seen_words = set()
+    for item in payload.items:
+        normalized_word = " ".join(item.word.strip().split()).lower()
+        if normalized_word in seen_words:
+            continue
+        seen_words.add(normalized_word)
+        unique_items.append(item)
+
+    values = []
+    for item in unique_items:
+        created_at = parse_datetime(item.createdAt) if item.createdAt else datetime.utcnow()
+        values.append((
+            item.id,
+            user["id"],
+            " ".join(item.word.strip().split()),
+            item.phonetic,
+            item.partOfSpeech,
+            item.meaningVi,
+            item.definitionEn,
+            item.exampleEn,
+            item.exampleVi,
+            json.dumps(item.synonyms, ensure_ascii=False),
+            item.personalNote,
+            item.aiSource,
+            item.topicId,
+            item.topicName,
+            item.difficulty,
+            int(item.remembered),
+            int(item.bookmarked),
+            created_at,
+        ))
+
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                """
+                INSERT INTO user_vocabulary (
+                    id, user_id, word, phonetic, part_of_speech, meaning_vi, definition_en,
+                    example_en, example_vi, synonyms, personal_note, ai_source, topic_id,
+                    topic_name, difficulty, remembered, bookmarked, created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    id = VALUES(id), phonetic = VALUES(phonetic),
+                    part_of_speech = VALUES(part_of_speech), meaning_vi = VALUES(meaning_vi),
+                    definition_en = VALUES(definition_en), example_en = VALUES(example_en),
+                    example_vi = VALUES(example_vi), synonyms = VALUES(synonyms),
+                    personal_note = VALUES(personal_note), ai_source = VALUES(ai_source),
+                    topic_id = VALUES(topic_id), topic_name = VALUES(topic_name),
+                    difficulty = VALUES(difficulty), remembered = VALUES(remembered),
+                    bookmarked = VALUES(bookmarked)
+                """,
+                values,
+            )
+            override_values = [
+                (
+                    user["id"],
+                    " ".join(item.word.strip().split()).lower(),
+                    item.topicId,
+                    item.topicName,
+                )
+                for item in unique_items
+                if item.topicId != "ai"
+            ]
+            if override_values:
+                cursor.executemany(
+                    """
+                    INSERT INTO user_vocabulary_topic_overrides (
+                        user_id, word_key, topic_id, topic_name
+                    ) VALUES (%s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        topic_id = VALUES(topic_id), topic_name = VALUES(topic_name)
+                    """,
+                    override_values,
+                )
+
+    return {
+        "success": True,
+        "syncedCount": len(unique_items),
+        "duplicateInputCount": len(payload.items) - len(unique_items),
+    }
 
 
 @router.put("/vocabulary/{word_id}")

@@ -225,6 +225,78 @@ export const vocabularyService = {
     return { word, isDuplicate: false, cloudSynced };
   },
 
+  async addMany(
+    userId: string,
+    translations: WordTranslation[],
+    personalNote = '',
+    topic: VocabularyTopicSelection = DEFAULT_TOPIC,
+  ) {
+    const existing = readLocal(userId);
+    const existingByKey = new Map(
+      existing.map((word) => [word.word.trim().toLocaleLowerCase('en'), word]),
+    );
+    const seenInput = new Set<string>();
+    const wordsToSync: VocabularyWord[] = [];
+    let added = 0;
+    let duplicates = 0;
+
+    for (const translation of translations) {
+      const key = translation.sourceText.trim().toLocaleLowerCase('en');
+      if (!key || seenInput.has(key)) continue;
+      seenInput.add(key);
+
+      const duplicate = existingByKey.get(key);
+      if (duplicate) {
+        duplicates += 1;
+        const updated: VocabularyWord = {
+          ...duplicate,
+          phonetic: translation.phonetic || duplicate.phonetic,
+          partOfSpeech: translation.partOfSpeech || duplicate.partOfSpeech,
+          meaningVi: translation.translatedText || duplicate.meaningVi,
+          definitionEn: translation.definitionEn || duplicate.definitionEn,
+          exampleEn: translation.examples[0]?.en || duplicate.exampleEn,
+          exampleVi: translation.examples[0]?.vi || duplicate.exampleVi,
+          synonyms: translation.synonyms.length ? translation.synonyms : duplicate.synonyms,
+          ...(personalNote.trim() ? { personalNote: personalNote.trim() } : {}),
+          topicId: topic.id,
+          topicName: topic.name,
+        };
+        existingByKey.set(key, updated);
+        wordsToSync.push(updated);
+      } else {
+        added += 1;
+        const word = fromTranslation(translation, personalNote, topic);
+        existingByKey.set(key, word);
+        wordsToSync.push(word);
+      }
+    }
+
+    const touchedIds = new Set(wordsToSync.map((word) => word.id));
+    const untouched = existing.filter((word) => !touchedIds.has(word.id));
+    writeLocal(userId, [...wordsToSync.slice().reverse(), ...untouched]);
+
+    if (topic.id !== DEFAULT_TOPIC.id) {
+      const overrides = { ...readTopicOverrides(userId) };
+      wordsToSync.forEach((word) => {
+        overrides[word.word.trim().toLocaleLowerCase('en')] = {
+          topicId: topic.id,
+          topicName: topic.name,
+        };
+      });
+      writeTopicOverrides(userId, overrides, false);
+    }
+
+    const response = await backendService.addVocabularyWords(userId, wordsToSync);
+    const cloudSynced = Boolean(response?.success && response.syncedCount === wordsToSync.length);
+    return {
+      words: wordsToSync,
+      added,
+      duplicates,
+      cloudSynced,
+      failed: cloudSynced ? 0 : wordsToSync.length,
+    };
+  },
+
   async update(userId: string, id: string, changes: Partial<VocabularyWord>) {
     const updated = readLocal(userId).map((word) => word.id === id ? { ...word, ...changes } : word);
     writeLocal(userId, updated);

@@ -695,7 +695,6 @@ export const TopicListPage: React.FC = () => {
             topics={vocabularyTopicService.getTopics(user.id)}
             onClose={() => setAddWordModalOpen(false)}
             onWordAdded={() => {
-              setAddWordModalOpen(false);
               void load();
             }}
           />

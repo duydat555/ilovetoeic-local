@@ -757,6 +757,23 @@ export const backendService = {
     }
   },
 
+  async addVocabularyWords(_userId: string, words: VocabularyWord[]) {
+    try {
+      const response = await authFetch<{
+        success: boolean;
+        syncedCount: number;
+        duplicateInputCount: number;
+      }>('/vocabulary/batch', {
+        method: 'PUT',
+        body: JSON.stringify({ items: words }),
+      });
+      return response;
+    } catch (error) {
+      console.warn('[!] Danh sách từ đã lưu trên thiết bị nhưng chưa đồng bộ được lên MySQL:', error);
+      return null;
+    }
+  },
+
   async deleteVocabularyWord(_userId: string, wordId: string) {
     try {
       await authFetch(`/vocabulary/${encodeURIComponent(wordId)}`, {

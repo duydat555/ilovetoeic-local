@@ -1109,27 +1109,40 @@ def delete_study_attempts(
                         (user_id, test_id),
                     )
 
-            # Keep the user's TOEIC goal score consistent when their best full
-            # attempt belongs to the test whose history was removed.
+            # Recompute materialized totals from the surviving authoritative rows.
+            # This handles both submitted-attempt activity and in-progress activity
+            # removed by the scope cleanup without fragile delta bookkeeping.
             cursor.execute(
                 """
                 UPDATE users
-                SET current_score = COALESCE((
-                    SELECT MAX(total_score)
-                    FROM test_attempts
-                    WHERE user_id = %s
-                      AND mode = 'exam'
-                      AND total_questions = 200
-                      AND answered_questions = 200
-                      AND part IS NULL
-                      AND COALESCE(
-                          JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
-                          'false'
-                      ) <> 'true'
-                ), 0)
+                SET total_questions_answered = (
+                        SELECT COUNT(*) FROM user_question_activity WHERE user_id = %s
+                    ) + (
+                        SELECT COUNT(*) FROM user_grammar_question_activity WHERE user_id = %s
+                    ),
+                    total_correct_answers = (
+                        SELECT COALESCE(SUM(is_correct), 0)
+                        FROM user_question_activity WHERE user_id = %s
+                    ) + (
+                        SELECT COALESCE(SUM(is_correct), 0)
+                        FROM user_grammar_question_activity WHERE user_id = %s
+                    ),
+                    current_score = COALESCE((
+                        SELECT MAX(total_score)
+                        FROM test_attempts
+                        WHERE user_id = %s
+                          AND mode = 'exam'
+                          AND total_questions = 200
+                          AND answered_questions = 200
+                          AND part IS NULL
+                          AND COALESCE(
+                              JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.is_partial')),
+                              'false'
+                          ) <> 'true'
+                    ), 0)
                 WHERE id = %s
                 """,
-                (user_id, user_id),
+                (user_id, user_id, user_id, user_id, user_id, user_id),
             )
 
             # If level attempts or all attempts were deleted, refresh user_level_stats

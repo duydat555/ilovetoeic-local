@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   History,
+  PlayCircle,
   RotateCcw,
   Trash2,
   Trophy,
@@ -34,6 +35,7 @@ export interface ResultsHeaderProps {
   onRetake?: () => void;
   onViewHistory?: () => void;
   onDeleteAttempt?: () => void;
+  onPracticeWrong?: () => void;
 }
 
 /**
@@ -289,10 +291,12 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
   listeningScore = 0,
   readingScore = 0,
   correctAnswers,
+  wrongAnswers,
   totalQuestions,
   onRetake,
   onViewHistory,
   onDeleteAttempt,
+  onPracticeWrong,
 }) => {
   const navigate = useNavigate();
   const displayName = formatTestDisplayName(testTitle, testName, testYear);
@@ -327,17 +331,7 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
     : accuracyRate;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-amber-500/20 bg-gradient-to-br from-amber-500/[0.08] via-surface to-amber-500/[0.03] p-6 sm:p-8 shadow-xs">
-      {/* Vệt sáng ấm tinh tế ở góc nền (Ambient Glow) */}
-      <div
-        className="pointer-events-none absolute -right-16 -top-16 size-80 rounded-full bg-amber-500/10 blur-3xl"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute -left-16 -bottom-16 size-64 rounded-full bg-amber-400/5 blur-2xl"
-        aria-hidden="true"
-      />
-
+    <div className="relative overflow-hidden rounded-3xl border border-line bg-surface p-6 sm:p-8 shadow-xs">
       <div className="relative z-10 space-y-6">
         {/* Hàng 1: Thanh trạng thái & Nút thao tác nhanh */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-line/60 pb-5">
@@ -363,8 +357,8 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
             </span>
           </div>
 
-          {/* Cụm nút hành động: Làm lại đề này / Xem các lần làm bài / Xoá lượt làm này */}
-          <div className="flex items-center gap-2">
+          {/* Cụm nút hành động */}
+          <div className="flex flex-wrap items-center gap-2">
             {onDeleteAttempt && (
               <button
                 type="button"
@@ -389,11 +383,22 @@ export const ResultsHeader: React.FC<ResultsHeaderProps> = ({
             <button
               type="button"
               onClick={handleRetakeClick}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-black text-brand-ink shadow-2xs transition hover:bg-accent-hover hover:shadow-xs"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 py-2 text-xs font-bold text-content transition hover:bg-surface-hover hover:border-amber-400/50 shadow-2xs"
             >
-              <RotateCcw className="size-3.5" />
+              <RotateCcw className="size-3.5 text-content-muted" />
               <span>Làm lại bài này</span>
             </button>
+
+            {wrongAnswers !== undefined && wrongAnswers > 0 && onPracticeWrong && (
+              <button
+                type="button"
+                onClick={onPracticeWrong}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-accent px-4 py-2 text-xs font-black text-brand-ink shadow-2xs transition hover:bg-accent-hover hover:shadow-xs"
+              >
+                <PlayCircle className="size-3.5" />
+                <span>Luyện {wrongAnswers} câu sai</span>
+              </button>
+            )}
           </div>
         </div>
 

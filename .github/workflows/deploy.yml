@@ -12,7 +12,9 @@ concurrency:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Pin the runner so GitHub's ubuntu-latest migration cannot change the
+    # production deployment environment without an explicit review.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:

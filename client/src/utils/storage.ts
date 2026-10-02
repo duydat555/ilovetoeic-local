@@ -86,6 +86,24 @@ export const storage = {
     }
   },
 
+  clearExamDraftsForTest(testId: string) {
+    const prefix = `${KEYS.EXAM_DRAFT}${String(testId).trim()}`;
+    let deleted = 0;
+    try {
+      const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+        .filter((key): key is string => Boolean(key));
+      keys.forEach((key) => {
+        if (key === prefix || key.startsWith(`${prefix}:`)) {
+          localStorage.removeItem(key);
+          deleted += 1;
+        }
+      });
+    } catch (e) {
+      console.warn('[!] Failed to clear test exam drafts', e);
+    }
+    return deleted;
+  },
+
   // Save completed test result history
   saveTestResult(result: TestResultData) {
     try {
@@ -147,6 +165,23 @@ export const storage = {
     } catch (e) {
       console.warn('[!] Failed to clear all test history', e);
     }
+  },
+
+  clearAllExamDrafts() {
+    let deleted = 0;
+    try {
+      const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
+        .filter((key): key is string => Boolean(key));
+      keys.forEach((key) => {
+        if (key.startsWith(KEYS.EXAM_DRAFT)) {
+          localStorage.removeItem(key);
+          deleted += 1;
+        }
+      });
+    } catch (e) {
+      console.warn('[!] Failed to clear all exam drafts', e);
+    }
+    return deleted;
   },
 
   getStudyStreak(

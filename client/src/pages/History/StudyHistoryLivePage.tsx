@@ -131,12 +131,10 @@ export const StudyHistoryLivePage: React.FC = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      storage.deleteSingleAttempt(deleteTarget.id);
-      try {
+      if (user) {
         await backendService.deleteSingleStudyAttempt(deleteTarget.id);
-      } catch (serverErr) {
-        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
       }
+      storage.deleteSingleAttempt(deleteTarget.id);
       setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       setDeleteTarget(null);
       window.dispatchEvent(new CustomEvent('wrong-questions-updated'));

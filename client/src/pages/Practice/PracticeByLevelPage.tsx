@@ -268,40 +268,19 @@ export const PracticeByLevelPage: React.FC = () => {
     setDeletingWrong(true);
     setDeleteError('');
     try {
-      // 1. Luôn dọn dẹp phiên làm bài local trước
-      deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
-
-      // 2. Gửi lệnh xoá lên database
       let serverDeleted = 0;
-      let wrongDeleted = 0;
-
-      try {
+      if (user) {
         const historyResult = await backendService.deleteLevelStudyHistory(
           deleteScope.part,
           deleteScope.level,
         );
         serverDeleted = historyResult?.deletedCount || 0;
-      } catch (err) {
-        console.warn('[!] Không thể xoá lịch sử level từ server:', err);
       }
 
-      try {
-        const wrongResult = await backendService.deleteWrongQuestions('level', {
-          part: deleteScope.part,
-          level: deleteScope.level,
-        });
-        wrongDeleted = wrongResult?.deletedCount || 0;
-      } catch (err) {
-        console.warn('[!] Không thể xoá câu sai level từ server:', err);
-      }
+      // Dọn dẹp phiên làm bài local sau khi lệnh server thành công
+      deleteLevelPracticeSessions(deleteScope.part, deleteScope.level);
 
-      try {
-        await backendService.deletePracticeSessionsForLevel(deleteScope.part, deleteScope.level);
-      } catch (err) {
-        console.warn('[!] Không thể xoá phiên level từ server:', err);
-      }
-
-      // 3. Cập nhật state UI và đóng modal
+      // Cập nhật state UI và đóng modal
       const key = `${deleteScope.part}:${deleteScope.level}`;
       setAttempts((current) => current.filter((attempt) => {
         const parsed = getLevelAttempt(attempt);
@@ -317,10 +296,10 @@ export const PracticeByLevelPage: React.FC = () => {
       setWrongCounts((current) => ({ ...current, [key]: 0 }));
       const totalDeleted = Math.max(serverDeleted, deleteScope.displayCount || deleteScope.attemptCount || 0);
       setToastMessage(
-        totalDeleted > 0 || wrongDeleted > 0
+        totalDeleted > 0
           ? (language === 'en'
-            ? `Deleted ${totalDeleted} attempt(s) and ${wrongDeleted} wrong question(s) of ${deleteScope.label}.`
-            : `Đã xoá ${totalDeleted} lượt làm và ${wrongDeleted} câu sai của ${deleteScope.label}.`)
+            ? `Deleted ${totalDeleted} attempt(s) and related data of ${deleteScope.label}.`
+            : `Đã xoá ${totalDeleted} lượt làm và dữ liệu liên quan của ${deleteScope.label}.`)
           : (language === 'en'
             ? `Cleaned up practice data of ${deleteScope.label}.`
             : `Đã dọn sạch dữ liệu luyện tập của ${deleteScope.label}.`),

@@ -103,6 +103,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkDeleteError, setBulkDeleteError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const historyRequestGeneration = React.useRef(0);
 
   // Lock scroll & handle Escape key for modals (modal motion contract)
   useEffect(() => {
@@ -162,6 +163,7 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
 
   // Load study history: kết hợp dữ liệu từ database và local storage
   const loadHistory = async (isSilent = false) => {
+    const generation = ++historyRequestGeneration.current;
     if (!isSilent && attempts.length === 0) {
       setLoading(true);
     }
@@ -223,11 +225,11 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
       const merged = Array.from(attemptMap.values()).sort(
         (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime(),
       );
-      setAttempts(merged);
+      if (generation === historyRequestGeneration.current) setAttempts(merged);
     } catch {
-      setError('Lỗi khi tải lịch sử làm bài.');
+      if (generation === historyRequestGeneration.current) setError('Lỗi khi tải lịch sử làm bài.');
     } finally {
-      setLoading(false);
+      if (generation === historyRequestGeneration.current) setLoading(false);
     }
   };
 
@@ -251,17 +253,11 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
     setDeleting(true);
     setDeleteError('');
     try {
-      // 1. Xoá ở local storage ngay lập tức
+      if (userId) await backendService.deleteSingleStudyAttempt(deleteTarget.id);
+      historyRequestGeneration.current += 1;
       storage.deleteSingleAttempt(deleteTarget.id);
 
-      // 2. Đồng bộ xoá trên server (không chặn UI nếu server đã xoá hoặc offline)
-      try {
-        await backendService.deleteSingleStudyAttempt(deleteTarget.id);
-      } catch (serverErr) {
-        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
-      }
-
-      // 3. Cập nhật state UI
+      // Cập nhật state UI only after the authoritative server confirms deletion.
       setAttempts((prev) => prev.filter((a) => a.id !== deleteTarget.id));
       setToastMessage('Đã xoá lượt làm bài thành công.');
       setDeleteTarget(null);
@@ -282,31 +278,17 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
       if (bulkDeleteTarget.type === 'test' && bulkDeleteTarget.testId) {
         const tId = String(bulkDeleteTarget.testId).trim().toLowerCase();
 
-        // 1. Xoá sạch local storage & draft
+        const res = userId
+          ? await backendService.deleteTestStudyHistory(tId)
+          : { success: true, deletedCount: 0 };
+        const serverDeleted = res?.deletedCount || 0;
+        historyRequestGeneration.current += 1;
+
+        // Clear local mirrors after the server transaction succeeds. The backend
+        // collection delete already handles wrong questions and practice sessions.
         const localDeleted = storage.deleteTestHistory(tId);
-        storage.clearExamDraft(tId);
+        storage.clearExamDraftsForTest(tId);
         deleteTestPracticeSessions(tId);
-
-        // 2. Gửi lệnh xoá lên database
-        let serverDeleted = 0;
-        try {
-          const res = await backendService.deleteTestStudyHistory(tId);
-          serverDeleted = res?.deletedCount || 0;
-        } catch (err) {
-          console.warn('[!] Không thể xoá đề từ database:', err);
-        }
-
-        try {
-          await backendService.deleteWrongQuestions('test', { testId: tId });
-        } catch (err) {
-          console.warn('[!] Không thể xoá câu sai từ database:', err);
-        }
-
-        try {
-          await backendService.deletePracticeSessionsForTest(tId);
-        } catch (err) {
-          console.warn('[!] Không thể xoá phiên làm bài từ database:', err);
-        }
 
         setAttempts((prev) => prev.filter((a) => String(a.testId || '').trim().toLowerCase() !== tId));
         const totalDeleted = Math.max(serverDeleted, localDeleted, bulkDeleteTarget.count);
@@ -318,23 +300,15 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
         setBulkDeleteTarget(null);
         window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       } else {
-        // Delete all history
+        // Delete all history on the server first; only then clear local mirrors.
+        const res = userId
+          ? await backendService.deleteAllStudyHistory('all')
+          : { success: true, deletedCount: 0 };
+        const serverDeleted = res?.deletedCount || 0;
+        historyRequestGeneration.current += 1;
         storage.clearAllTestHistory();
+        storage.clearAllExamDrafts();
         deleteAllPracticeSessions();
-
-        let serverDeleted = 0;
-        try {
-          const res = await backendService.deleteAllStudyHistory('all');
-          serverDeleted = res?.deletedCount || 0;
-        } catch (err) {
-          console.warn('[!] Không thể xoá toàn bộ lịch sử từ database:', err);
-        }
-
-        try {
-          await backendService.deleteWrongQuestions('all');
-        } catch (err) {
-          console.warn('[!] Không thể xoá toàn bộ câu sai từ database:', err);
-        }
 
         setAttempts([]);
         setToastMessage(`Đã dọn sạch toàn bộ ${serverDeleted || bulkDeleteTarget.count} lượt làm bài thi.`);

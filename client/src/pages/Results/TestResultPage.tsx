@@ -6,6 +6,7 @@ import {
   History,
   LayoutGrid,
   Loader2,
+  PlayCircle,
   SlidersHorizontal,
   Trash2,
   X,
@@ -76,15 +77,10 @@ export const TestResultPage: React.FC = () => {
     setDeleting(true);
     setDeleteError('');
     try {
-      // 1. Luôn xoá local storage trước
-      storage.deleteSingleAttempt(targetAttemptId);
-
-      // 2. Đồng bộ xoá trên cơ sở dữ liệu
-      try {
+      if (user) {
         await backendService.deleteSingleStudyAttempt(targetAttemptId);
-      } catch (serverErr) {
-        console.warn('[!] Server deleteSingleStudyAttempt warning:', serverErr);
       }
+      storage.deleteSingleAttempt(targetAttemptId);
 
       window.dispatchEvent(new CustomEvent('wrong-questions-updated'));
       setShowDeleteModal(false);
@@ -344,6 +340,44 @@ export const TestResultPage: React.FC = () => {
     }, 25);
   };
 
+  const [matrixPartFilter, setMatrixPartFilter] = useState<number | 'all'>('all');
+
+  const availableParts = useMemo(() => {
+    const partsSet = new Set<number>();
+    inScopeQuestions.forEach((q) => {
+      if (q.partId) partsSet.add(q.partId);
+    });
+    return Array.from(partsSet).sort((a, b) => a - b);
+  }, [inScopeQuestions]);
+
+  const matrixQuestions = useMemo(() => {
+    if (matrixPartFilter === 'all') return inScopeQuestions;
+    return inScopeQuestions.filter((q) => q.partId === matrixPartFilter);
+  }, [inScopeQuestions, matrixPartFilter]);
+
+  // Hành động chuyển thẳng vào luyện tập toàn bộ câu sai của lượt làm bài này
+  const handlePracticeWrong = () => {
+    if (!result) return;
+    const targetAttemptId = result.attemptId || attemptIdParam;
+    const parts =
+      result.selectedParts && result.selectedParts.length > 0
+        ? result.selectedParts
+        : [1, 2, 3, 4, 5, 6, 7];
+    const scopeParam = parts.length === 7 ? 'all' : parts.join(',');
+
+    if (result.testId && targetAttemptId) {
+      navigate(
+        `/practice/runner/${scopeParam}?testId=${encodeURIComponent(
+          result.testId
+        )}&reviewAttemptId=${encodeURIComponent(targetAttemptId)}&reviewResult=wrong`
+      );
+    } else if (result.testId) {
+      navigate(`/practice/runner/${scopeParam}?testId=${encodeURIComponent(result.testId)}`);
+    } else {
+      navigate('/practice-by-level');
+    }
+  };
+
   // Trạng thái đang tải kết quả
   if (loadingAttempt && !result) {
     return (
@@ -425,6 +459,7 @@ export const TestResultPage: React.FC = () => {
         wrongAnswers={result.wrongAnswers}
         skippedAnswers={result.skippedAnswers}
         totalQuestions={totalQuestionsInScope}
+        onPracticeWrong={handlePracticeWrong}
       />
 
       {/* 2. Thống kê tổng quan 4 chỉ số KPI */}
@@ -452,167 +487,236 @@ export const TestResultPage: React.FC = () => {
         hasReading={scopeInfo.hasReading}
       />
 
-      {/* 4. Xem lại danh sách đáp án chi tiết & Bảng điều hướng câu hỏi */}
-      <div className="rounded-3xl border border-line bg-surface p-6 shadow-xs sm:p-8 space-y-6">
-        {/* Tiêu đề & Bộ lọc câu hỏi */}
-        <div className="flex flex-col justify-between gap-4 border-b border-line/60 pb-5 sm:flex-row sm:items-center">
-          <div>
-            <h2 className="text-base font-black tracking-tight text-content sm:text-lg">
-              Xem lại đáp án & lời giải chi tiết
-            </h2>
-            <p className="mt-0.5 text-xs text-content-muted">
-              Đối chiếu đáp án của bạn, xem giải thích chi tiết, dịch nghĩa câu hỏi và lưu từ vựng trọng tâm.
-            </p>
-          </div>
+      {/* 4. Layout 2 cột bất đối xứng (Option A): Cột trái (Chữa đề 68%) & Cột phải (Sticky Ma trận 200 câu + CTA 32%) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* CỘT TRÁI (8/12 = ~67%): XEM LẠI ĐÁP ÁN VÀ LỜI GIẢI CHI TIẾT */}
+        <div className="lg:col-span-8 space-y-6">
+          <div className="rounded-3xl border border-line bg-surface p-6 shadow-xs sm:p-7 space-y-6">
+            {/* Tiêu đề & Bộ lọc câu hỏi */}
+            <div className="flex flex-col justify-between gap-4 border-b border-line/60 pb-5 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="text-base font-black tracking-tight text-content sm:text-lg">
+                  Xem lại đáp án & lời giải chi tiết
+                </h2>
+                <p className="mt-0.5 text-xs text-content-muted">
+                  Đối chiếu đáp án của bạn, xem giải thích chi tiết, dịch nghĩa câu hỏi và lưu từ vựng trọng tâm.
+                </p>
+              </div>
 
-          {/* Bộ lọc: Tất cả / Làm đúng / Làm sai / Chưa làm */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-line bg-surface-elevated/60 p-1.5">
-            <button
-              type="button"
-              onClick={() => setFilter('all')}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
-                filter === 'all'
-                  ? 'bg-surface text-amber-600 dark:text-amber-400 shadow-2xs border border-line/60'
-                  : 'text-content-muted hover:text-content'
-              }`}
-            >
-              Tất cả ({questionCounts.total})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('wrong')}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
-                filter === 'wrong'
-                  ? 'bg-rose-500 text-white shadow-2xs'
-                  : 'text-content-muted hover:text-content'
-              }`}
-            >
-              Làm sai ({questionCounts.wrong})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilter('correct')}
-              className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
-                filter === 'correct'
-                  ? 'bg-emerald-500 text-white shadow-2xs'
-                  : 'text-content-muted hover:text-content'
-              }`}
-            >
-              Làm đúng ({questionCounts.correct})
-            </button>
-            {questionCounts.skipped > 0 && (
-              <button
-                type="button"
-                onClick={() => setFilter('skipped')}
-                className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
-                  filter === 'skipped'
-                    ? 'bg-slate-700 text-white shadow-2xs dark:bg-slate-600'
-                    : 'text-content-muted hover:text-content'
-                }`}
-              >
-                Chưa làm ({questionCounts.skipped})
-              </button>
+              {/* Bộ lọc: Tất cả / Làm đúng / Làm sai / Chưa làm */}
+              <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-line bg-surface-elevated/60 p-1.5">
+                <button
+                  type="button"
+                  onClick={() => setFilter('all')}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                    filter === 'all'
+                      ? 'bg-surface text-amber-600 dark:text-amber-400 shadow-2xs border border-line/60'
+                      : 'text-content-muted hover:text-content'
+                  }`}
+                >
+                  Tất cả ({questionCounts.total})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('wrong')}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                    filter === 'wrong'
+                      ? 'bg-rose-500 text-white shadow-2xs'
+                      : 'text-content-muted hover:text-content'
+                  }`}
+                >
+                  Làm sai ({questionCounts.wrong})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilter('correct')}
+                  className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                    filter === 'correct'
+                      ? 'bg-emerald-500 text-white shadow-2xs'
+                      : 'text-content-muted hover:text-content'
+                  }`}
+                >
+                  Làm đúng ({questionCounts.correct})
+                </button>
+                {questionCounts.skipped > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFilter('skipped')}
+                    className={`rounded-xl px-3.5 py-1.5 text-xs font-extrabold transition-all ${
+                      filter === 'skipped'
+                        ? 'bg-slate-700 text-white shadow-2xs dark:bg-slate-600'
+                        : 'text-content-muted hover:text-content'
+                    }`}
+                  >
+                    Chưa làm ({questionCounts.skipped})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Danh sách câu hỏi xem lại Lazy Load */}
+            {loadingQuestions ? (
+              <BoneyardSkeleton name="test-result-review" height={280} />
+            ) : reviewQuestions.length > 0 ? (
+              <LazyAnswerReviewList
+                questions={reviewQuestions}
+                userAnswers={result.answers}
+                onSaveVocabulary={handleSaveVocabulary}
+                savedVocabWords={savedVocabWords}
+                jumpToQuestionNumber={jumpTarget}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-line p-10 text-center text-xs font-semibold text-content-muted">
+                Không có câu hỏi nào trong danh mục này.
+              </div>
             )}
           </div>
         </div>
 
-        {/* Bảng câu hỏi nhanh (Question Palette Matrix) */}
-        {inScopeQuestions.length > 0 && (
-          <div className="rounded-2xl border border-line bg-surface-elevated/30 p-4 sm:p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="size-4 text-amber-500" />
-                <span className="text-xs font-extrabold text-content">
-                  Bảng câu hỏi nhanh
-                </span>
-                <span className="hidden sm:inline text-[11px] font-semibold text-content-muted">
-                  (Nhấp vào số câu để chuyển nhanh đến xem lời giải)
-                </span>
+        {/* CỘT PHẢI (4/12 = ~33%): STICKY MA TRẬN 200 CÂU & CTA ÔN TẬP */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4">
+          {inScopeQuestions.length > 0 && (
+            <div className="rounded-3xl border border-line bg-surface p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-line/60 pb-3.5">
+                <div>
+                  <h3 className="text-sm font-black text-content flex items-center gap-2">
+                    <LayoutGrid className="size-4 text-amber-500" />
+                    <span>Ma trận câu hỏi ({inScopeQuestions.length} câu)</span>
+                  </h3>
+                  <p className="mt-0.5 text-[11px] text-content-muted">
+                    Bấm số câu để chuyển nhanh đến xem lời giải
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMatrix(!showMatrix)}
+                  className="lg:hidden inline-flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400"
+                >
+                  <span>{showMatrix ? 'Thu gọn' : 'Mở rộng'}</span>
+                  {showMatrix ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowMatrix(!showMatrix)}
-                className="inline-flex items-center gap-1 text-xs font-bold text-amber-600 hover:underline dark:text-amber-400"
-              >
-                <span>{showMatrix ? 'Thu gọn bảng' : 'Hiện bảng câu hỏi'}</span>
-                {showMatrix ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              </button>
-            </div>
 
-            {showMatrix && (
-              <div className="space-y-3 pt-1 border-t border-line/60">
-                <div className="flex flex-wrap items-center gap-4 text-[11px] font-semibold text-content-muted">
+              <div className={`space-y-4 ${showMatrix ? 'block' : 'hidden lg:block'}`}>
+                {/* Chú thích màu sắc */}
+                <div className="flex flex-wrap items-center gap-3 text-[11px] font-bold text-content-muted">
                   <span className="inline-flex items-center gap-1.5">
                     <span className="size-2.5 rounded-full bg-emerald-500 inline-block" />
-                    <span>Làm đúng ({questionCounts.correct})</span>
+                    <span>Đúng ({questionCounts.correct})</span>
                   </span>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="size-2.5 rounded-full bg-rose-500 inline-block" />
-                    <span>Làm sai ({questionCounts.wrong})</span>
+                    <span>Sai ({questionCounts.wrong})</span>
                   </span>
                   {questionCounts.skipped > 0 && (
                     <span className="inline-flex items-center gap-1.5">
                       <span className="size-2.5 rounded-full bg-slate-400 inline-block" />
-                      <span>Chưa trả lời ({questionCounts.skipped})</span>
+                      <span>Chưa làm ({questionCounts.skipped})</span>
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto pr-1">
-                  {inScopeQuestions.map((q) => {
-                    const ans = result.answers?.[q.id];
-                    const isCorrect = ans === q.correctAnswer;
-                    const isSkipped = !ans;
-
-                    let btnStyle =
-                      'border-line bg-surface text-content-muted hover:border-amber-400 hover:text-content';
-                    if (isCorrect) {
-                      btnStyle =
-                        'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25';
-                    } else if (!isSkipped) {
-                      btnStyle =
-                        'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25';
-                    } else {
-                      btnStyle =
-                        'border-line bg-slate-100 text-slate-500 dark:bg-surface-elevated dark:text-content-muted hover:bg-slate-200';
-                    }
-
-                    return (
+                {/* Chip lọc Part trong ma trận */}
+                {availableParts.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMatrixPartFilter('all')}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition-all ${
+                        matrixPartFilter === 'all'
+                          ? 'bg-content text-surface shadow-2xs'
+                          : 'border border-line bg-surface text-content-muted hover:text-content hover:bg-surface-hover'
+                      }`}
+                    >
+                      Tất cả
+                    </button>
+                    {availableParts.map((p) => (
                       <button
-                        key={q.id}
+                        key={p}
                         type="button"
-                        onClick={() => handleJumpToQuestion(q.questionNumber)}
-                        title={`Câu ${q.questionNumber} (Part ${q.partId}): ${
-                          isCorrect ? 'Đúng' : isSkipped ? 'Chưa trả lời' : 'Sai'
+                        onClick={() => setMatrixPartFilter(p)}
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-extrabold transition-all ${
+                          matrixPartFilter === p
+                            ? 'bg-content text-surface shadow-2xs'
+                            : 'border border-line bg-surface text-content-muted hover:text-content hover:bg-surface-hover'
                         }`}
-                        className={`size-8 rounded-lg border font-mono text-xs font-bold transition tabular-nums shrink-0 ${btnStyle}`}
                       >
-                        {q.questionNumber}
+                        P{p}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                )}
+
+                {/* Lưới câu hỏi ma trận */}
+                <div className="max-h-72 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-6 sm:grid-cols-6 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 text-center text-xs font-bold">
+                    {matrixQuestions.map((q) => {
+                      const ans = result.answers?.[q.id];
+                      const isCorrect = ans === q.correctAnswer;
+                      const isSkipped = !ans;
+                      const isTarget = jumpTarget === q.questionNumber;
+
+                      let btnStyle =
+                        'border-line bg-surface text-content-muted hover:border-amber-400 hover:text-content';
+                      if (isCorrect) {
+                        btnStyle =
+                          'border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25';
+                      } else if (!isSkipped) {
+                        btnStyle =
+                          'border-rose-500/30 bg-rose-500/15 text-rose-700 dark:text-rose-300 hover:bg-rose-500/25';
+                      } else {
+                        btnStyle =
+                          'border-line bg-surface-elevated text-content-muted hover:bg-surface-hover';
+                      }
+
+                      return (
+                        <button
+                          key={q.id}
+                          type="button"
+                          onClick={() => handleJumpToQuestion(q.questionNumber)}
+                          title={`Câu ${q.questionNumber} (Part ${q.partId}): ${
+                            isCorrect ? 'Đúng' : isSkipped ? 'Chưa trả lời' : 'Sai'
+                          }`}
+                          className={`h-8 rounded-lg border font-mono text-xs font-bold transition tabular-nums flex items-center justify-center ${btnStyle} ${
+                            isTarget ? 'ring-2 ring-accent ring-offset-1' : ''
+                          }`}
+                        >
+                          {q.questionNumber}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Khối mục tiêu ôn tập & Nút luyện tập câu sai */}
+                <div className="border-t border-line/60 pt-4 space-y-3">
+                  <div className="text-xs font-extrabold text-content">
+                    Mục tiêu ôn tập đề này:
+                  </div>
+                  {questionCounts.wrong > 0 ? (
+                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs text-content space-y-2.5">
+                      <p className="leading-relaxed text-content-muted">
+                        Bạn có <strong className="text-rose-600 dark:text-rose-400 font-extrabold">{questionCounts.wrong} câu làm sai</strong> cần luyện lại để tăng điểm cho lần thi tiếp theo.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handlePracticeWrong}
+                        className="w-full py-2.5 px-4 rounded-xl bg-accent hover:bg-accent-hover text-brand-ink font-black text-xs transition shadow-2xs flex items-center justify-center gap-2"
+                      >
+                        <PlayCircle className="size-4" />
+                        <span>Luyện {questionCounts.wrong} câu sai ngay</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-800 dark:text-emerald-300 font-bold">
+                      Xuất sắc! Bạn không có câu sai nào trong bài làm này.
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* Danh sách câu hỏi xem lại Lazy Load */}
-        {loadingQuestions ? (
-          <BoneyardSkeleton name="test-result-review" height={280} />
-        ) : reviewQuestions.length > 0 ? (
-          <LazyAnswerReviewList
-            questions={reviewQuestions}
-            userAnswers={result.answers}
-            onSaveVocabulary={handleSaveVocabulary}
-            savedVocabWords={savedVocabWords}
-            jumpToQuestionNumber={jumpTarget}
-          />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-line p-10 text-center text-xs font-semibold text-content-muted">
-            Không có câu hỏi nào trong danh mục này.
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modal xác nhận xoá kết quả bài thi này */}

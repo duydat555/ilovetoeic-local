@@ -629,8 +629,11 @@ export const backendService = {
   },
 
   async deleteAllStudyHistory(scope: 'all' | 'test' = 'all') {
+    const query = scope === 'test'
+      ? '/study-attempts?source_type=test&test_id=all'
+      : `/study-attempts?source_type=${encodeURIComponent(scope)}`;
     return authFetch<{ success: boolean; deletedCount: number }>(
-      `/study-attempts?source_type=${encodeURIComponent(scope)}`,
+      query,
       { method: 'DELETE' },
     );
   },

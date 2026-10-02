@@ -34,7 +34,9 @@ def get_grammar_catalog(response: Response):
     )
     topics = db.fetch_all("""
         SELECT t.id, t.title_vi, t.description_vi, t.icon, t.order_index,
-               COUNT(m.id) AS question_count
+               COUNT(m.id) AS question_count,
+               COUNT(CASE WHEN m.source_category = 'book' THEN 1 END) AS book_question_count,
+               COUNT(CASE WHEN m.source_category = 'supplementary' THEN 1 END) AS supplementary_question_count
         FROM grammar_topics t
         LEFT JOIN grammar_question_memberships m
           ON m.topic_id = t.id AND m.source_mode = 'topic'
@@ -44,12 +46,12 @@ def get_grammar_catalog(response: Response):
     """)
     subtopics = db.fetch_all("""
         SELECT s.id, s.topic_id, s.title_vi, s.description_vi, s.level,
-               s.order_index, COUNT(m.id) AS question_count
+               s.order_index, s.source_category, COUNT(m.id) AS question_count
         FROM grammar_subtopics s
         LEFT JOIN grammar_question_memberships m
           ON m.subtopic_id = s.id AND m.source_mode = 'topic'
         WHERE s.is_hidden = 0
-        GROUP BY s.id, s.topic_id, s.title_vi, s.description_vi, s.level, s.order_index
+        GROUP BY s.id, s.topic_id, s.title_vi, s.description_vi, s.level, s.order_index, s.source_category
         ORDER BY s.topic_id ASC, s.order_index ASC, s.title_vi ASC
     """)
     banks = db.fetch_all("""
@@ -112,10 +114,11 @@ def get_grammar_questions(
     bank_set_id: Optional[str] = None,
     test_id: Optional[str] = None,
     difficulty_level: Optional[int] = Query(default=None, ge=1, le=5),
+    source_category: Optional[Literal["book", "supplementary", "all"]] = Query(default=None),
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=50),
 ):
-    cache_key = f"{mode}:{topic_id}:{subtopic_id}:{bank_set_id}:{test_id}:{difficulty_level}:{offset}:{limit}"
+    cache_key = f"{mode}:{topic_id}:{subtopic_id}:{bank_set_id}:{test_id}:{difficulty_level}:{source_category}:{offset}:{limit}"
     now = time.time()
     cached = _GRAMMAR_QUESTIONS_CACHE.get(cache_key)
     if cached and (now - cached["timestamp"] < 300):
@@ -134,6 +137,10 @@ def get_grammar_questions(
         if value is not None:
             filters.append(clause)
             params.append(value)
+    if source_category and source_category != "all":
+        filters.append("m.source_category = ?")
+        params.append(source_category)
+
     where_clause = " AND ".join(filters)
     count_row = db.fetch_one(
         f"SELECT COUNT(*) AS total FROM grammar_question_memberships m WHERE {where_clause}",
@@ -144,7 +151,7 @@ def get_grammar_questions(
         raise HTTPException(status_code=404, detail="Không có câu hỏi ngữ pháp phù hợp với lựa chọn này.")
 
     rows = db.fetch_all(f"""
-        SELECT m.id AS membership_id, m.question_id, m.source_mode,
+        SELECT m.id AS membership_id, m.question_id, m.source_mode, m.source_category,
                m.topic_id, m.subtopic_id, m.bank_set_id, m.test_id,
                m.test_name, m.question_number, m.order_index,
                q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,

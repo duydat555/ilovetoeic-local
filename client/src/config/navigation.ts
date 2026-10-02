@@ -1,6 +1,7 @@
 import {
   BellRing,
   ClipboardCheck,
+  GraduationCap,
   Headphones,
   Languages,
   LayoutDashboard,
@@ -37,7 +38,9 @@ export const NAV_TRANSLATION_KEYS: Record<string, string> = {
   '/profile': 'nav.profile',
   '/settings': 'nav.settings',
   '/admin/accounts': 'nav.adminAccounts',
+  '/admin/classes': 'nav.adminClasses',
   '/admin/feedback': 'nav.adminFeedback',
+  '/admin/announcements': 'nav.adminAnnouncements',
   '/admin/features': 'nav.adminFeatures',
 };
 
@@ -56,6 +59,7 @@ export const studentNavItems: NavigationItem[] = [
 
 export const adminNavItems: NavigationItem[] = [
   { path: '/admin/accounts', label: 'Quản lý tài khoản', icon: UserCog, end: true },
+  { path: '/admin/classes', label: 'Quản lý lớp học', icon: GraduationCap },
   { path: '/admin/feedback', label: 'Quản lý Góp ý', icon: MessageSquare },
   { path: '/admin/announcements', label: 'Quản lý thông báo', icon: BellRing },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },

@@ -1,124 +1,102 @@
-import React, { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Archive,
-  ArchiveRestore,
+  ArrowRight,
   Check,
-  CheckCircle2,
   Copy,
-  Edit3,
-  Loader2,
-  Plus,
+  ExternalLink,
+  GraduationCap,
+  LayoutGrid,
+  List,
   RefreshCw,
   Search,
-  School,
-  Trash2,
-  UserRoundPlus,
+  Sparkles,
+  TrendingUp,
   UsersRound,
+  X,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import {
-  ManagedClassInput,
   ManagedClassRecord,
   ManagedClassStudent,
   backendService,
 } from '../../services/backend';
-import { DialogShell, PageHeader, managementInputClass } from '../../components/management/ManagementUI';
+import { PageHeader, managementInputClass } from '../../components/management/ManagementUI';
 import { getDiceBearAvatar } from '../../utils/avatar';
 
-type ClassFilter = 'all' | 'active' | 'archived';
-type ClassSort = 'newest' | 'name' | 'students';
+type ClassSort = 'cohort_desc' | 'cohort_asc' | 'students' | 'progress';
+type ViewMode = 'table' | 'grid';
 type ToastState = { message: string; tone: 'success' | 'error' } | null;
-
-interface ClassFormState extends ManagedClassInput {
-  id?: string;
-}
-
-const createEmptyForm = (): ClassFormState => ({
-  name: '',
-  code: '',
-  description: '',
-  targetScore: 750,
-  studentIds: [],
-  isActive: true,
-});
-
-const formatDate = (value: string) => {
-  if (!value) return 'Chưa xác định';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
-};
-
-const initialsFor = (name: string) => name
-  .trim()
-  .split(/\s+/)
-  .slice(-2)
-  .map((part) => part.charAt(0).toUpperCase())
-  .join('') || 'HS';
 
 const StudentAvatar: React.FC<{ student: ManagedClassStudent; className?: string }> = ({
   student,
-  className = 'size-9',
-}) => (
-  <img
-    src={student.avatar || getDiceBearAvatar(student.name)}
-    alt={student.name}
-    className={`${className} rounded-full object-cover ring-2 ring-surface`}
-  />
-);
+  className = 'size-8',
+}) => {
+  const [src, setSrc] = useState(student.avatar || getDiceBearAvatar(student.name || student.id));
+  return (
+    <img
+      src={src}
+      alt={student.name}
+      title={student.name}
+      onError={() => setSrc(getDiceBearAvatar(student.name || 'student'))}
+      className={`${className} rounded-full object-cover ring-2 ring-surface bg-surface-elevated`}
+    />
+  );
+};
 
-const ProgressRing: React.FC<{ value: number }> = ({ value }) => {
+const ProgressRing: React.FC<{ value: number; size?: number }> = ({ value, size = 48 }) => {
   const normalized = Math.max(0, Math.min(100, Math.round(value)));
-  const radius = 18;
+  const radius = (size / 2) - 4;
   const circumference = 2 * Math.PI * radius;
   return (
-    <div className="relative size-12 shrink-0" role="img" aria-label={`Tiến độ trung bình ${normalized}%`}>
-      <svg viewBox="0 0 44 44" className="size-12 -rotate-90" aria-hidden="true">
-        <circle cx="22" cy="22" r={radius} fill="none" stroke="currentColor" strokeWidth="4" className="text-surface-hover" />
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`Tiến độ ${normalized}%`}
+    >
+      <svg viewBox={`0 0 ${size} ${size}`} className="-rotate-90" style={{ width: size, height: size }} aria-hidden="true">
         <circle
-          cx="22"
-          cy="22"
+          cx={size / 2}
+          cy={size / 2}
           r={radius}
           fill="none"
           stroke="currentColor"
-          strokeWidth="4"
+          strokeWidth="3.5"
+          className="text-surface-hover"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3.5"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - normalized / 100)}
           className="text-brand transition-[stroke-dashoffset] duration-500 motion-reduce:transition-none"
         />
       </svg>
-      <span className="absolute inset-0 grid place-items-center text-[11px] font-black text-content">{normalized}%</span>
+      <span className="absolute inset-0 grid place-items-center text-[10px] font-black text-content">
+        {normalized}%
+      </span>
     </div>
   );
 };
 
-const ClassCardSkeleton: React.FC = () => (
-  <BoneyardSkeleton name="class-card-skeleton" variant="card" height={210} />
-);
-
 export const ClassesManagementPage: React.FC = () => {
-  const reduceMotion = useReducedMotion();
   const [classes, setClasses] = useState<ManagedClassRecord[]>([]);
   const [students, setStudents] = useState<ManagedClassStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<ClassFilter>('all');
-  const [sort, setSort] = useState<ClassSort>('newest');
-  const [form, setForm] = useState<ClassFormState>(createEmptyForm);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<ManagedClassRecord | null>(null);
-  const [studentQuery, setStudentQuery] = useState('');
-  const [formError, setFormError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [busyClassId, setBusyClassId] = useState('');
+  const [sort, setSort] = useState<ClassSort>('cohort_desc');
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
+  const [selectedClass, setSelectedClass] = useState<ManagedClassRecord | null>(null);
 
   const loadClasses = useCallback(async () => {
     setIsLoading(true);
@@ -147,166 +125,59 @@ export const ClassesManagementPage: React.FC = () => {
     return () => window.clearTimeout(timeout);
   }, [toast]);
 
+  const showToast = (message: string, tone: 'success' | 'error') => setToast({ message, tone });
+
   const studentById = useMemo(
     () => new Map(students.map((student) => [student.id, student])),
     [students],
   );
-  const activeCount = useMemo(() => classes.filter((classItem) => classItem.isActive).length, [classes]);
+
+  const totalEnrolledStudents = useMemo(() => {
+    return classes.reduce((sum, c) => sum + (c.studentCount || 0), 0);
+  }, [classes]);
+
+  const systemAverageProgress = useMemo(() => {
+    if (classes.length === 0) return 0;
+    const sum = classes.reduce((acc, c) => acc + (c.averageProgress || 0), 0);
+    return Math.round(sum / classes.length);
+  }, [classes]);
+
+  const totalXp = useMemo(() => {
+    return classes.reduce((sum, c) => sum + (c.totalXp || 0), 0);
+  }, [classes]);
 
   const filteredClasses = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
     return classes
       .filter((classItem) => {
-        const matchesQuery = !normalizedQuery || `${classItem.name} ${classItem.code} ${classItem.description}`
+        if (!normalizedQuery) return true;
+        const matchesBasic = `${classItem.name} ${classItem.code} ${classItem.description}`
           .toLocaleLowerCase('vi')
           .includes(normalizedQuery);
-        const matchesStatus = filter === 'all'
-          || (filter === 'active' && classItem.isActive)
-          || (filter === 'archived' && !classItem.isActive);
-        return matchesQuery && matchesStatus;
+        if (matchesBasic) return true;
+
+        // Also search by student name within the class
+        const enrolledStudents = (classItem.students && classItem.students.length > 0)
+          ? classItem.students
+          : classItem.studentIds.map((id) => studentById.get(id)).filter(Boolean) as ManagedClassStudent[];
+        return enrolledStudents.some((s) => `${s.name} ${s.email}`.toLocaleLowerCase('vi').includes(normalizedQuery));
       })
       .sort((first, second) => {
-        if (sort === 'name') return first.name.localeCompare(second.name, 'vi');
+        if (sort === 'cohort_desc') {
+          const numA = parseInt(first.code.replace(/\D/g, '') || '0', 10);
+          const numB = parseInt(second.code.replace(/\D/g, '') || '0', 10);
+          return numB - numA;
+        }
+        if (sort === 'cohort_asc') {
+          const numA = parseInt(first.code.replace(/\D/g, '') || '0', 10);
+          const numB = parseInt(second.code.replace(/\D/g, '') || '0', 10);
+          return numA - numB;
+        }
         if (sort === 'students') return second.studentCount - first.studentCount;
-        return new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime();
+        if (sort === 'progress') return (second.averageProgress || 0) - (first.averageProgress || 0);
+        return 0;
       });
-  }, [classes, filter, query, sort]);
-
-  const filteredStudents = useMemo(() => {
-    const normalizedQuery = studentQuery.trim().toLocaleLowerCase('vi');
-    return students.filter((student) => (
-      !normalizedQuery || `${student.name} ${student.email}`.toLocaleLowerCase('vi').includes(normalizedQuery)
-    ));
-  }, [studentQuery, students]);
-
-  const showToast = (message: string, tone: 'success' | 'error') => setToast({ message, tone });
-
-  const openCreate = () => {
-    setForm(createEmptyForm());
-    setStudentQuery('');
-    setFormError('');
-    setDialogOpen(true);
-  };
-
-  const openEdit = (classItem: ManagedClassRecord) => {
-    setForm({
-      id: classItem.id,
-      name: classItem.name,
-      code: classItem.code,
-      description: classItem.description,
-      targetScore: classItem.targetScore,
-      studentIds: classItem.studentIds,
-      isActive: classItem.isActive,
-    });
-    setStudentQuery('');
-    setFormError('');
-    setDialogOpen(true);
-  };
-
-  const closeEditor = () => {
-    if (!isSubmitting) setDialogOpen(false);
-  };
-
-  const toggleStudent = (studentId: string) => {
-    setForm((current) => ({
-      ...current,
-      studentIds: current.studentIds.includes(studentId)
-        ? current.studentIds.filter((id) => id !== studentId)
-        : [...current.studentIds, studentId],
-    }));
-  };
-
-  const toggleAllFilteredStudents = () => {
-    const filteredIds = filteredStudents.map((student) => student.id);
-    const allSelected = filteredIds.length > 0 && filteredIds.every((id) => form.studentIds.includes(id));
-    setForm((current) => ({
-      ...current,
-      studentIds: allSelected
-        ? current.studentIds.filter((id) => !filteredIds.includes(id))
-        : Array.from(new Set([...current.studentIds, ...filteredIds])),
-    }));
-  };
-
-  const saveClass = async (event: FormEvent) => {
-    event.preventDefault();
-    const name = form.name.trim();
-    const code = form.code.trim().toUpperCase();
-    if (name.length < 2) {
-      setFormError('Tên lớp phải có ít nhất 2 ký tự.');
-      return;
-    }
-    if (!/^[A-Z0-9][A-Z0-9-]{1,18}[A-Z0-9]$/.test(code)) {
-      setFormError('Mã lớp cần từ 3 đến 20 ký tự, chỉ gồm chữ in hoa, số và dấu gạch nối.');
-      return;
-    }
-    if (classes.some((item) => item.code.toUpperCase() === code && item.id !== form.id)) {
-      setFormError('Mã lớp này đã được sử dụng.');
-      return;
-    }
-
-    const input: ManagedClassInput = {
-      name,
-      code,
-      description: form.description.trim(),
-      targetScore: form.targetScore,
-      studentIds: form.studentIds,
-      isActive: form.isActive,
-    };
-    setIsSubmitting(true);
-    setFormError('');
-    try {
-      if (form.id) {
-        const updated = await backendService.updateManagedClass(form.id, input);
-        setClasses((current) => current.map((item) => item.id === updated.id ? updated : item));
-        showToast('Đã cập nhật lớp học.', 'success');
-      } else {
-        const created = await backendService.createManagedClass(input);
-        setClasses((current) => [created, ...current]);
-        showToast('Đã tạo lớp học mới.', 'success');
-      }
-      setDialogOpen(false);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể lưu lớp học.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const toggleClassStatus = async (classItem: ManagedClassRecord) => {
-    setBusyClassId(classItem.id);
-    try {
-      const updated = await backendService.updateManagedClass(classItem.id, {
-        name: classItem.name,
-        code: classItem.code,
-        description: classItem.description,
-        targetScore: classItem.targetScore,
-        studentIds: classItem.studentIds,
-        isActive: !classItem.isActive,
-      });
-      setClasses((current) => current.map((item) => item.id === updated.id ? updated : item));
-      showToast(updated.isActive ? 'Đã kích hoạt lại lớp học.' : 'Đã lưu trữ lớp học.', 'success');
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể đổi trạng thái lớp.', 'error');
-    } finally {
-      setBusyClassId('');
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setBusyClassId(deleteTarget.id);
-    try {
-      await backendService.deleteManagedClass(deleteTarget.id);
-      setClasses((current) => current.filter((item) => item.id !== deleteTarget.id));
-      setDeleteTarget(null);
-      showToast('Đã xóa lớp học.', 'success');
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Không thể xóa lớp học.', 'error');
-      setDeleteTarget(null);
-    } finally {
-      setBusyClassId('');
-    }
-  };
+  }, [classes, query, sort, studentById]);
 
   const copyClassCode = async (code: string) => {
     try {
@@ -324,428 +195,587 @@ export const ClassesManagementPage: React.FC = () => {
         textarea.remove();
         if (!copied) throw new Error('Không thể sao chép');
       }
-      showToast(`Đã sao chép mã lớp ${code}.`, 'success');
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 2000);
+      showToast(`Đã sao chép mã khóa: ${code}`, 'success');
     } catch {
       showToast('Trình duyệt không cho phép sao chép tự động.', 'error');
     }
   };
 
+  const getClassStudents = (classItem: ManagedClassRecord): ManagedClassStudent[] => {
+    if (classItem.students && classItem.students.length > 0) {
+      return classItem.students;
+    }
+    return classItem.studentIds
+      .map((id) => studentById.get(id))
+      .filter((s): s is ManagedClassStudent => Boolean(s));
+  };
+
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-6 pb-12">
+      {/* 1. Page Header */}
       <PageHeader
         title="Quản lý lớp học"
-        description="Tạo nhóm lớp, sắp xếp học sinh và theo dõi tiến độ trong một không gian quản trị thống nhất."
+        description="Hệ thống tự động phân lớp và đồng bộ từ định danh học viên (ví dụ: _K35, _K38)."
         action={(
-          <button type="button" onClick={openCreate} className="btn-primary whitespace-nowrap text-sm">
-            <Plus className="size-4" aria-hidden="true" /> Tạo lớp mới
+          <button
+            type="button"
+            onClick={() => void loadClasses()}
+            disabled={isLoading}
+            className="btn-secondary whitespace-nowrap text-sm shadow-sm transition active:scale-[.98]"
+          >
+            <RefreshCw className={`size-4 ${isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
+            <span>Làm mới dữ liệu</span>
           </button>
         )}
       />
 
-      {!isLoading && !loadError && classes.length > 0 && (
-        <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
-          <div className="flex flex-col gap-4 border-b border-line p-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex min-w-0 items-center gap-4">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-                <School className="size-5" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-extrabold text-content">{activeCount} lớp đang hoạt động</p>
-                <p className="mt-0.5 text-xs text-content-muted">
-                  {classes.length} lớp trong hệ thống, {students.length} tài khoản Học sinh khả dụng
+      {/* 2. Key Metrics Bar */}
+      {!isLoading && !loadError && (
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Chỉ số tổng quan lớp học">
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition-colors dark:shadow-none sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-content-muted">Lớp học / Khóa</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black tracking-tight text-content">{classes.length}</span>
+                  <span className="text-xs font-medium text-content-muted">lớp</span>
+                </div>
+                <p className="mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Tự động nhận diện
                 </p>
               </div>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="relative block w-full sm:w-72">
-                <span className="sr-only">Tìm lớp học</span>
-                <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" aria-hidden="true" />
-                <input
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  className={`${managementInputClass} pl-10`}
-                  placeholder="Tìm tên, mã hoặc mô tả"
-                />
-              </label>
-              <label className="sr-only" htmlFor="class-sort">Sắp xếp lớp học</label>
-              <select
-                id="class-sort"
-                value={sort}
-                onChange={(event) => setSort(event.target.value as ClassSort)}
-                className={`${managementInputClass} sm:w-44`}
-              >
-                <option value="newest">Mới tạo gần đây</option>
-                <option value="name">Tên từ A đến Z</option>
-                <option value="students">Sĩ số cao nhất</option>
-              </select>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+                <GraduationCap className="size-5" aria-hidden="true" />
+              </span>
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto p-3" role="tablist" aria-label="Lọc trạng thái lớp học">
-            {([
-              ['all', `Tất cả ${classes.length}`],
-              ['active', `Đang hoạt động ${activeCount}`],
-              ['archived', `Đã lưu trữ ${classes.length - activeCount}`],
-            ] as Array<[ClassFilter, string]>).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                role="tab"
-                aria-selected={filter === value}
-                onClick={() => setFilter(value)}
-                className={`min-h-9 shrink-0 rounded-xl px-3.5 text-xs font-extrabold transition active:scale-[.98] ${
-                  filter === value ? 'bg-brand text-brand-ink' : 'bg-surface-elevated text-content-muted hover:bg-surface-hover hover:text-content'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition-colors dark:shadow-none sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-content-muted">Tổng học viên</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black tracking-tight text-content">{totalEnrolledStudents}</span>
+                  <span className="text-xs font-medium text-content-muted">học viên</span>
+                </div>
+                <p className="mt-1 text-[11px] font-semibold text-content-muted">
+                  Đã phân bổ theo khóa
+                </p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-300">
+                <UsersRound className="size-5" aria-hidden="true" />
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition-colors dark:shadow-none sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-content-muted">Tiến độ trung bình</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black tracking-tight text-content">{systemAverageProgress}%</span>
+                  <span className="text-xs font-medium text-content-muted">mục tiêu</span>
+                </div>
+                <p className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                  Theo điểm TOEIC
+                </p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
+                <TrendingUp className="size-5" aria-hidden="true" />
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition-colors dark:shadow-none sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-content-muted">Tổng XP tích lũy</p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-black tracking-tight text-content">{totalXp.toLocaleString('vi-VN')}</span>
+                  <span className="text-xs font-medium text-content-muted">XP</span>
+                </div>
+                <p className="mt-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400">
+                  Toàn bộ các khóa
+                </p>
+              </div>
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-300">
+                <Sparkles className="size-5" aria-hidden="true" />
+              </span>
+            </div>
           </div>
         </section>
       )}
 
+      {/* 3. Control Toolbar */}
+      {!isLoading && !loadError && (
+        <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm transition-colors dark:shadow-none">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Search Input */}
+            <div className="relative min-w-0 flex-1 sm:max-w-md">
+              <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" aria-hidden="true" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className={`${managementInputClass} pl-10 pr-9`}
+                placeholder="Tìm theo tên lớp, mã khóa (K35, K38) hoặc học viên..."
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Xóa nội dung tìm kiếm"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-content-muted transition hover:bg-surface-hover hover:text-content"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Sort & View Mode */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="hidden text-xs font-bold text-content-muted sm:inline">Sắp xếp:</span>
+                <select
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as ClassSort)}
+                  className="min-h-9 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-bold text-content shadow-xs transition focus:border-brand focus:outline-none"
+                  aria-label="Sắp xếp danh sách lớp"
+                >
+                  <option value="cohort_desc">Khóa K mới nhất (K38...)</option>
+                  <option value="cohort_asc">Khóa K tăng dần (K1...)</option>
+                  <option value="students">Nhiều học viên nhất</option>
+                  <option value="progress">Tiến độ cao nhất</option>
+                </select>
+              </div>
+
+              {/* View Switcher */}
+              <div
+                className="flex items-center rounded-xl border border-line bg-surface-elevated p-1"
+                role="group"
+                aria-label="Chế độ hiển thị"
+              >
+                <button
+                  type="button"
+                  onClick={() => setViewMode('table')}
+                  aria-pressed={viewMode === 'table'}
+                  title="Hiển thị dạng Bảng chi tiết"
+                  className={`rounded-lg p-1.5 transition ${
+                    viewMode === 'table'
+                      ? 'bg-surface text-brand shadow-xs'
+                      : 'text-content-muted hover:text-content'
+                  }`}
+                >
+                  <List className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('grid')}
+                  aria-pressed={viewMode === 'grid'}
+                  title="Hiển thị dạng Lưới thẻ"
+                  className={`rounded-lg p-1.5 transition ${
+                    viewMode === 'grid'
+                      ? 'bg-surface text-brand shadow-xs'
+                      : 'text-content-muted hover:text-content'
+                  }`}
+                >
+                  <LayoutGrid className="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* 4. Loading Skeleton */}
       {isLoading && (
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2" aria-label="Đang tải lớp học">
-          {[0, 1, 2, 3].map((item) => <ClassCardSkeleton key={item} />)}
-        </section>
+        <div className="space-y-3">
+          <BoneyardSkeleton name="class-stats-skeleton" height={96} />
+          <BoneyardSkeleton name="class-list-skeleton" height={360} />
+        </div>
       )}
 
+      {/* 5. Error State */}
       {!isLoading && loadError && (
-        <section className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/70 dark:bg-red-500/10">
-          <span className="mx-auto grid size-11 place-items-center rounded-xl bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300">
-            <RefreshCw className="size-5" aria-hidden="true" />
-          </span>
-          <h2 className="mt-4 text-base font-extrabold text-content">Chưa tải được lớp học</h2>
-          <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-content-muted">{loadError}</p>
-          <button type="button" onClick={() => void loadClasses()} className="btn-secondary mt-5 text-sm">
-            <RefreshCw className="size-4" aria-hidden="true" /> Thử lại
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center dark:border-red-900/50 dark:bg-red-500/10">
+          <p className="text-sm font-bold text-red-700 dark:text-red-300">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => void loadClasses()}
+            className="btn-secondary mt-4 inline-flex items-center gap-2 text-sm"
+          >
+            <RefreshCw className="size-4" /> Thử lại
           </button>
-        </section>
+        </div>
       )}
 
-      {!isLoading && !loadError && classes.length === 0 && (
-        <section className="rounded-2xl border border-dashed border-line bg-surface px-6 py-14 text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-            <School className="size-7" aria-hidden="true" />
-          </span>
-          <h2 className="mt-5 text-lg font-extrabold text-content">Bắt đầu với lớp học đầu tiên</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-content-muted">
-            Tạo lớp, chọn học sinh và đặt mục tiêu TOEIC. Dữ liệu sẽ được lưu trực tiếp trên hệ thống.
+      {/* 6. Empty State */}
+      {!isLoading && !loadError && filteredClasses.length === 0 && (
+        <section className="rounded-3xl border border-dashed border-line bg-surface p-12 text-center">
+          <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-surface-elevated text-content-muted">
+            <GraduationCap className="size-7" />
+          </div>
+          <h2 className="mt-4 text-base font-extrabold text-content">
+            {query ? 'Không tìm thấy lớp học phù hợp' : 'Chưa có lớp học nào được nhận diện'}
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-xs leading-5 text-content-muted">
+            {query
+              ? `Không có lớp học nào khớp với từ khóa "${query}". Vui lòng thử từ khóa khác.`
+              : 'Hệ thống tự động gom nhóm lớp khi học viên có tên theo định danh khóa (ví dụ: Đạt_K35, Dũng_K38).'}
           </p>
-          <button type="button" onClick={openCreate} className="btn-primary mt-6 text-sm">
-            <Plus className="size-4" aria-hidden="true" /> Tạo lớp mới
-          </button>
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="btn-secondary mt-5 text-xs"
+            >
+              Xóa bộ lọc tìm kiếm
+            </button>
+          )}
         </section>
       )}
 
-      {!isLoading && !loadError && classes.length > 0 && filteredClasses.length === 0 && (
-        <section className="rounded-2xl border border-dashed border-line bg-surface p-10 text-center">
-          <Search className="mx-auto size-8 text-content-muted" aria-hidden="true" />
-          <h2 className="mt-4 text-base font-extrabold text-content">Không có lớp phù hợp</h2>
-          <p className="mt-1 text-sm text-content-muted">Thử đổi từ khóa hoặc trạng thái đang lọc.</p>
-          <button type="button" onClick={() => { setQuery(''); setFilter('all'); }} className="btn-secondary mt-5 text-sm">Xóa bộ lọc</button>
+      {/* 7. Table View */}
+      {!isLoading && !loadError && filteredClasses.length > 0 && viewMode === 'table' && (
+        <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm dark:shadow-none">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-xs">
+              <thead className="border-b border-line bg-surface-elevated font-extrabold text-content-muted">
+                <tr>
+                  <th className="px-5 py-3.5">Lớp học</th>
+                  <th className="px-5 py-3.5">Mã khóa</th>
+                  <th className="px-5 py-3.5">Học viên</th>
+                  <th className="px-5 py-3.5">Mục tiêu TOEIC</th>
+                  <th className="px-5 py-3.5">Tiến độ trung bình</th>
+                  <th className="px-5 py-3.5 text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line/70">
+                {filteredClasses.map((classItem) => {
+                  const enrolledStudents = getClassStudents(classItem);
+                  const isCopied = copiedCode === classItem.code;
+
+                  return (
+                    <tr
+                      key={classItem.id}
+                      className="group transition-colors hover:bg-surface-hover/60"
+                    >
+                      {/* Name & description */}
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-brand/10 text-accent-strong font-black text-xs">
+                            {classItem.code}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-extrabold text-sm text-content truncate">
+                              {classItem.name}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-content-muted truncate max-w-xs sm:max-w-sm">
+                              {classItem.description}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Code pill with 1-click copy */}
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => void copyClassCode(classItem.code)}
+                          title="Sao chép mã khóa"
+                          className="group/code inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-elevated px-2.5 py-1 font-mono text-[11px] font-bold text-content hover:border-brand/40 hover:bg-surface transition"
+                        >
+                          <span>{classItem.code}</span>
+                          {isCopied ? (
+                            <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <Copy className="size-3 text-content-muted opacity-60 group-hover/code:opacity-100" />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* Student Avatars + Count */}
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedClass(classItem)}
+                          className="flex items-center gap-2 hover:opacity-85 transition"
+                          title="Bấm để xem nhanh danh sách học viên"
+                        >
+                          <div className="flex -space-x-2 overflow-hidden">
+                            {enrolledStudents.slice(0, 4).map((student) => (
+                              <StudentAvatar key={student.id} student={student} className="size-7" />
+                            ))}
+                          </div>
+                          <span className="font-extrabold text-xs text-content">
+                            {classItem.studentCount}
+                          </span>
+                          <span className="text-[11px] text-content-muted">học viên</span>
+                        </button>
+                      </td>
+
+                      {/* Target Score */}
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-2.5 py-0.5 font-extrabold text-xs text-content">
+                          {classItem.targetScore} TOEIC
+                        </span>
+                      </td>
+
+                      {/* Progress Bar */}
+                      <td className="px-5 py-4">
+                        <div className="w-36">
+                          <div className="flex items-center justify-between text-[11px] font-bold">
+                            <span className="text-content">{classItem.averageProgress}%</span>
+                            <span className="text-content-muted">{classItem.totalQuestions || 0} câu</span>
+                          </div>
+                          <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-surface-hover">
+                            <div
+                              className="h-full rounded-full bg-brand transition-all duration-500"
+                              style={{ width: `${Math.max(0, Math.min(100, classItem.averageProgress))}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-5 py-4 text-right">
+                        <Link
+                          to={`/admin/classes/${classItem.id}/students`}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-1.5 text-xs font-extrabold text-content hover:border-brand/40 hover:bg-surface-hover transition active:scale-[.98]"
+                        >
+                          <span>Học viên</span>
+                          <ExternalLink className="size-3.5 text-content-muted" />
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
-      {!isLoading && !loadError && filteredClasses.length > 0 && (
-        <section className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      {/* 8. Grid View */}
+      {!isLoading && !loadError && filteredClasses.length > 0 && viewMode === 'grid' && (
+        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClasses.map((classItem) => {
-            const classStudents = classItem.studentIds
-              .map((studentId) => studentById.get(studentId))
-              .filter((student): student is ManagedClassStudent => Boolean(student));
-            const isBusy = busyClassId === classItem.id;
+            const enrolledStudents = getClassStudents(classItem);
+            const isCopied = copiedCode === classItem.code;
+
             return (
-              <article
+              <div
                 key={classItem.id}
-                className={`rounded-2xl border bg-surface p-5 shadow-sm transition-colors dark:shadow-none ${
-                  classItem.isActive ? 'border-line hover:border-accent/35' : 'border-line/80 opacity-80 hover:opacity-100'
-                }`}
+                className="flex flex-col justify-between rounded-2xl border border-line bg-surface p-5 shadow-sm transition-all hover:border-brand/40 dark:shadow-none"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-extrabold ${
-                        classItem.isActive
-                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
-                          : 'bg-surface-elevated text-content-muted'
-                      }`}>
-                        <span className={`size-1.5 rounded-full ${classItem.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {classItem.isActive ? 'Đang hoạt động' : 'Đã lưu trữ'}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void copyClassCode(classItem.code)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-elevated px-2 py-1 text-xs font-extrabold tracking-wide text-content-muted transition hover:border-accent/35 hover:text-content"
-                        title="Sao chép mã lớp"
-                      >
-                        {classItem.code} <Copy className="size-3.5" aria-hidden="true" />
-                      </button>
+                {/* Card Top */}
+                <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand/10 text-accent-strong font-black text-sm">
+                        {classItem.code}
+                      </div>
+                      <div>
+                        <h2 className="font-extrabold text-base text-content">
+                          {classItem.name}
+                        </h2>
+                        <button
+                          type="button"
+                          onClick={() => void copyClassCode(classItem.code)}
+                          title="Sao chép mã khóa"
+                          className="mt-1 inline-flex items-center gap-1 rounded-md border border-line bg-surface-elevated px-2 py-0.5 font-mono text-[10px] font-bold text-content-muted hover:text-content transition"
+                        >
+                          <span>{classItem.code}</span>
+                          {isCopied ? (
+                            <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+                          ) : (
+                            <Copy className="size-3" />
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <h2 className="mt-3 truncate text-lg font-extrabold tracking-tight text-content">{classItem.name}</h2>
-                    <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-content-muted">
-                      {classItem.description || 'Chưa có mô tả cho lớp học này.'}
-                    </p>
-                  </div>
-                  <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-                    <School className="size-5" aria-hidden="true" />
-                  </span>
-                </div>
 
-                <div className="mt-5 flex items-center gap-4 rounded-xl border border-line bg-surface-elevated/70 p-3.5">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <div className="flex shrink-0 -space-x-2">
-                      {classStudents.slice(0, 3).map((student) => <StudentAvatar key={student.id} student={student} className="size-8" />)}
-                      {classStudents.length === 0 && (
-                        <span className="grid size-8 place-items-center rounded-full bg-surface-hover text-content-muted ring-2 ring-surface">
-                          <UsersRound className="size-4" aria-hidden="true" />
-                        </span>
-                      )}
-                      {classStudents.length > 3 && (
-                        <span className="grid size-8 place-items-center rounded-full bg-brand-100 text-[11px] font-extrabold text-brand-800 ring-2 ring-surface dark:bg-brand-500/15 dark:text-brand-300">
-                          +{classStudents.length - 3}
-                        </span>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-extrabold text-content">{classItem.studentCount} học sinh</p>
-                      <p className="mt-0.5 text-xs text-content-muted">Mục tiêu {classItem.targetScore} TOEIC</p>
-                    </div>
+                    <ProgressRing value={classItem.averageProgress} size={46} />
                   </div>
-                  <div className="hidden h-8 w-px bg-line sm:block" />
-                  <div className="flex shrink-0 items-center gap-2.5">
-                    <div className="hidden text-right sm:block">
-                      <p className="text-xs font-bold text-content">Tiến độ lớp</p>
-                      <p className="mt-0.5 text-xs text-content-muted">Trung bình hiện tại</p>
-                    </div>
-                    <ProgressRing value={classItem.averageProgress} />
-                  </div>
-                </div>
 
-                <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-xs text-content-muted">Tạo ngày {formatDate(classItem.createdAt)}</p>
-                  <div className="flex items-center gap-2">
-                    <button type="button" onClick={() => openEdit(classItem)} disabled={isBusy} className="btn-secondary min-h-10 flex-1 px-4 text-sm sm:flex-none">
-                      <Edit3 className="size-4" aria-hidden="true" /> Quản lý lớp
-                    </button>
+                  <p className="mt-3 text-xs leading-5 text-content-muted line-clamp-2">
+                    {classItem.description}
+                  </p>
+
+                  {/* Metrics Pills */}
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-line/70 pt-3">
+                    <div className="rounded-xl bg-surface-elevated p-2 text-center">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-content-muted">Học viên</span>
+                      <p className="mt-0.5 text-sm font-extrabold text-content">{classItem.studentCount}</p>
+                    </div>
+                    <div className="rounded-xl bg-surface-elevated p-2 text-center">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-content-muted">Mục tiêu</span>
+                      <p className="mt-0.5 text-sm font-extrabold text-content">{classItem.targetScore}</p>
+                    </div>
+                  </div>
+
+                  {/* Student Avatars Stack */}
+                  <div className="mt-4 flex items-center justify-between">
                     <button
                       type="button"
-                      onClick={() => void toggleClassStatus(classItem)}
-                      disabled={isBusy}
-                      aria-label={classItem.isActive ? 'Lưu trữ lớp' : 'Kích hoạt lại lớp'}
-                      title={classItem.isActive ? 'Lưu trữ lớp' : 'Kích hoạt lại lớp'}
-                      className="grid size-10 shrink-0 place-items-center rounded-xl border border-line text-content-muted transition hover:border-accent/35 hover:bg-brand-50 hover:text-content disabled:cursor-wait disabled:opacity-60 dark:hover:bg-brand-500/10"
+                      onClick={() => setSelectedClass(classItem)}
+                      className="flex items-center gap-2 hover:opacity-85 transition"
+                      title="Bấm để xem danh sách học viên"
                     >
-                      {isBusy
-                        ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                        : classItem.isActive
-                          ? <Archive className="size-4" aria-hidden="true" />
-                          : <ArchiveRestore className="size-4" aria-hidden="true" />}
+                      <div className="flex -space-x-2 overflow-hidden">
+                        {enrolledStudents.slice(0, 5).map((student) => (
+                          <StudentAvatar key={student.id} student={student} className="size-7" />
+                        ))}
+                      </div>
+                      {enrolledStudents.length > 5 && (
+                        <span className="text-[11px] font-bold text-content-muted">
+                          +{enrolledStudents.length - 5}
+                        </span>
+                      )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(classItem)}
-                      disabled={isBusy}
-                      aria-label="Xóa lớp"
-                      title="Xóa lớp"
-                      className="grid size-10 shrink-0 place-items-center rounded-xl border border-red-200 text-red-600 transition hover:bg-red-50 disabled:opacity-60 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-500/10"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </button>
+                    <span className="text-[11px] font-semibold text-content-muted">
+                      {classItem.totalXp ? `${classItem.totalXp.toLocaleString('vi-VN')} XP` : '0 XP'}
+                    </span>
                   </div>
                 </div>
-              </article>
+
+                {/* Card Bottom CTA */}
+                <div className="mt-5 border-t border-line pt-4">
+                  <Link
+                    to={`/admin/classes/${classItem.id}/students`}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-surface-elevated py-2.5 text-xs font-extrabold text-content hover:bg-brand hover:text-brand-ink transition active:scale-[.98]"
+                  >
+                    <span>Xem danh sách học viên ({classItem.studentCount})</span>
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
+              </div>
             );
           })}
         </section>
       )}
 
-      <DialogShell
-        open={dialogOpen}
-        onClose={closeEditor}
-        title={form.id ? 'Quản lý lớp học' : 'Tạo lớp mới'}
-        description={form.id ? 'Cập nhật thông tin và danh sách Học sinh trong lớp.' : 'Thiết lập thông tin cơ bản, sau đó chọn Học sinh tham gia.'}
-        maxWidth="max-w-xl"
-        footer={(
-          <>
-            <button type="button" onClick={closeEditor} disabled={isSubmitting} className="btn-secondary text-sm">Hủy</button>
-            <button type="submit" form="class-form" disabled={isSubmitting} className="btn-primary min-w-32 text-sm disabled:cursor-wait disabled:opacity-70">
-              {isSubmitting && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-              {form.id ? 'Lưu thay đổi' : 'Tạo lớp'}
-            </button>
-          </>
-        )}
-      >
-        <form id="class-form" onSubmit={saveClass} className="space-y-5">
-          {formError && (
-            <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-relaxed text-red-700 dark:border-red-900 dark:bg-red-500/10 dark:text-red-300">
-              {formError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_160px]">
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-content">Tên lớp <span className="text-red-500">*</span></span>
-              <input required maxLength={255} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className={managementInputClass} placeholder="TOEIC 750 buổi tối" />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-content">Mã lớp <span className="text-red-500">*</span></span>
-              <input
-                required
-                minLength={3}
-                maxLength={20}
-                value={form.code}
-                onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '') })}
-                className={`${managementInputClass} font-bold uppercase tracking-wide`}
-                placeholder="T750-A"
-              />
-            </label>
-          </div>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-bold text-content">Mô tả ngắn</span>
-            <textarea
-              value={form.description}
-              onChange={(event) => setForm({ ...form, description: event.target.value })}
-              rows={2}
-              maxLength={1000}
-              className={`${managementInputClass} min-h-20 resize-y py-3 leading-relaxed`}
-              placeholder="Mục tiêu và nội dung chính của lớp"
+      {/* 9. Quick Student Drawer (Slide-over) */}
+      <AnimatePresence>
+        {selectedClass && (
+          <div className="fixed inset-0 z-50 overflow-hidden">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedClass(null)}
+              className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
             />
-            <span className="mt-1.5 block text-right text-xs text-content-muted">{form.description.length}/1000</span>
-          </label>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[200px_minmax(0,1fr)]">
-            <label className="block">
-              <span className="mb-2 block text-sm font-bold text-content">Mục tiêu điểm</span>
-              <select value={form.targetScore} onChange={(event) => setForm({ ...form, targetScore: Number(event.target.value) })} className={managementInputClass}>
-                {[500, 600, 650, 700, 750, 800, 850, 900].map((score) => <option key={score} value={score}>{score} TOEIC</option>)}
-              </select>
-            </label>
-
-            {form.id && (
-              <div className="rounded-xl border border-line bg-surface-elevated px-4 py-3">
-                <div className="flex items-center justify-between gap-4">
+            {/* Slide-over panel */}
+            <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+              <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                className="w-screen max-w-md border-l border-line bg-surface shadow-2xl flex flex-col"
+              >
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between border-b border-line px-6 py-4">
                   <div>
-                    <p className="text-sm font-bold text-content">Trạng thái lớp</p>
-                    <p className="mt-1 text-xs leading-relaxed text-content-muted">
-                      {form.isActive ? 'Lớp đang nhận bài tập mới.' : 'Lớp đã được lưu trữ.'}
+                    <h2 className="text-base font-extrabold text-content">
+                      {selectedClass.name}
+                    </h2>
+                    <p className="text-xs text-content-muted">
+                      Mã khóa: <span className="font-mono font-bold text-content">{selectedClass.code}</span> • {selectedClass.studentCount} học viên
                     </p>
                   </div>
                   <button
                     type="button"
-                    role="switch"
-                    aria-checked={form.isActive}
-                    onClick={() => setForm((current) => ({ ...current, isActive: !current.isActive }))}
-                    className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-200 ${form.isActive ? 'bg-brand' : 'bg-slate-300 dark:bg-slate-700'}`}
+                    onClick={() => setSelectedClass(null)}
+                    aria-label="Đóng bảng chi tiết"
+                    className="rounded-lg p-1.5 text-content-muted hover:bg-surface-hover hover:text-content transition"
                   >
-                    <span className={`absolute left-1 top-1 size-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${form.isActive ? 'translate-x-5' : 'translate-x-0'}`} />
-                    <span className="sr-only">{form.isActive ? 'Lưu trữ lớp' : 'Kích hoạt lớp'}</span>
+                    <X className="size-5" />
                   </button>
                 </div>
-              </div>
-            )}
+
+                {/* Drawer Body - Student list */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-content-muted">
+                    Danh sách học viên trong khóa
+                  </p>
+                  {getClassStudents(selectedClass).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-line p-8 text-center text-xs text-content-muted">
+                      Chưa có học viên nào trong khóa này.
+                    </div>
+                  ) : (
+                    getClassStudents(selectedClass).map((student) => (
+                      <div
+                        key={student.id}
+                        className="flex items-center justify-between rounded-xl border border-line bg-surface-elevated p-3.5 transition hover:border-brand/40"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <StudentAvatar student={student} className="size-9" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-extrabold text-content truncate">
+                              {student.name}
+                            </p>
+                            <p className="text-[11px] text-content-muted truncate">
+                              {student.email}
+                            </p>
+                            <div className="mt-1 flex items-center gap-2 text-[10px] font-bold text-content-muted">
+                              <span>Mục tiêu: {student.targetScore}</span>
+                              <span>•</span>
+                              <span className="text-amber-600 dark:text-amber-400">Chuỗi: {student.streakDays} ngày</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <Link
+                          to={`/admin/accounts/${student.id}/practice`}
+                          className="btn-secondary shrink-0 text-[11px] px-2.5 py-1 font-bold hover:border-brand/40"
+                        >
+                          Xem hồ sơ
+                        </Link>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Drawer Footer */}
+                <div className="border-t border-line p-4 bg-surface-elevated flex items-center justify-between gap-3">
+                  <Link
+                    to={`/admin/classes/${selectedClass.id}/students`}
+                    className="btn-primary w-full text-center text-xs justify-center"
+                  >
+                    <span>Mở trang danh sách lớp đầy đủ</span>
+                    <ExternalLink className="size-3.5" />
+                  </Link>
+                </div>
+              </motion.div>
+            </div>
           </div>
-
-          <fieldset>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <legend className="text-sm font-bold text-content">Học sinh trong lớp</legend>
-                <p className="mt-1 text-xs leading-relaxed text-content-muted">
-                  Đã chọn {form.studentIds.length} trong {students.length} tài khoản Học sinh.
-                </p>
-              </div>
-              {filteredStudents.length > 0 && (
-                <button type="button" onClick={toggleAllFilteredStudents} className="text-xs font-extrabold text-brand-700 hover:text-brand-800 dark:text-brand-300">
-                  {filteredStudents.every((student) => form.studentIds.includes(student.id)) ? 'Bỏ chọn kết quả' : 'Chọn tất cả kết quả'}
-                </button>
-              )}
-            </div>
-            <div className="relative mt-3">
-              <Search className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-content-muted" aria-hidden="true" />
-              <input value={studentQuery} onChange={(event) => setStudentQuery(event.target.value)} className={`${managementInputClass} pl-10`} placeholder="Tìm theo tên hoặc email" aria-label="Tìm Học sinh để thêm vào lớp" />
-            </div>
-            <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-line bg-surface">
-              {filteredStudents.map((student) => {
-                const selected = form.studentIds.includes(student.id);
-                return (
-                  <label key={student.id} className={`flex min-h-14 cursor-pointer items-center gap-3 border-b border-line/70 px-3 py-2.5 transition-colors last:border-b-0 ${selected ? 'bg-brand-50 dark:bg-brand-500/10' : 'hover:bg-surface-hover'}`}>
-                    <input type="checkbox" checked={selected} onChange={() => toggleStudent(student.id)} className="sr-only" />
-                    <span className={`grid size-5 shrink-0 place-items-center rounded-md border transition-colors ${selected ? 'border-brand bg-brand text-brand-ink' : 'border-line bg-surface-elevated'}`}>
-                      {selected && <Check className="size-3.5" strokeWidth={3} aria-hidden="true" />}
-                    </span>
-                    <StudentAvatar student={student} className="size-9" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-bold text-content">{student.name}</span>
-                      <span className="mt-0.5 block truncate text-xs text-content-muted">{student.email}</span>
-                    </span>
-                    <span className="hidden shrink-0 text-right sm:block">
-                      <span className="block text-xs font-extrabold text-content">{student.currentScore || 'Chưa có điểm'}</span>
-                      <span className="mt-0.5 block text-xs text-content-muted">Mục tiêu {student.targetScore}</span>
-                    </span>
-                  </label>
-                );
-              })}
-
-              {students.length === 0 && (
-                <div className="px-5 py-8 text-center">
-                  <UserRoundPlus className="mx-auto size-7 text-content-muted" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-bold text-content">Chưa có tài khoản Học sinh</p>
-                  <p className="mt-1 text-xs leading-relaxed text-content-muted">Bạn vẫn có thể tạo lớp và thêm thành viên sau.</p>
-                </div>
-              )}
-              {students.length > 0 && filteredStudents.length === 0 && (
-                <div className="px-5 py-8 text-center">
-                  <Search className="mx-auto size-7 text-content-muted" aria-hidden="true" />
-                  <p className="mt-3 text-sm font-bold text-content">Không tìm thấy Học sinh</p>
-                  <p className="mt-1 text-xs text-content-muted">Thử một tên hoặc email khác.</p>
-                </div>
-              )}
-            </div>
-          </fieldset>
-        </form>
-      </DialogShell>
-
-      <DialogShell
-        open={Boolean(deleteTarget)}
-        onClose={() => { if (!busyClassId) setDeleteTarget(null); }}
-        title="Xóa lớp học?"
-        description="Hành động này không xóa tài khoản Học sinh."
-        maxWidth="max-w-md"
-        footer={(
-          <>
-            <button type="button" onClick={() => setDeleteTarget(null)} disabled={Boolean(busyClassId)} className="btn-secondary text-sm">Giữ lại lớp</button>
-            <button type="button" onClick={() => void confirmDelete()} disabled={Boolean(busyClassId)} className="inline-flex min-h-11 min-w-32 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-extrabold text-white transition hover:bg-red-700 active:scale-[.98] disabled:cursor-wait disabled:opacity-70">
-              {busyClassId && <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />}
-              Xác nhận xóa
-            </button>
-          </>
         )}
-      >
-        <div className="flex gap-3 rounded-xl bg-surface-elevated p-4">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300">
-            <Trash2 className="size-5" aria-hidden="true" />
-          </span>
-          <p className="text-sm leading-relaxed text-content-muted">
-            Lớp <strong className="font-extrabold text-content">{deleteTarget?.name}</strong> và danh sách thành viên liên kết sẽ bị xóa. Nếu lớp đã dùng để giao bài, hệ thống sẽ yêu cầu bạn lưu trữ lớp thay thế.
-          </p>
-        </div>
-      </DialogShell>
+      </AnimatePresence>
 
+      {/* Toast Feedback */}
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.98 }}
-            transition={{ duration: reduceMotion ? 0.1 : 0.2, ease: 'easeOut' }}
-            role="status"
-            className={`fixed bottom-5 left-1/2 z-[120] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold shadow-xl ${
-              toast.tone === 'success'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300'
-                : 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-slate-900 dark:text-red-300'
-            }`}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            className="fixed bottom-6 right-6 z-50"
           >
-            {toast.tone === 'success' ? <CheckCircle2 className="size-4" aria-hidden="true" /> : <RefreshCw className="size-4" aria-hidden="true" />}
-            {toast.message}
+            <div
+              className={`flex items-center gap-2.5 rounded-2xl border px-4 py-3 text-xs font-extrabold shadow-lg ${
+                toast.tone === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/80 dark:text-emerald-200'
+                  : 'border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/80 dark:text-red-200'
+              }`}
+            >
+              {toast.tone === 'success' ? <Check className="size-4" /> : <X className="size-4" />}
+              <span>{toast.message}</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

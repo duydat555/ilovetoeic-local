@@ -66,7 +66,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({ isOpen, onCl
         <div className="flex-1 overflow-y-auto p-3 space-y-1">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const label = NAV_TRANSLATION_KEYS[item.path] ? t(NAV_TRANSLATION_KEYS[item.path]) : item.label;
+            const transKey = NAV_TRANSLATION_KEYS[item.path];
+            const translated = transKey ? t(transKey) : '';
+            const label = translated && translated !== transKey ? translated : item.label;
             const isFeatureDisabledForAdmin = navigationRole === 'admin' && Boolean(item.featureKey && !isFeatureEnabled(item.featureKey));
             const isComingSoon = navigationRole === 'admin'
               ? getStatus(item.path)?.status === 'coming_soon'

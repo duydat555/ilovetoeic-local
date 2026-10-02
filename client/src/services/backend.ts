@@ -247,6 +247,9 @@ export interface ManagedClassRecord {
   studentIds: string[];
   studentCount: number;
   averageProgress: number;
+  totalXp?: number;
+  totalQuestions?: number;
+  students?: ManagedClassStudent[];
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

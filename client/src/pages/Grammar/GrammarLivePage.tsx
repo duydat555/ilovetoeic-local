@@ -234,19 +234,92 @@ const writeGrammarProgress = (userId: string, progress: StoredGrammarProgress) =
 
 const vocabularyKey = (word: string) => word.trim().toLocaleLowerCase('en');
 
+export const formatGrammarTopicTitle = (title?: string | null): string => {
+  if (!title) return '';
+  // 1. Remove raw Key prefixes like "Key 1: ", "Key_1_", "key_9_", "Key 10: "
+  let clean = title.replace(/^key[\s_]*\d+[\s:_.-]*/i, '');
+  // 2. Remove page / suffix numbers like "_p.72-74", " p.131-136", " 131-136"
+  clean = clean.replace(/[\s_]*p\.?\s*\d+(?:-\d+)?$/i, '');
+  // 3. Normalize underscores
+  clean = clean.replace(/_/g, ' ').trim();
+
+  const mappings: Record<string, string> = {
+    'Thì': 'Thì',
+    'Thì p.72-74': 'Thì',
+    'Bị Động': 'Bị động',
+    'Bị Đong': 'Bị động',
+    'MỆNH ĐE QUAN HỆ': 'Mệnh đề quan hệ',
+    'MỆNH ĐỀ QUAN HỆ': 'Mệnh đề quan hệ',
+    'Cum DT (DET)': 'Cụm danh từ (DET)',
+    'Cụm DT (DET)': 'Cụm danh từ (DET)',
+    'Vị Ngữ Cả câu': 'Vị ngữ & Cả câu',
+    'Vị Ngữ_Cả câu': 'Vị ngữ & Cả câu',
+    'VI TRÍ DANH TỪ': 'Vị trí danh từ',
+    'VI TRÍ CUA TÍNH TỪ': 'Vị trí của tính từ',
+    'VI TRÍ CỦA TÍNH TỪ': 'Vị trí của tính từ',
+    'TRANG TÙ': 'Trạng từ',
+    'TRẠNG TỪ': 'Trạng từ',
+    'ĐỘNG TÙ': 'Động từ',
+    'ĐỘNG TỪ': 'Động từ',
+    'Rut gon Dong S va Tong hop 131-136': 'Rút gọn đồng chủ ngữ & Tổng hợp',
+    'Rút gọn Đồng S và Tổng hợp 131-136': 'Rút gọn đồng chủ ngữ & Tổng hợp',
+    'Rut gon Dong S va Tong hop': 'Rút gọn đồng chủ ngữ & Tổng hợp',
+    'Rút gọn Đồng S và Tổng hợp': 'Rút gọn đồng chủ ngữ & Tổng hợp',
+    'ĐAITÙ': 'Đại từ',
+    'ĐẠI TỪ': 'Đại từ',
+    'SO SÁNH': 'So sánh',
+    'CÂU ĐIÊU KIÊN': 'Câu điều kiện',
+    'CÂU ĐIỀU KIỆN': 'Câu điều kiện',
+    'HÒA HỢP CHU VỊ': 'Hòa hợp chủ vị',
+    'HÒA HỢP CHỦ VỊ': 'Hòa hợp chủ vị',
+    'LIÊN TÙ': 'Liên từ',
+    'LIÊN TỪ': 'Liên từ',
+    'MỆNH ĐE DANH NGỮ': 'Mệnh đề danh ngữ',
+    'MỆNH ĐỀ DANH NGỮ': 'Mệnh đề danh ngữ',
+    'THỂ GIẢ ĐỊNH': 'Thể giả định',
+    'Các dạng cấu trúc đặc biệt': 'Các dạng cấu trúc đặc biệt',
+  };
+
+  if (mappings[clean]) return mappings[clean];
+  if (mappings[title]) return mappings[title];
+
+  // If entirely in UPPERCASE, transform to sentence case
+  if (clean.length > 2 && clean === clean.toUpperCase()) {
+    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+  }
+
+  return clean;
+};
+
 const parseGrammarVocabulary = (value?: string | null): GrammarVocabularyEntry[] => {
   if (!value || value === 'None') return [];
   return value
     .split(/\r?\n+|;+/)
-    .map((line) => line.replace(/^[-•]\s*/, '').trim())
+    .map((line) => line.replace(/^[-•*]\s*/, '').trim())
     .filter(Boolean)
     .map((line) => {
-      const detailed = line.match(/^(.+?)\s*\(([^)]+)\)\s*:\s*(.+)$/);
-      if (detailed) return { word: detailed[1].trim(), partOfSpeech: detailed[2].trim(), meaning: detailed[3].trim() };
-      const simple = line.match(/^(.+?)\s*:\s*(.+)$/);
-      if (simple) return { word: simple[1].trim(), partOfSpeech: '', meaning: simple[2].trim() };
-      return { word: line, partOfSpeech: '', meaning: '' };
-    });
+      // Clean trailing period or semicolon
+      const cleanLine = line.replace(/[.;]+$/, '').trim();
+
+      // Pattern 1: word (pos) ~/:/=/ - meaning OR word ~/:/=/ - meaning
+      // Supports ~, :, =, or hyphen/dash surrounded by spaces ( - , – , — )
+      const matched = cleanLine.match(/^(.+?)(?:\s*\(([^)]+)\))?\s*(?:~|:|=|\s+[-–—]\s+)\s*(.+)$/);
+      if (matched) {
+        const word = matched[1].trim();
+        const partOfSpeech = (matched[2] || '').trim();
+        const meaning = matched[3].replace(/[.;]+$/, '').trim();
+        return { word, partOfSpeech, meaning };
+      }
+
+      // Pattern 2: word (pos) without explicit separator, e.g. "word (n)"
+      const withPos = cleanLine.match(/^(.+?)\s*\(([^)]+)\)$/);
+      if (withPos) {
+        return { word: withPos[1].trim(), partOfSpeech: withPos[2].trim(), meaning: '' };
+      }
+
+      return { word: cleanLine, partOfSpeech: '', meaning: '' };
+    })
+    .filter((entry) => Boolean(entry.word));
 };
 
 interface AnswerTranslationEntry {
@@ -284,7 +357,8 @@ const parseAnswerTranslations = (value?: string | null): AnswerTranslationEntry[
 const getInitialSelection = (catalog: GrammarCatalog, mode: GrammarMode): Selection => {
   if (mode === 'topic') {
     const topic = catalog.topics[0];
-    return { mode, topicId: topic?.id };
+    const defaultCat = (topic?.book_question_count ?? 0) > 0 ? 'book' : 'supplementary';
+    return { mode, topicId: topic?.id, sourceCategory: defaultCat };
   }
   if (mode === 'bank') {
     const bank = catalog.banks[0];
@@ -617,8 +691,15 @@ export const GrammarLivePage: React.FC = () => {
     if (isWrongReview && wrongReviewSection) return `${language === 'en' ? 'Wrong Questions' : 'Câu sai'}: ${wrongReviewSection.label}`;
     if (!catalog) return '';
     if (selection.mode === 'topic') {
-      return activeTopic?.subtopics.find((item) => item.id === selection.subtopicId)?.title_vi
-        || activeTopic?.title_vi || '';
+      const catText = selection.sourceCategory === 'supplementary'
+        ? (language === 'en' ? 'Supplementary' : 'Bổ sung')
+        : (language === 'en' ? 'In Textbook' : 'Trong sách');
+      const topicName = formatGrammarTopicTitle(activeTopic?.title_vi) || '';
+      const subtopic = activeTopic?.subtopics.find((item) => item.id === selection.subtopicId);
+      if (subtopic) {
+        return `${topicName} › ${subtopic.title_vi} (${catText})`;
+      }
+      return `${topicName} › ${catText}`;
     }
     if (selection.mode === 'bank') {
       return activeBank?.tests.find((item) => item.test_id === selection.testId)?.test_name
@@ -637,7 +718,9 @@ export const GrammarLivePage: React.FC = () => {
   const chooseTopic = (topicId: string) => {
     setIsWrongReview(false);
     setWrongReviewSection(null);
-    setSelection({ mode: 'topic', topicId });
+    const targetTopic = catalog?.topics.find((item) => item.id === topicId);
+    const defaultCat = (targetTopic?.book_question_count ?? 0) > 0 ? 'book' : 'supplementary';
+    setSelection({ mode: 'topic', topicId, sourceCategory: defaultCat });
   };
 
   const chooseBank = (bankSetId: string) => {
@@ -893,55 +976,153 @@ export const GrammarLivePage: React.FC = () => {
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto p-2.5 lg:max-h-[calc(100dvh-20rem)]">
-              {selection.mode === 'topic' && catalog.topics.map((topic) => {
+              {selection.mode === 'topic' && catalog.topics.map((topic, topicIdx) => {
                 const active = topic.id === selection.topicId;
+                const bookSubtopics = topic.subtopics.filter((s) => s.source_category === 'book');
+                const suppSubtopics = topic.subtopics.filter((s) => s.source_category !== 'book');
+                const hasBookQuestions = (topic.book_question_count ?? 0) > 0;
+                const hasSuppQuestions = (topic.supplementary_question_count ?? 0) > 0;
+                const topicNumber = topic.order_index ?? (topicIdx + 1);
+
                 return (
                   <div key={topic.id} className="mb-1.5">
                     <button
                       type="button"
                       onClick={() => chooseTopic(topic.id)}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors ${active ? 'bg-surface-elevated' : 'hover:bg-surface-hover'}`}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all ${
+                        active ? 'bg-surface-elevated shadow-xs ring-1 ring-line' : 'hover:bg-surface-hover'
+                      }`}
                     >
-                      <span className={`grid size-8 shrink-0 place-items-center rounded-lg ${active ? 'bg-accent text-brand-950' : 'bg-surface-elevated text-content-muted'}`}>
-                        <BookOpenCheck className="size-3.5" />
+                      <span
+                        className={`grid size-7 shrink-0 place-items-center rounded-lg text-xs font-black tabular-nums transition-colors ${
+                          active
+                            ? 'bg-accent text-brand-950 shadow-xs'
+                            : 'bg-surface-elevated text-content-muted'
+                        }`}
+                      >
+                        {topicNumber <= 18
+                          ? String(topicNumber).padStart(2, '0')
+                          : <BookOpenCheck className="size-3.5" />}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-xs font-extrabold">{topic.title_vi}</span>
-                        <span className="mt-0.5 block text-[10px] font-semibold text-content-muted">{topic.question_count} {language === 'en' ? 'questions' : 'câu'}</span>
+                        <span className={`block truncate text-xs font-extrabold ${active ? 'text-accent-strong' : 'text-content'}`}>
+                          {formatGrammarTopicTitle(topic.title_vi)}
+                        </span>
+                        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-content-muted">
+                          {hasBookQuestions ? (
+                            <span className="font-bold text-amber-700 dark:text-amber-400">
+                              {topic.book_question_count} {language === 'en' ? 'in-book' : 'trong sách'}
+                            </span>
+                          ) : (
+                            <span className="text-content-muted/60">{language === 'en' ? '0 in-book' : '0 câu sách'}</span>
+                          )}
+                          <span>·</span>
+                          <span>{topic.supplementary_question_count ?? 0} {language === 'en' ? 'extra' : 'bổ sung'}</span>
+                        </div>
                       </span>
-                      <ChevronDown className={`size-3.5 text-content-muted transition-transform ${active ? 'rotate-180' : ''}`} />
+                      <ChevronDown
+                        className={`size-3.5 text-content-muted transition-transform duration-200 ${
+                          active ? 'rotate-180 text-accent-strong' : ''
+                        }`}
+                      />
                     </button>
                     {active && (
-                      <div className="ml-7 mt-1 border-l border-line pl-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsWrongReview(false);
-                            setWrongReviewSection(null);
-                            setSelection({ mode: 'topic', topicId: topic.id });
-                          }}
-                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${!selection.subtopicId ? 'bg-accent/15 font-extrabold text-accent-strong' : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
-                            }`}
-                        >
-                          <span>{language === 'en' ? 'All questions in topic' : 'Tất cả câu trong chuyên đề'}</span>
-                          <span className="shrink-0 tabular-nums">{topic.question_count}</span>
-                        </button>
-                        {topic.subtopics.map((subtopic) => (
-                          <button
-                            key={subtopic.id}
-                            type="button"
-                            onClick={() => {
-                              setIsWrongReview(false);
-                              setWrongReviewSection(null);
-                              setSelection({ mode: 'topic', topicId: topic.id, subtopicId: subtopic.id });
-                            }}
-                            className={`flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-[11px] transition-colors ${selection.subtopicId === subtopic.id ? 'bg-accent/15 font-extrabold text-accent-strong' : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
+                      <div className="ml-6 mt-1.5 space-y-3 border-l-2 border-line/80 pl-2.5 pt-1">
+                        {/* Nhóm 1: Trong sách */}
+                        {hasBookQuestions && (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between px-2 text-[10px] font-extrabold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                              <span className="flex items-center gap-1">
+                                <BookOpenCheck className="size-3" />
+                                {language === 'en' ? 'In Textbook' : 'Trong sách'}
+                              </span>
+                              <span className="tabular-nums font-black">{topic.book_question_count ?? 0}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsWrongReview(false);
+                                setWrongReviewSection(null);
+                                setSelection({ mode: 'topic', topicId: topic.id, sourceCategory: 'book' });
+                              }}
+                              className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${
+                                selection.sourceCategory === 'book' && !selection.subtopicId
+                                  ? 'bg-accent/15 font-extrabold text-accent-strong ring-1 ring-accent/30'
+                                  : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
                               }`}
-                          >
-                            <span className="line-clamp-2">{subtopic.title_vi}</span>
-                            <span className="shrink-0 tabular-nums">{subtopic.question_count}</span>
-                          </button>
-                        ))}
+                            >
+                              <span>{language === 'en' ? 'All textbook questions' : 'Tất cả câu trong sách'}</span>
+                              <span className="shrink-0 tabular-nums">{topic.book_question_count ?? 0}</span>
+                            </button>
+                            {bookSubtopics.map((subtopic) => (
+                              <button
+                                key={subtopic.id}
+                                type="button"
+                                onClick={() => {
+                                  setIsWrongReview(false);
+                                  setWrongReviewSection(null);
+                                  setSelection({ mode: 'topic', topicId: topic.id, subtopicId: subtopic.id, sourceCategory: 'book' });
+                                }}
+                                className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${
+                                  selection.sourceCategory === 'book' && selection.subtopicId === subtopic.id
+                                    ? 'bg-accent/15 font-extrabold text-accent-strong ring-1 ring-accent/30'
+                                    : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
+                                }`}
+                              >
+                                <span className="line-clamp-2">{subtopic.title_vi}</span>
+                                <span className="shrink-0 tabular-nums">{subtopic.question_count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Nhóm 2: Bổ sung */}
+                        {hasSuppQuestions && (
+                          <div className={`space-y-1 ${hasBookQuestions ? 'border-t border-line/60 pt-2' : ''}`}>
+                            <div className="flex items-center justify-between px-2 text-[10px] font-extrabold uppercase tracking-wider text-content-muted">
+                              <span className="flex items-center gap-1">
+                                <Database className="size-3" />
+                                {language === 'en' ? 'Supplementary' : 'Bổ sung'}
+                              </span>
+                              <span className="tabular-nums font-black">{topic.supplementary_question_count ?? 0}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsWrongReview(false);
+                                setWrongReviewSection(null);
+                                setSelection({ mode: 'topic', topicId: topic.id, sourceCategory: 'supplementary' });
+                              }}
+                              className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${
+                                selection.sourceCategory === 'supplementary' && !selection.subtopicId
+                                  ? 'bg-accent/15 font-extrabold text-accent-strong ring-1 ring-accent/30'
+                                  : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
+                              }`}
+                            >
+                              <span>{language === 'en' ? 'All supplementary questions' : 'Tất cả câu bổ sung'}</span>
+                              <span className="shrink-0 tabular-nums">{topic.supplementary_question_count ?? 0}</span>
+                            </button>
+                            {suppSubtopics.map((subtopic) => (
+                              <button
+                                key={subtopic.id}
+                                type="button"
+                                onClick={() => {
+                                  setIsWrongReview(false);
+                                  setWrongReviewSection(null);
+                                  setSelection({ mode: 'topic', topicId: topic.id, subtopicId: subtopic.id, sourceCategory: 'supplementary' });
+                                }}
+                                className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left text-[11px] transition-colors ${
+                                  selection.sourceCategory === 'supplementary' && selection.subtopicId === subtopic.id
+                                    ? 'bg-accent/15 font-extrabold text-accent-strong ring-1 ring-accent/30'
+                                    : 'font-semibold text-content-muted hover:bg-surface-hover hover:text-content'
+                                }`}
+                              >
+                                <span className="line-clamp-2">{subtopic.title_vi}</span>
+                                <span className="shrink-0 tabular-nums">{subtopic.question_count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1032,6 +1213,77 @@ export const GrammarLivePage: React.FC = () => {
           <section id="tour-gm-practice" ref={practiceRef} className="min-w-0 scroll-mt-5 space-y-4" aria-label={language === 'en' ? 'Grammar practice session' : 'Bài luyện ngữ pháp'}>
             {progressStorageError && <p className="text-[11px] font-semibold text-negative" role="alert">{progressStorageError}</p>}
 
+            {/* Category Tabs: Trong sách vs Bổ sung (khi chọn chế độ Theo chuyên đề) */}
+            {selection.mode === 'topic' && activeTopic && !isWrongReview && (
+              <div className="surface flex items-center gap-2 rounded-2xl p-1.5 shadow-xs">
+                <button
+                  type="button"
+                  disabled={(activeTopic.book_question_count ?? 0) === 0}
+                  onClick={() => {
+                    if (selection.sourceCategory === 'book' && !selection.subtopicId) return;
+                    setIsWrongReview(false);
+                    setWrongReviewSection(null);
+                    setSelection((prev) => ({
+                      ...prev,
+                      sourceCategory: 'book',
+                      subtopicId: undefined,
+                    }));
+                  }}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-extrabold transition-all duration-200 ${
+                    selection.sourceCategory === 'book'
+                      ? 'bg-accent text-brand-950 shadow-sm ring-1 ring-accent'
+                      : (activeTopic.book_question_count ?? 0) === 0
+                        ? 'cursor-not-allowed opacity-40 text-content-muted'
+                        : 'text-content-muted hover:text-content hover:bg-surface-elevated'
+                  }`}
+                  title={(activeTopic.book_question_count ?? 0) === 0 ? (language === 'en' ? 'No textbook questions for this topic' : 'Chuyên đề này chưa có câu trong sách') : undefined}
+                >
+                  <BookOpenCheck className="size-4 shrink-0" />
+                  <span>{language === 'en' ? 'In Textbook' : 'Trong sách'}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black tabular-nums ${
+                    selection.sourceCategory === 'book'
+                      ? 'bg-brand-950/15 text-brand-950'
+                      : 'bg-surface-elevated text-content-muted'
+                  }`}>
+                    {activeTopic.book_question_count ?? 0}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={(activeTopic.supplementary_question_count ?? 0) === 0}
+                  onClick={() => {
+                    if (selection.sourceCategory === 'supplementary' && !selection.subtopicId) return;
+                    setIsWrongReview(false);
+                    setWrongReviewSection(null);
+                    setSelection((prev) => ({
+                      ...prev,
+                      sourceCategory: 'supplementary',
+                      subtopicId: undefined,
+                    }));
+                  }}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-extrabold transition-all duration-200 ${
+                    selection.sourceCategory === 'supplementary'
+                      ? 'bg-accent text-brand-950 shadow-sm ring-1 ring-accent'
+                      : (activeTopic.supplementary_question_count ?? 0) === 0
+                        ? 'cursor-not-allowed opacity-40 text-content-muted'
+                        : 'text-content-muted hover:text-content hover:bg-surface-elevated'
+                  }`}
+                  title={(activeTopic.supplementary_question_count ?? 0) === 0 ? (language === 'en' ? 'No supplementary questions for this topic' : 'Chuyên đề này chưa có câu bổ sung') : undefined}
+                >
+                  <Database className="size-4 shrink-0" />
+                  <span>{language === 'en' ? 'Supplementary' : 'Bổ sung'}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black tabular-nums ${
+                    selection.sourceCategory === 'supplementary'
+                      ? 'bg-brand-950/15 text-brand-950'
+                      : 'bg-surface-elevated text-content-muted'
+                  }`}>
+                    {activeTopic.supplementary_question_count ?? 0}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {isQuestionLoading ? (
               <GrammarQuestionLoadingState name="grammar-active-question" />
             ) : error ? (
@@ -1097,12 +1349,21 @@ export const GrammarLivePage: React.FC = () => {
                   </header>
 
                   <div className="px-4 py-5 sm:px-6 sm:py-6">
-                    {(currentQuestion.question_number || currentQuestion.difficulty_name_vi) && (
-                      <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-content-muted">
-                        {currentQuestion.question_number && <span>{language === 'en' ? 'Original #' : 'Gốc #'}{currentQuestion.question_number}</span>}
-                        {currentQuestion.difficulty_name_vi && <span>· {currentQuestion.difficulty_name_vi}</span>}
-                      </div>
-                    )}
+                    <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-content-muted">
+                      {currentQuestion.source_category && (
+                        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
+                          currentQuestion.source_category === 'book'
+                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/25'
+                            : 'bg-brand-500/15 text-brand-700 dark:text-brand-300 border border-brand-500/25'
+                        }`}>
+                          {currentQuestion.source_category === 'book'
+                            ? (language === 'en' ? '📖 In Textbook' : '📖 Trong sách')
+                            : (language === 'en' ? '📚 Supplementary' : '📚 Bổ sung')}
+                        </span>
+                      )}
+                      {currentQuestion.question_number && <span>{language === 'en' ? 'Original #' : 'Gốc #'}{currentQuestion.question_number}</span>}
+                      {currentQuestion.difficulty_name_vi && <span>· {currentQuestion.difficulty_name_vi}</span>}
+                    </div>
 
                     <p className="text-base font-bold leading-7 tracking-[-0.01em] text-content sm:text-lg">{currentQuestion.question_text}</p>
                     <div className="mt-5 grid gap-2.5 sm:grid-cols-2">
@@ -1197,31 +1458,68 @@ export const GrammarLivePage: React.FC = () => {
                           </div>
                         </section>
                       )}
-                      {currentQuestion.vocabulary && (
+                      {currentQuestion.vocabulary && vocabularyEntries.length > 0 && (
                         <section className="bg-surface px-4 py-4 sm:px-5">
-                          <h3 className="flex items-center gap-2 text-[11px] font-extrabold text-content"><BookOpenCheck className="size-3.5 text-accent-strong" /> {language === 'en' ? 'Key Vocabulary' : 'Từ vựng cần nhớ'}</h3>
-                          <div className="mt-2 flex flex-col items-start gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-wider text-content">
+                              <BookOpenCheck className="size-3.5 text-accent-strong" />
+                              {language === 'en' ? 'Key Vocabulary' : 'Từ vựng cần nhớ'}
+                            </h3>
+                            <span className="text-[10px] font-bold text-content-muted tabular-nums">
+                              {vocabularyEntries.length} {language === 'en' ? 'words' : 'từ'}
+                            </span>
+                          </div>
+
+                          <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                             {vocabularyEntries.map((entry) => {
                               const key = vocabularyKey(entry.word);
                               const saved = savedVocabulary.has(key);
                               const saving = savingVocabulary === key;
                               return (
-                                <div key={`${key}-${entry.meaning}`} className="inline-flex max-w-full items-start gap-2 rounded-lg bg-surface-elevated py-2.5 pl-3 pr-2">
-                                  <div className="min-w-0 text-xs leading-relaxed">
-                                    <p className="font-extrabold text-content">
-                                      {entry.word}{entry.partOfSpeech && <span className="ml-1 font-semibold text-content-muted">({entry.partOfSpeech})</span>}
-                                    </p>
-                                    {entry.meaning && <p className="mt-0.5 text-content-muted">{entry.meaning}</p>}
+                                <div
+                                  key={`${key}-${entry.meaning}`}
+                                  className="flex items-start justify-between gap-3 rounded-xl border border-line/70 bg-surface-elevated/60 p-3 transition-colors hover:border-brand-400/50 hover:bg-surface-elevated"
+                                >
+                                  <div className="min-w-0 flex-1 leading-snug">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      <span className="font-extrabold text-sm text-content">{entry.word}</span>
+                                      {entry.partOfSpeech && (
+                                        <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-bold text-accent-strong">
+                                          {entry.partOfSpeech}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {entry.meaning && (
+                                      <p className="mt-1 text-xs leading-relaxed text-content-muted">{entry.meaning}</p>
+                                    )}
                                   </div>
                                   <button
                                     type="button"
                                     onClick={() => void saveVocabularyEntry(entry)}
                                     disabled={saved || Boolean(savingVocabulary) || !user}
-                                    aria-label={saved ? (language === 'en' ? `${entry.word} is already in vocabulary notebook` : `${entry.word} đã có trong sổ từ vựng`) : (language === 'en' ? `Add ${entry.word} to vocabulary notebook` : `Thêm ${entry.word} vào sổ từ vựng`)}
-                                    title={saved ? (language === 'en' ? 'Saved' : 'Đã lưu') : (language === 'en' ? 'Add to vocabulary' : 'Thêm vào sổ từ vựng')}
-                                    className={`grid size-8 shrink-0 place-items-center rounded-lg transition-colors ${saved ? 'bg-positive/10 text-positive' : 'bg-accent/15 text-accent-strong hover:bg-accent/25 disabled:cursor-not-allowed disabled:opacity-50'}`}
+                                    aria-label={
+                                      saved
+                                        ? (language === 'en' ? `${entry.word} is already saved` : `${entry.word} đã có trong sổ từ`)
+                                        : (language === 'en' ? `Add ${entry.word} to vocabulary notebook` : `Lưu ${entry.word} vào sổ từ vựng`)
+                                    }
+                                    title={
+                                      saved
+                                        ? (language === 'en' ? 'Already in vocabulary notebook' : 'Đã có trong sổ từ vựng')
+                                        : (language === 'en' ? 'Add to vocabulary notebook' : 'Lưu vào sổ từ vựng')
+                                    }
+                                    className={`grid size-8 shrink-0 place-items-center rounded-lg border text-xs font-bold transition-all active:scale-95 ${
+                                      saved
+                                        ? 'border-positive/30 bg-positive/10 text-positive'
+                                        : 'border-line bg-surface text-content-muted hover:border-accent hover:bg-accent/15 hover:text-accent-strong disabled:cursor-not-allowed disabled:opacity-40'
+                                    }`}
                                   >
-                                    {saving ? <Loader2 className="size-3.5 animate-spin" /> : saved ? <Check className="size-3.5" /> : <Plus className="size-3.5" />}
+                                    {saving ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : saved ? (
+                                      <Check className="size-3.5 stroke-[2.5]" />
+                                    ) : (
+                                      <Plus className="size-3.5" />
+                                    )}
                                   </button>
                                 </div>
                               );

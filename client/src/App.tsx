@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AdminFeatureStatusProvider } from './context/AdminFeatureStatusContext';
 import { FeatureFlagsProvider } from './hooks/useFeatureFlags';
@@ -36,6 +36,8 @@ const ProfilePage = lazy(() => import('./pages/Profile/ProfilePage').then((m) =>
 const SettingsPage = lazy(() => import('./pages/Settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 const NotificationsPage = lazy(() => import('./pages/Notifications/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const AccountManagementLivePage = lazy(() => import('./pages/Admin/AccountManagementLivePage').then((m) => ({ default: m.AccountManagementLivePage })));
+const AdminClassesPage = lazy(() => import('./pages/Admin/AdminClassesPage').then((m) => ({ default: m.AdminClassesPage })));
+const ClassStudentsLivePage = lazy(() => import('./pages/Admin/ClassStudentsLivePage').then((m) => ({ default: m.ClassStudentsLivePage })));
 const StudentPracticeDetailPage = lazy(() => import('./pages/Admin/StudentPracticeDetailPage').then((m) => ({ default: m.StudentPracticeDetailPage })));
 const AdminFeedbackPage = lazy(() => import('./pages/Admin/AdminFeedbackPage').then((m) => ({ default: m.AdminFeedbackPage })));
 const AdminAnnouncementsPage = lazy(() => import('./pages/Admin/AdminAnnouncementsPage').then((m) => ({ default: m.AdminAnnouncementsPage })));
@@ -43,6 +45,11 @@ const FeatureManagementPage = lazy(() => import('./pages/Admin/FeatureManagement
 const InterleavedPreviewPage = lazy(() => import('./pages/InterleavedPreviewPage').then((m) => ({ default: m.InterleavedPreviewPage })));
 
 import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
+
+const StudentPracticeRedirect: React.FC = () => {
+  const { studentId = '' } = useParams();
+  return <Navigate to={`/admin/accounts/${studentId}/practice`} replace />;
+};
 
 const RouteFallback = () => (
   <div className="min-h-[55vh] grid place-items-center" role="status" aria-label="Đang tải nội dung">
@@ -108,6 +115,10 @@ export const App: React.FC = () => {
                 <Route path="/admin/overview" element={<Navigate to="/admin/accounts" replace />} />
                 <Route path="/admin/accounts" element={<AdminFeatureRoute route="/admin/accounts"><AccountManagementLivePage /></AdminFeatureRoute>} />
                 <Route path="/admin/accounts/:studentId/practice" element={<AdminFeatureRoute route="/admin/accounts"><StudentPracticeDetailPage /></AdminFeatureRoute>} />
+                <Route path="/admin/classes" element={<AdminClassesPage />} />
+                <Route path="/admin/classes/:classId" element={<ClassStudentsLivePage />} />
+                <Route path="/admin/classes/:classId/students" element={<ClassStudentsLivePage />} />
+                <Route path="/admin/students/:studentId" element={<StudentPracticeRedirect />} />
                 <Route path="/admin/feedback" element={<AdminFeatureRoute route="/admin/feedback"><AdminFeedbackPage /></AdminFeatureRoute>} />
                 <Route path="/admin/announcements" element={<AdminFeatureRoute route="/admin/announcements"><AdminAnnouncementsPage /></AdminFeatureRoute>} />
                 <Route path="/admin/features" element={<FeatureManagementPage />} />

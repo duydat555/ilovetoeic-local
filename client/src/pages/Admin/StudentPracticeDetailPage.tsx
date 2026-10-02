@@ -6,6 +6,7 @@ import { PracticeActivityPanel } from '../../components/dashboard/PracticeActivi
 import { PageHeader } from '../../components/management/ManagementUI';
 import { authApi } from '../../services/backend';
 import { User } from '../../types';
+import { getDiceBearAvatar } from '../../utils/avatar';
 
 type ManagedStudent = User & { createdAt: string };
 
@@ -73,7 +74,14 @@ export const StudentPracticeDetailPage: React.FC = () => {
       />
 
       <section className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-4 shadow-xs sm:flex-row sm:items-center sm:p-5">
-        <img src={student.avatar} alt="" className="size-16 shrink-0 rounded-2xl bg-surface-elevated object-cover" />
+        <img
+          src={student.avatar || getDiceBearAvatar(student.name || student.id)}
+          alt={student.name}
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = getDiceBearAvatar(student.name || 'student');
+          }}
+          className="size-16 shrink-0 rounded-2xl bg-surface-elevated object-cover ring-2 ring-line"
+        />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-extrabold text-content">{student.name}</h2>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-content-muted">

@@ -173,10 +173,13 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                           className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-xs font-extrabold transition-colors ${stateClass}`}
                           title={
                             language === 'en'
-                              ? `Question ${index + 1}${question.question_number ? `, original #${question.question_number}` : ''}`
-                              : `Câu ${index + 1}${question.question_number ? `, câu gốc ${question.question_number}` : ''}`
+                              ? `Question ${index + 1}${question.question_number ? `, original #${question.question_number}` : ''}${question.source_category === 'book' ? ' [In Textbook]' : ''}`
+                              : `Câu ${index + 1}${question.question_number ? `, câu gốc ${question.question_number}` : ''}${question.source_category === 'book' ? ' [Trong sách]' : ''}`
                           }
                         >
+                          {question.source_category === 'book' && (
+                            <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500" />
+                          )}
                           <span>{index + 1}</span>
                           {!current && correct && <Check className="mt-0.5 size-3 stroke-[3]" />}
                           {!current && wrong && <XCircle className="mt-0.5 size-3" />}

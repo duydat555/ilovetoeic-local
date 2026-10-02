@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './backend';
 
 export type GrammarMode = 'topic' | 'bank' | 'difficulty';
+export type GrammarSourceCategory = 'book' | 'supplementary' | 'all';
 
 export interface GrammarSubtopic {
   id: string;
@@ -9,6 +10,7 @@ export interface GrammarSubtopic {
   description_vi?: string;
   level?: number;
   question_count: number;
+  source_category?: 'book' | 'supplementary';
 }
 
 export interface GrammarTopic {
@@ -16,7 +18,10 @@ export interface GrammarTopic {
   title_vi: string;
   description_vi?: string;
   icon?: string;
+  order_index?: number;
   question_count: number;
+  book_question_count?: number;
+  supplementary_question_count?: number;
   subtopics: GrammarSubtopic[];
 }
 
@@ -53,6 +58,7 @@ export interface GrammarQuestion {
   membership_id: string;
   question_id: string;
   source_mode: GrammarMode;
+  source_category?: 'book' | 'supplementary';
   topic_id?: string;
   subtopic_id?: string;
   bank_set_id?: string;
@@ -84,6 +90,7 @@ export interface GrammarQuestionFilters {
   bankSetId?: string;
   testId?: string;
   difficultyLevel?: number;
+  sourceCategory?: GrammarSourceCategory;
   offset?: number;
   limit?: number;
 }
@@ -125,6 +132,9 @@ export const grammarService = {
     if (filters.bankSetId) params.set('bank_set_id', filters.bankSetId);
     if (filters.testId) params.set('test_id', filters.testId);
     if (filters.difficultyLevel) params.set('difficulty_level', String(filters.difficultyLevel));
+    if (filters.sourceCategory && filters.sourceCategory !== 'all') {
+      params.set('source_category', filters.sourceCategory);
+    }
     const response = await fetch(`${API_BASE_URL}/grammar/questions?${params.toString()}`, { signal });
     return parseResponse<GrammarQuestionPage>(response);
   },

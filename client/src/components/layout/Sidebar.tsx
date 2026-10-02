@@ -175,8 +175,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isHovered, setIsHovered] = useState(false);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const getItemLabel = (item: NavigationItem) =>
-    NAV_TRANSLATION_KEYS[item.path] ? t(NAV_TRANSLATION_KEYS[item.path]) : item.label;
+  const getItemLabel = (item: NavigationItem) => {
+    const key = NAV_TRANSLATION_KEYS[item.path];
+    if (key) {
+      const translated = t(key);
+      if (translated && translated !== key) return translated;
+    }
+    return item.label;
+  };
 
   // When collapsed is true, hovering temporarily expands the sidebar
   const isExpanded = !collapsed || isHovered;

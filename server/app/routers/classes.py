@@ -1,7 +1,8 @@
+from collections import defaultdict
+from datetime import date, datetime
+from typing import List, Optional
 import re
 import uuid
-from datetime import date, datetime
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
@@ -14,6 +15,15 @@ from app.security import active_streak_days, get_current_user, get_dicebear_avat
 
 router = APIRouter(prefix="/api/v1/classes", tags=["Class management"])
 CLASS_CODE_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9-]{1,18}[A-Z0-9]$")
+COHORT_PATTERN = re.compile(r"_K([1-9]\d{0,3})(?:\b|$)", re.IGNORECASE)
+
+
+def extract_cohort_code(full_name: str) -> Optional[str]:
+    """Extract cohort code like 'K35' from student full_name like 'Dũng_K35' or 'Nguyễn Văn Đạt_K38'."""
+    match = COHORT_PATTERN.search(str(full_name or "").strip())
+    if not match:
+        return None
+    return f"K{int(match.group(1))}"
 
 
 class ClassPayload(BaseModel):
@@ -147,12 +157,17 @@ def student_response(row):
     created_at = row.get("created_at")
     if isinstance(created_at, (date, datetime)):
         created_at = created_at.isoformat()
-    name = row.get("full_name") or "Học viên TOEIC"
+    raw_name = row.get("full_name") or "Học viên TOEIC"
+    family_middle = row.get("family_middle_name") or ""
+    display_name = f"{family_middle} {raw_name}".strip() if family_middle else raw_name
     return {
         "id": row["id"],
-        "name": name,
+        "name": display_name,
+        "rawName": raw_name,
+        "familyMiddleName": family_middle,
+        "cohortCode": extract_cohort_code(raw_name),
         "email": row.get("email") or "",
-        "avatar": row.get("avatar_url") or get_dicebear_avatar(name or row["id"]),
+        "avatar": row.get("avatar_url") or get_dicebear_avatar(raw_name or row["id"]),
         "currentScore": int(row.get("current_score") or 0),
         "targetScore": int(row.get("target_score") or 750),
         "streakDays": active_streak_days(row),
@@ -161,46 +176,108 @@ def student_response(row):
             if isinstance(row.get("last_study_date"), (date, datetime))
             else str(row.get("last_study_date") or "")
         ),
+        "xp": int(row.get("xp") or 0),
+        "level": int(row.get("level") or 1),
+        "totalQuestions": int(row.get("total_questions_answered") or 0),
+        "correctQuestions": int(row.get("total_correct_answers") or 0),
         "createdAt": str(created_at or ""),
     }
 
 
-def owned_class_or_404(class_id: str, admin_id: str):
-    row = db.fetch_one(
-        "SELECT id FROM learning_classes WHERE id = ? AND created_by = ?",
-        (class_id, admin_id),
+def get_dynamic_classes():
+    """Dynamically aggregate classes from student accounts based on name suffix (e.g. _K35, _K38)."""
+    rows = db.fetch_all(
+        """
+        SELECT id, full_name, family_middle_name, email, avatar_url,
+               current_score, target_score, streak_days, last_study_date,
+               xp, level, total_questions_answered, total_correct_answers,
+               created_at, updated_at
+        FROM users
+        WHERE role = 'student' AND approval_status = 'approved'
+        ORDER BY full_name ASC, created_at ASC
+        """,
         use_cache=False,
     )
-    if not row:
-        raise HTTPException(status_code=404, detail="Lớp học không tồn tại.")
-    return row
 
+    cohort_groups = defaultdict(list)
+    for row in rows:
+        cohort_code = extract_cohort_code(row.get("full_name") or "")
+        key = cohort_code if cohort_code else "KHAC"
+        cohort_groups[key].append(row)
 
-def notify_student_added(student_id: str, class_id: str, name: str, code: str):
-    try:
-        create_notification(
-            student_id,
-            "system",
-            f"Bạn đã tham gia lớp {name}",
-            f"Mã lớp {code}. Giáo viên sẽ theo dõi tiến độ học tập tại lớp này.",
-            action_url="/dashboard",
-            dedupe_key=f"class-membership:{class_id}:{student_id}",
+    classes = []
+    for key, student_rows in cohort_groups.items():
+        is_named = key != "KHAC"
+        code = key
+        name = f"Lớp {key}" if is_named else "Lớp Chưa phân loại"
+        description = (
+            f"Lớp học TOEIC khóa {key} được bóc tách tự động từ định danh học viên."
+            if is_named
+            else "Nhóm học viên chưa có định danh khóa (ví dụ: _K35, _K38)."
         )
-    except Exception as error:
-        print(f"[!] Cannot create class membership notification: {error}")
+
+        student_ids = [s["id"] for s in student_rows]
+        student_count = len(student_rows)
+
+        target_scores = [int(s.get("target_score") or 750) for s in student_rows if s.get("target_score")]
+        avg_target = round(sum(target_scores) / len(target_scores)) if target_scores else 750
+
+        progresses = []
+        for s in student_rows:
+            target = int(s.get("target_score") or 750)
+            current = int(s.get("current_score") or 0)
+            if target > 0:
+                progresses.append(min(100, round((current / target) * 100)))
+            else:
+                progresses.append(0)
+        avg_progress = round(sum(progresses) / len(progresses)) if progresses else 0
+
+        total_xp = sum(int(s.get("xp") or 0) for s in student_rows)
+        total_questions = sum(int(s.get("total_questions_answered") or 0) for s in student_rows)
+
+        created_dates = [s.get("created_at") for s in student_rows if s.get("created_at")]
+        earliest_created = min(created_dates) if created_dates else datetime.now()
+        latest_updated = max(created_dates) if created_dates else datetime.now()
+
+        classes.append({
+            "id": code,
+            "name": name,
+            "code": code,
+            "description": description,
+            "targetScore": avg_target,
+            "studentIds": student_ids,
+            "studentCount": student_count,
+            "averageProgress": avg_progress,
+            "totalXp": total_xp,
+            "totalQuestions": total_questions,
+            "students": [student_response(s) for s in student_rows],
+            "isActive": True,
+            "createdAt": iso_datetime(earliest_created),
+            "updatedAt": iso_datetime(latest_updated),
+        })
+
+    def sort_key(c):
+        m = re.match(r"^K(\d+)$", c["code"], re.IGNORECASE)
+        if m:
+            return (0, int(m.group(1)))
+        return (1, c["code"])
+
+    classes.sort(key=sort_key)
+    return classes
 
 
 @router.get("")
-def get_classes(user=Depends(require_admin)):
-    return {"success": True, "data": class_rows(user["id"])}
+def get_classes(_user=Depends(require_admin)):
+    classes = get_dynamic_classes()
+    return {"success": True, "data": classes}
 
 
 @router.get("/students")
 def get_available_students(_user=Depends(require_admin)):
     rows = db.fetch_all(
         """
-        SELECT id, full_name, email, avatar_url, current_score, target_score,
-               streak_days, last_study_date, created_at
+        SELECT id, full_name, family_middle_name, email, avatar_url, current_score, target_score,
+               streak_days, last_study_date, xp, level, total_questions_answered, total_correct_answers, created_at
         FROM users
         WHERE role = 'student' AND approval_status = 'approved'
         ORDER BY full_name ASC, email ASC
@@ -208,6 +285,15 @@ def get_available_students(_user=Depends(require_admin)):
         use_cache=False,
     )
     return {"success": True, "data": [student_response(row) for row in rows]}
+
+
+@router.get("/{class_id}")
+def get_class(class_id: str, _user=Depends(require_admin)):
+    classes = get_dynamic_classes()
+    for c in classes:
+        if c["id"].upper() == class_id.upper() or c["code"].upper() == class_id.upper():
+            return {"success": True, "data": c}
+    raise HTTPException(status_code=404, detail="Không tìm thấy lớp học.")
 
 
 @router.post("", status_code=201)

@@ -5,6 +5,7 @@ import os
 from html import escape
 from html.parser import HTMLParser
 from uuid import UUID
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -87,8 +88,8 @@ router = APIRouter(prefix='/api/v1/exam-notes', tags=['Exam notes'], dependencie
 
 class NoteDocument(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
-    version: int = Field(ge=1, le=1)
-    format: str = Field(pattern='^html$')
+    version: Literal[1]
+    format: Literal['html']
     # Transport safety bound, not a user/account note quota.
     html: str = Field(max_length=200_000)
 

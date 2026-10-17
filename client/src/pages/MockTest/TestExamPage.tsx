@@ -19,6 +19,8 @@ import { ExamSubmitConfirmModal } from '../../components/mock-test/ExamSubmitCon
 import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { PassageContent } from '../../components/common/PassageContent';
+import { ExamNotesWorkspace, ExamNotesButton } from '../../components/exam-notes/ExamNotesWorkspace';
+import { flushExamNotes } from '../../components/exam-notes/registry';
 import { dictionaryService } from '../../services/dictionary';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
@@ -116,6 +118,7 @@ export const TestExamPage: React.FC = () => {
     if (!testId || !user || submitting) return;
     setSubmitting(true);
     try {
+      await flushExamNotes(user.id, `test:${testId}`);
       const timeSpentSeconds = examDurationSeconds - secondsRemaining;
       const completedAt = new Date().toISOString();
       const result = await apiService.submitTest(testId, userAnswers, timeSpentSeconds, user.id, questions);
@@ -324,6 +327,7 @@ export const TestExamPage: React.FC = () => {
     (Boolean(currentGroup.audioUrl) && currentGroup.questions.length >= 3);
 
   return (
+    <ExamNotesWorkspace userId={user?.id} scope={`test:${testId}`} questions={currentGroup.questions}>
     <div className="fixed inset-0 z-40 flex min-h-dvh flex-col gap-2 overflow-hidden bg-slate-100 p-2 dark:bg-canvas sm:p-3">
       {!isFullscreen && (
         <button
@@ -372,6 +376,7 @@ export const TestExamPage: React.FC = () => {
 
           {/* Header Action Controls */}
           <div className="flex items-center gap-2">
+            <ExamNotesButton />
             <button
               type="button"
               onClick={() => setShowQuestionDrawer(true)}
@@ -682,5 +687,6 @@ export const TestExamPage: React.FC = () => {
         )}
       </AnimatePresence>
     </div>
+    </ExamNotesWorkspace>
   );
 };

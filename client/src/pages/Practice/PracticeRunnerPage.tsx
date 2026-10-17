@@ -35,6 +35,8 @@ import { QuestionHeader } from '../../components/common/QuestionHeader';
 import { InterleavedTranscript } from '../../components/common/InterleavedTranscript';
 import { InterleavedPassage } from '../../components/common/InterleavedPassage';
 import { PassageContent } from '../../components/common/PassageContent';
+import { ExamNotesWorkspace, ExamNotesButton, EXAM_NOTES_ENABLED } from '../../components/exam-notes/ExamNotesWorkspace';
+import { flushExamNotes } from '../../components/exam-notes/registry';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
 import { ResizableSplitPane } from '../../components/common/ResizableSplitPane';
@@ -370,6 +372,7 @@ export const PracticeRunnerPage: React.FC = () => {
   const savePracticeHistory = async () => {
     if (!user || historySaveState !== 'idle') return;
     setHistorySaveState('saving');
+    await flushExamNotes(user.id, testId ? `test:${testId}` : `practice:${storageKey}`);
 
     // Per-question activity is independent of completing the whole practice.
     // Flush it now as an additional safety net; pagehide/idle handlers also
@@ -582,6 +585,7 @@ export const PracticeRunnerPage: React.FC = () => {
     (Boolean(currentGroup.audioUrl) && currentGroup.questions.length >= 3);
 
   return (
+    <ExamNotesWorkspace userId={user?.id} scope={testId ? `test:${testId}` : `practice:${storageKey}`} questions={currentGroup.questions} legacyNotes={notes}>
     <div className="mx-auto flex h-full max-w-7xl flex-col space-y-2 overflow-hidden">
       {/* Fixed Sticky Header Bar (Shrink-0) */}
       <div className="shrink-0 flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-2 shadow-xs dark:border-line dark:bg-surface">
@@ -629,7 +633,8 @@ export const PracticeRunnerPage: React.FC = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          <button
+          <ExamNotesButton />
+          {(!EXAM_NOTES_ENABLED || !user) && <button
             type="button"
             onClick={() => openTool('notes')}
             className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition ${activeTool === 'notes'
@@ -643,7 +648,7 @@ export const PracticeRunnerPage: React.FC = () => {
             {currentGroup.questions.some((question) => notes[question.id]?.trim()) && (
               <span className={`size-1.5 rounded-full ${activeTool === 'notes' ? 'bg-brand-ink' : 'bg-brand'}`} />
             )}
-          </button>
+          </button>}
 
           <button
             type="button"
@@ -1272,5 +1277,6 @@ export const PracticeRunnerPage: React.FC = () => {
         }}
       />
     </div>
+    </ExamNotesWorkspace>
   );
 };

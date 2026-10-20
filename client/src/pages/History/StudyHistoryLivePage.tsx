@@ -200,9 +200,9 @@ export const StudyHistoryLivePage: React.FC = () => {
       })}
     </section>}
 
-    <AnimatePresence>
-      {deleteTarget &&
-        createPortal(
+    {createPortal(
+      <AnimatePresence>
+        {deleteTarget && (
           <motion.div
             {...modalMotion.backdrop}
             className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
@@ -277,10 +277,11 @@ export const StudyHistoryLivePage: React.FC = () => {
                 </button>
               </div>
             </motion.div>
-          </motion.div>,
-          document.body,
+          </motion.div>
         )}
-    </AnimatePresence>
+      </AnimatePresence>,
+      document.body,
+    )}
   </div>;
 };
 

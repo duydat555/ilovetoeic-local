@@ -172,6 +172,10 @@ class VocabularyBatchPayload(BaseModel):
     items: List[VocabularyPayload] = Field(min_length=1, max_length=20)
 
 
+class VocabularyDeleteBatchPayload(BaseModel):
+    word_ids: List[str] = Field(min_length=1, max_length=500)
+
+
 class TopicOverridePayload(BaseModel):
     wordKey: str = Field(min_length=1, max_length=255)
     topicId: str = Field(min_length=1, max_length=100)
@@ -1880,6 +1884,24 @@ def delete_vocabulary(word_id: str, user=Depends(get_current_user)):
     db.execute(
         "DELETE FROM user_vocabulary WHERE id = ? AND user_id = ?",
         (word_id, user["id"]),
+    )
+    return {"success": True}
+
+
+@router.post("/vocabulary/batch-delete")
+def delete_vocabulary_batch(
+    payload: VocabularyDeleteBatchPayload,
+    user=Depends(get_current_user),
+):
+    if not payload.word_ids:
+        return {"success": True, "deleted_count": 0}
+
+    unique_ids = list(dict.fromkeys(payload.word_ids))
+    placeholders = ", ".join(["?"] * len(unique_ids))
+    params = [user["id"]] + unique_ids
+    db.execute(
+        f"DELETE FROM user_vocabulary WHERE user_id = ? AND id IN ({placeholders})",
+        tuple(params),
     )
     return {"success": True}
 

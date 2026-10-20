@@ -165,6 +165,19 @@ export const TopicFlashcardPage: React.FC = () => {
     }
   };
 
+  const handleDeleteWords = async (wordIds: string[]) => {
+    if (!user) throw Error('Vui lòng đăng nhập lại để xoá từ vựng.');
+    if (wordIds.length === 0) return;
+    try {
+      await vocabularyService.removeMany(user.id, wordIds);
+      const idSet = new Set(wordIds);
+      setWords((current) => current.filter((w) => !idSet.has(w.id)));
+    } catch (err) {
+      console.error('Failed to delete words in batch:', err);
+      throw err;
+    }
+  };
+
   const totalCount = words.length;
   const learnedCount = words.filter((w) => w.remembered).length;
   const needReviewCount = totalCount - learnedCount;
@@ -357,6 +370,7 @@ export const TopicFlashcardPage: React.FC = () => {
                   onToggleRemembered={toggleRemembered}
                   onAddWord={() => setAddWordOpen(true)}
                   onDeleteWord={handleDeleteWord}
+                  onDeleteWords={handleDeleteWords}
                 />
               )}
 

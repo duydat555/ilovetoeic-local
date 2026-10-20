@@ -1055,9 +1055,9 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
       )}
 
       {/* 5. Confirmation Modal to Delete Single Attempt (Strict modalMotion contract from AGENTS.md) */}
-      <AnimatePresence>
-        {deleteTarget &&
-          createPortal(
+      {createPortal(
+        <AnimatePresence>
+          {deleteTarget && (
             <motion.div
               {...modalMotion.backdrop}
               className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
@@ -1132,15 +1132,16 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                   </button>
                 </div>
               </motion.div>
-            </motion.div>,
-            document.body,
+            </motion.div>
           )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {/* 6. Confirmation Modal for Bulk Delete (Test History or All History) */}
-      <AnimatePresence>
-        {bulkDeleteTarget &&
-          createPortal(
+      {createPortal(
+        <AnimatePresence>
+          {bulkDeleteTarget && (
             <motion.div
               {...modalMotion.backdrop}
               className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
@@ -1231,10 +1232,11 @@ export const MockTestHistoryView: React.FC<MockTestHistoryViewProps> = ({
                   </button>
                 </div>
               </motion.div>
-            </motion.div>,
-            document.body,
+            </motion.div>
           )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
 
       {toastMessage && <TopToast message={toastMessage} />}
     </div>

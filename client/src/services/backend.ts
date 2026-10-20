@@ -792,6 +792,22 @@ export const backendService = {
     }
   },
 
+  async deleteVocabularyWords(_userId: string, wordIds: string[]) {
+    if (wordIds.length === 0) return true;
+    const uniqueIds = [...new Set(wordIds)];
+    for (let offset = 0; offset < uniqueIds.length; offset += 500) {
+      const response = await authFetch<{ success: boolean; deleted_count?: number }>(
+        '/vocabulary/batch-delete',
+        {
+          method: 'POST',
+          body: JSON.stringify({ word_ids: uniqueIds.slice(offset, offset + 500) }),
+        }
+      );
+      if (!response?.success) throw Error('Chưa xoá xong từ vựng. Hãy thử lại.');
+    }
+    return true;
+  },
+
   async getVocabularyTopicOverrides(_userId: string) {
     try {
       const response = await authFetch<{ data: any[] }>('/vocabulary/topic-overrides');

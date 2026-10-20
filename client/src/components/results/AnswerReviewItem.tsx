@@ -3,8 +3,7 @@ import {
   BookMarked,
   BookOpen,
   CheckCircle2,
-  ChevronDown,
-  ChevronUp,
+  Headphones,
   Languages,
   Plus,
   Volume2,
@@ -16,6 +15,7 @@ import { AudioPlayer } from '../common/AudioPlayer';
 import { EvidencePanel } from '../common/EvidencePanel';
 import { FormattedReadingExplanation } from '../common/FormattedReadingExplanation';
 import { InterleavedPassage } from '../common/InterleavedPassage';
+import { InterleavedTranscript } from '../common/InterleavedTranscript';
 import { QuestionImage } from '../common/QuestionImage';
 
 export interface AnswerReviewItemProps {
@@ -33,13 +33,31 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
   onSaveVocabulary,
   savedVocabWords = {},
 }) => {
-  const [passageExpanded, setPassageExpanded] = useState(false);
+  // Mặc định bài đọc Part 6, 7 luôn hiện sẵn như trang Luyện theo Level
   const [showBilingualPassage, setShowBilingualPassage] = useState(false);
+  const [transcriptExpanded, setTranscriptExpanded] = useState(false);
   const [savingWord, setSavingWord] = useState<string | null>(null);
 
   const explanationText = cleanExplanationText(question.explanation);
   const isReadingPart = question.partId >= 5;
+  const isListeningDialogue = question.partId === 3 || question.partId === 4;
+  const isReadingPassage = question.partId === 6 || question.partId === 7;
   const isSkipped = !userAnswer;
+
+  const transcriptText = !isReadingPart
+    ? question.transcript || (isListeningDialogue ? question.passageText : undefined)
+    : undefined;
+  const transcriptTranslation =
+    question.passageTranslationHtml ||
+    question.passageTranslation ||
+    question.questionTranslation ||
+    '';
+
+  const passageText = question.passageText || (isReadingPassage ? question.transcript : undefined);
+  const passageTranslation =
+    question.passageTranslationHtml ||
+    question.passageTranslation ||
+    '';
 
   const hasChoiceText =
     question.choices &&
@@ -106,63 +124,97 @@ export const AnswerReviewItem: React.FC<AnswerReviewItemProps> = ({
       </div>
 
       {/* Trình phát Audio nếu là câu hỏi Nghe hiểu (Listening) */}
-      {question.audioUrl && (
+      {(question.audioUrl || transcriptText || isListeningDialogue) && (
         <div className="rounded-2xl border border-line bg-surface-elevated/40 p-3.5">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
-            <Volume2 className="size-4 text-amber-500" />
-            <span>Âm thanh câu hỏi:</span>
-          </div>
-          <AudioPlayer audioUrl={question.audioUrl} />
-        </div>
-      )}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            {question.audioUrl && (
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-300">
+                <Volume2 className="size-4 text-amber-500" />
+                <span>Âm thanh câu hỏi:</span>
+              </div>
+            )}
 
-      {/* Bài đọc liên quan (Passage) cho câu Reading */}
-      {isReadingPart && question.passageText && (
-        <div className="rounded-2xl border border-line bg-surface-elevated/40 p-4 text-xs">
-          <div className="flex w-full items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setPassageExpanded(!passageExpanded)}
-              className="flex items-center gap-2 font-bold text-amber-700 hover:text-amber-800 dark:text-amber-300 dark:hover:text-amber-200 transition"
-            >
-              <BookOpen className="size-4 text-amber-500" />
-              <span>Đoạn văn bài đọc (Passage)</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-content-muted">
-                {passageExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              </span>
-            </button>
-
-            {passageExpanded && Boolean(question.passageSentencePairs || question.passageTranslation || question.passageTranslationHtml) && (
+            {/* Nút thao tác nhanh Transcript cho bài nghe Part 3, Part 4 */}
+            {(isListeningDialogue || Boolean(transcriptText)) && (
               <button
                 type="button"
-                onClick={() => setShowBilingualPassage(!showBilingualPassage)}
-                className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition active:scale-[0.98] ${showBilingualPassage
-                  ? 'bg-brand text-brand-ink'
-                  : 'bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-200'
-                  }`}
+                onClick={() => setTranscriptExpanded((value) => !value)}
+                aria-expanded={transcriptExpanded}
+                aria-controls={`review-transcript-${question.id}`}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] ${
+                  transcriptExpanded
+                    ? 'border-amber-500/40 bg-amber-500/15 text-amber-800 dark:text-amber-300 shadow-2xs'
+                    : 'border-line bg-surface text-content-muted hover:text-content hover:bg-surface-elevated shadow-2xs'
+                }`}
+                title={transcriptExpanded ? 'Ẩn lời thoại bài nghe' : 'Hiện lời thoại bài nghe song ngữ'}
               >
-                <Languages className="size-3.5" />
-                {showBilingualPassage ? 'Ẩn song ngữ' : 'Xem song ngữ'}
+                <Headphones className="size-3.5 text-amber-500" />
+                <span>{transcriptExpanded ? 'Ẩn transcript' : 'Hiện transcript'}</span>
               </button>
             )}
           </div>
+          {question.audioUrl && <AudioPlayer audioUrl={question.audioUrl} />}
+        </div>
+      )}
 
-          {passageExpanded && (
-            <div className="mt-3 border-t border-line pt-3 font-sans">
-              {showBilingualPassage && (question.passageSentencePairs || question.passageTranslation || question.passageTranslationHtml) ? (
-                <InterleavedPassage
-                  passageId={question.passageId}
-                  passageText={question.passageText}
-                  passageSentencePairs={question.passageSentencePairs}
-                  passageTranslation={question.passageTranslationHtml || question.passageTranslation}
-                />
-              ) : (
-                <div className="whitespace-pre-line text-xs leading-relaxed text-content font-sans">
-                  {question.passageText}
-                </div>
-              )}
+      {/* Khối Transcript song ngữ cho bài nghe Part 3, Part 4 (khi đã mở) */}
+      {(isListeningDialogue || Boolean(transcriptText)) && transcriptExpanded && (
+        <div id={`review-transcript-${question.id}`} className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-amber-500/20 pb-2.5">
+            <div className="flex items-center gap-2 font-bold text-amber-800 dark:text-amber-300">
+              <Headphones className="size-4 text-amber-500" />
+              <span>Nội dung bài nghe (Transcript Part {question.partId})</span>
             </div>
-          )}
+          </div>
+
+          <div className="mt-3">
+            {transcriptText ? (
+              <InterleavedTranscript
+                transcript={transcriptText}
+                translation={transcriptTranslation}
+                partId={question.partId}
+              />
+            ) : (
+              <p className="italic text-content-muted">Chưa có dữ liệu transcript cho bài nghe này.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bài đọc liên quan (Passage) cho câu Reading (Part 6, Part 7) - Mặc định luôn hiện bài đọc */}
+      {(isReadingPassage || (isReadingPart && Boolean(passageText))) && Boolean(passageText) && (
+        <div className="rounded-2xl border border-line bg-surface-elevated/40 p-4 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 font-bold text-amber-700 dark:text-amber-300">
+              <BookOpen className="size-4 text-amber-500" />
+              <span>Đoạn văn bài đọc (Part {question.partId})</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowBilingualPassage((value) => !value)}
+              aria-pressed={showBilingualPassage}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition active:scale-[0.98] ${
+                showBilingualPassage
+                  ? 'border-sky-500/40 bg-sky-500/15 text-sky-800 dark:text-sky-300 shadow-2xs'
+                  : 'border-line bg-surface text-content-muted hover:text-content hover:bg-surface-elevated shadow-2xs'
+              }`}
+              title={showBilingualPassage ? 'Ẩn bản dịch tiếng Việt song ngữ' : 'Hiện bản dịch tiếng Việt song ngữ'}
+            >
+              <Languages className="size-3.5 text-sky-500" />
+              <span>{showBilingualPassage ? 'Ẩn bản dịch' : 'Hiện bản dịch'}</span>
+            </button>
+          </div>
+
+          <div className="mt-3 border-t border-line/70 pt-3 font-sans">
+            <InterleavedPassage
+              passageId={question.passageId}
+              passageText={passageText!}
+              passageSentencePairs={question.passageSentencePairs}
+              passageTranslation={passageTranslation}
+              showTranslation={showBilingualPassage}
+            />
+          </div>
         </div>
       )}
 

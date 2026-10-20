@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Question } from '../../types';
 import { AnswerReviewItem } from './AnswerReviewItem';
+import { BoneyardSkeleton } from '../common/BoneyardSkeleton';
 
 export interface LazyAnswerReviewListProps {
   questions: Question[];
@@ -95,7 +96,8 @@ export const LazyAnswerReviewList: React.FC<LazyAnswerReviewListProps> = ({
 
       {renderedCount < questions.length && (
         <div ref={bottomRef} className="py-6 text-center text-xs font-semibold text-content-muted">
-          Đang hiển thị thêm câu hỏi... ({renderedCount}/{questions.length})
+          <BoneyardSkeleton name="test-result-more-answers" variant="card" height={180} />
+          <p className="mt-3">Đang hiển thị thêm câu hỏi... ({renderedCount}/{questions.length})</p>
         </div>
       )}
     </div>

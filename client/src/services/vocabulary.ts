@@ -323,6 +323,15 @@ export const vocabularyService = {
     return backendService.deleteVocabularyWord(userId, id);
   },
 
+  async removeMany(userId: string, ids: string[]) {
+    if (ids.length === 0) return true;
+    await backendService.deleteVocabularyWords(userId, ids);
+    const idSet = new Set(ids);
+    const remaining = readLocal(userId).filter((word) => !idSet.has(word.id));
+    writeLocal(userId, remaining);
+    return true;
+  },
+
   async setTopic(
     userId: string,
     word: VocabularyWord,

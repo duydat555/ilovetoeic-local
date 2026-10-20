@@ -15,6 +15,9 @@ import {
   Languages,
   Copy,
   Check,
+  AlertTriangle,
+  CheckSquare,
+  Loader2,
 } from 'lucide-react';
 import { VocabularyWord } from '../../../types';
 import { playPronunciation } from '../../../utils/audioPronunciation';
@@ -32,6 +35,7 @@ interface Props {
   onToggleRemembered: (word: VocabularyWord) => void;
   onAddWord?: () => void;
   onDeleteWord?: (word: VocabularyWord) => void;
+  onDeleteWords?: (wordIds: string[]) => Promise<void> | void;
 }
 
 const posBadgeColors: Record<string, string> = {
@@ -49,11 +53,17 @@ export const WordListView: React.FC<Props> = ({
   onToggleRemembered,
   onAddWord,
   onDeleteWord,
+  onDeleteWords,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isGridView, setIsGridView] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [detailWord, setDetailWord] = useState<VocabularyWord | null>(null);
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
+  const [batchDeleteError, setBatchDeleteError] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const filteredWords = useMemo(() => {
@@ -67,6 +77,50 @@ export const WordListView: React.FC<Props> = ({
     );
   }, [words, searchQuery]);
 
+  const toggleSelectWord = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    const allFilteredSelected =
+      filteredWords.length > 0 && filteredWords.every((w) => selectedIds.has(w.id));
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredWords.map((w) => w.id)));
+    }
+  };
+
+  const handleExitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    if (!onDeleteWords || selectedIds.size === 0 || isDeletingBatch) return;
+    setIsDeletingBatch(true);
+    setBatchDeleteError('');
+    try {
+      await onDeleteWords(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setIsSelectMode(false);
+      setShowBatchDeleteModal(false);
+    } catch (err) {
+      console.error('Lỗi khi xoá hàng loạt từ vựng:', err);
+      setBatchDeleteError('Chưa xoá xong. Một số từ có thể đã được xoá; hãy thử lại hoặc tải lại danh sách.');
+    } finally {
+      setIsDeletingBatch(false);
+    }
+  };
+
   // Keyboard navigation: ↑ ↓ ← →, Enter to play audio, / to focus search
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -77,7 +131,7 @@ export const WordListView: React.FC<Props> = ({
         }
         return;
       }
-      if (detailWord) return;
+      if (detailWord || showBatchDeleteModal || isSelectMode) return;
 
       if (e.key === '/') {
         e.preventDefault();
@@ -104,7 +158,7 @@ export const WordListView: React.FC<Props> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [filteredWords, selectedIndex, detailWord]);
+  }, [filteredWords, selectedIndex, detailWord, showBatchDeleteModal, isSelectMode]);
 
   return (
     <div className="space-y-4">
@@ -149,6 +203,29 @@ export const WordListView: React.FC<Props> = ({
 
             <span className="font-bold text-content">{filteredWords.length} từ</span>
 
+            {/* Batch Select Toggle CTA */}
+            {onDeleteWords && words.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (isSelectMode) {
+                    handleExitSelectMode();
+                  } else {
+                    setIsSelectMode(true);
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition active:scale-98 ${
+                  isSelectMode
+                    ? 'border-accent/40 bg-accent/15 text-accent-strong shadow-2xs'
+                    : 'border-line bg-surface-elevated text-content hover:bg-surface-hover shadow-2xs'
+                }`}
+                title={isSelectMode ? 'Thoát chế độ chọn nhiều' : 'Chọn nhiều từ vựng để xoá'}
+              >
+                <CheckSquare className="size-3.5 text-accent" />
+                <span>{isSelectMode ? 'Đang chọn' : 'Chọn nhiều'}</span>
+              </button>
+            )}
+
             {/* Add Word CTA */}
             {onAddWord && (
               <button
@@ -190,6 +267,63 @@ export const WordListView: React.FC<Props> = ({
         </div>
       </BoneyardSkeleton>
 
+      {/* Sticky / Floating Batch Selection Bar */}
+      <AnimatePresence>
+        {isSelectMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="sticky top-16 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-lg backdrop-blur-md dark:shadow-none"
+          >
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-line bg-surface-elevated px-3 py-1.5 text-xs font-extrabold text-content transition hover:bg-surface-hover"
+              >
+                <CheckSquare className="size-3.5 text-accent" />
+                <span>
+                  {filteredWords.length > 0 && filteredWords.every((w) => selectedIds.has(w.id))
+                    ? 'Bỏ chọn tất cả'
+                    : `Chọn tất cả (${filteredWords.length})`}
+                </span>
+              </button>
+
+              <span className="text-xs font-bold text-content-muted">
+                Đã chọn <strong className="text-accent-strong">{selectedIds.size}</strong> / {filteredWords.length} từ
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={selectedIds.size === 0}
+                onClick={() => { setBatchDeleteError(''); setShowBatchDeleteModal(true); }}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition ${
+                  selectedIds.size > 0
+                    ? 'bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:scale-98'
+                    : 'cursor-not-allowed bg-rose-500/20 text-rose-300 dark:text-rose-400/50'
+                }`}
+              >
+                <Trash2 className="size-3.5" />
+                <span>Xoá {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExitSelectMode}
+                className="inline-flex items-center gap-1 rounded-xl border border-line bg-surface-elevated px-3 py-1.5 text-xs font-bold text-content hover:bg-surface-hover"
+              >
+                <X className="size-3.5" />
+                <span>Huỷ</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Word Cards Display */}
       <BoneyardSkeleton
         name="vocab-word-grid"
@@ -224,6 +358,7 @@ export const WordListView: React.FC<Props> = ({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filteredWords.map((word, idx) => {
               const isSelected = idx === selectedIndex;
+              const isChecked = selectedIds.has(word.id);
               const posBadge =
                 posBadgeColors[word.partOfSpeech?.toUpperCase()] ||
                 'bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400';
@@ -232,15 +367,42 @@ export const WordListView: React.FC<Props> = ({
                 <BoneyardSkeleton key={word.id} name={`word-card-${word.id}`} loading={false}>
                   <div
                     onClick={() => {
-                      setSelectedIndex(idx);
-                      setDetailWord(word);
+                      if (isSelectMode) {
+                        toggleSelectWord(word.id);
+                      } else {
+                        setSelectedIndex(idx);
+                        setDetailWord(word);
+                      }
                     }}
-                    className={`group relative flex cursor-pointer gap-3 rounded-2xl border bg-surface p-3.5 transition-all hover:-translate-y-0.5 hover:shadow-md ${
-                      isSelected
-                        ? 'border-accent ring-2 ring-accent/20 shadow-sm'
-                        : 'border-line hover:border-accent/40'
+                    className={`group relative flex cursor-pointer gap-3 rounded-2xl border p-3.5 transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                      isChecked
+                        ? 'border-accent bg-accent/5 ring-2 ring-accent/30 shadow-sm'
+                        : isSelected && !isSelectMode
+                        ? 'border-accent ring-2 ring-accent/20 shadow-sm bg-surface'
+                        : 'border-line bg-surface hover:border-accent/40'
                     }`}
                   >
+                    {/* Checkbox selector in batch mode */}
+                    {isSelectMode && (
+                      <div
+                        className="absolute right-3 top-3 z-10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectWord(word.id);
+                        }}
+                      >
+                        <div
+                          className={`grid size-5 place-items-center rounded-md border transition-all ${
+                            isChecked
+                              ? 'border-accent bg-accent text-accent-contrast shadow-2xs'
+                              : 'border-line bg-surface-elevated hover:border-accent/50'
+                          }`}
+                        >
+                          {isChecked && <Check className="size-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Thumbnail Illustration / Icon */}
                     <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-line bg-slate-100 dark:bg-slate-800">
                       {word.imageUrl ? (
@@ -251,7 +413,7 @@ export const WordListView: React.FC<Props> = ({
                           loading="lazy"
                         />
                       ) : (
-                        <div className="flex size-full flex-col items-center justify-center bg-gradient-to-br from-accent/15 via-brand-500/10 to-accent/5 text-accent-strong">
+                        <div className="flex size-full flex-col items-center justify-center bg-accent/10 text-accent-strong">
                           <span className="text-base font-black tracking-tight">{word.word.slice(0, 2).toUpperCase()}</span>
                           <span className="text-[9px] uppercase font-bold opacity-70">
                             {word.partOfSpeech?.slice(0, 3) || 'WORD'}
@@ -263,7 +425,7 @@ export const WordListView: React.FC<Props> = ({
                     {/* Word Content */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-1">
-                        <div className="min-w-0">
+                        <div className={`min-w-0 ${isSelectMode ? 'pr-6' : ''}`}>
                           <h4 className="truncate text-base font-extrabold text-content group-hover:text-accent-strong transition-colors">
                             {word.word}
                           </h4>
@@ -273,29 +435,31 @@ export const WordListView: React.FC<Props> = ({
                         </div>
 
                         {/* US and UK Audio buttons */}
-                        <div
-                          className="flex shrink-0 items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => playPronunciation(word.word, 'US', undefined, word.audioUrl)}
-                            title="Phát âm Anh-Mỹ (US)"
-                            className="grid size-7 place-items-center rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-600 transition hover:bg-sky-500 hover:text-white dark:text-sky-400"
-                            aria-label={`Phát âm US ${word.word}`}
+                        {!isSelectMode && (
+                          <div
+                            className="flex shrink-0 items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Volume2 className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => playPronunciation(word.word, 'UK', undefined, word.audioUkUrl)}
-                            title="Phát âm Anh-Anh (UK)"
-                            className="grid size-7 place-items-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 transition hover:bg-rose-500 hover:text-white dark:text-rose-400"
-                            aria-label={`Phát âm UK ${word.word}`}
-                          >
-                            <Volume2 className="size-3.5" />
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => playPronunciation(word.word, 'US', undefined, word.audioUrl)}
+                              title="Phát âm Anh-Mỹ (US)"
+                              className="grid size-7 place-items-center rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-600 transition hover:bg-sky-500 hover:text-white dark:text-sky-400"
+                              aria-label={`Phát âm US ${word.word}`}
+                            >
+                              <Volume2 className="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => playPronunciation(word.word, 'UK', undefined, word.audioUkUrl)}
+                              title="Phát âm Anh-Anh (UK)"
+                              className="grid size-7 place-items-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 transition hover:bg-rose-500 hover:text-white dark:text-rose-400"
+                              aria-label={`Phát âm UK ${word.word}`}
+                            >
+                              <Volume2 className="size-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* Part of speech pill */}
@@ -325,6 +489,7 @@ export const WordListView: React.FC<Props> = ({
           <div className="divide-y divide-line rounded-2xl border border-line bg-surface overflow-hidden">
             {filteredWords.map((word, idx) => {
               const isSelected = idx === selectedIndex;
+              const isChecked = selectedIds.has(word.id);
               const posBadge =
                 posBadgeColors[word.partOfSpeech?.toUpperCase()] ||
                 'bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400';
@@ -333,16 +498,42 @@ export const WordListView: React.FC<Props> = ({
                 <BoneyardSkeleton key={word.id} name={`word-row-${word.id}`} loading={false}>
                   <div
                     onClick={() => {
-                      setSelectedIndex(idx);
-                      setDetailWord(word);
+                      if (isSelectMode) {
+                        toggleSelectWord(word.id);
+                      } else {
+                        setSelectedIndex(idx);
+                        setDetailWord(word);
+                      }
                     }}
                     className={`flex cursor-pointer items-center justify-between gap-4 p-3.5 transition-colors ${
-                      isSelected
+                      isChecked
+                        ? 'bg-accent/10 dark:bg-accent/15'
+                        : isSelected && !isSelectMode
                         ? 'bg-accent/10 dark:bg-accent/15'
                         : 'hover:bg-surface-hover'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
+                      {isSelectMode && (
+                        <div
+                          className="shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectWord(word.id);
+                          }}
+                        >
+                          <div
+                            className={`grid size-5 place-items-center rounded-md border transition-all ${
+                              isChecked
+                                ? 'border-accent bg-accent text-accent-contrast shadow-2xs'
+                                : 'border-line bg-surface-elevated hover:border-accent/50'
+                            }`}
+                          >
+                            {isChecked && <Check className="size-3.5 stroke-[3]" />}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="relative size-12 shrink-0 overflow-hidden rounded-xl border border-line bg-slate-100 dark:bg-slate-800">
                         {word.imageUrl ? (
                           <img src={word.imageUrl} alt={word.word} className="size-full object-cover" loading="lazy" />
@@ -366,24 +557,26 @@ export const WordListView: React.FC<Props> = ({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => playPronunciation(word.word, 'US', undefined, word.audioUrl)}
-                        className="grid size-8 place-items-center rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-600 transition hover:bg-sky-500 hover:text-white dark:text-sky-400"
-                        title="Phát âm US"
-                      >
-                        <Volume2 className="size-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => playPronunciation(word.word, 'UK', undefined, word.audioUkUrl)}
-                        className="grid size-8 place-items-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 transition hover:bg-rose-500 hover:text-white dark:text-rose-400"
-                        title="Phát âm UK"
-                      >
-                        <Volume2 className="size-4" />
-                      </button>
-                    </div>
+                    {!isSelectMode && (
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => playPronunciation(word.word, 'US', undefined, word.audioUrl)}
+                          className="grid size-8 place-items-center rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-600 transition hover:bg-sky-500 hover:text-white dark:text-sky-400"
+                          title="Phát âm US"
+                        >
+                          <Volume2 className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => playPronunciation(word.word, 'UK', undefined, word.audioUkUrl)}
+                          className="grid size-8 place-items-center rounded-lg border border-rose-500/20 bg-rose-500/10 text-rose-600 transition hover:bg-rose-500 hover:text-white dark:text-rose-400"
+                          title="Phát âm UK"
+                        >
+                          <Volume2 className="size-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </BoneyardSkeleton>
               );
@@ -400,6 +593,16 @@ export const WordListView: React.FC<Props> = ({
             onClose={() => setDetailWord(null)}
             onToggleRemembered={onToggleRemembered}
             onDeleteWord={onDeleteWord}
+          />
+        )}
+
+        {showBatchDeleteModal && (
+          <BatchDeleteModal
+            selectedWords={words.filter((w) => selectedIds.has(w.id))}
+            isDeleting={isDeletingBatch}
+            error={batchDeleteError}
+            onClose={() => !isDeletingBatch && setShowBatchDeleteModal(false)}
+            onConfirm={handleConfirmBatchDelete}
           />
         )}
       </AnimatePresence>
@@ -690,6 +893,127 @@ const WordDetailModal: React.FC<DetailModalProps> = ({
               className="inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface-elevated px-5 text-xs font-bold text-content hover:bg-surface-hover"
             >
               Đóng
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </ModalPortal>
+  );
+};
+
+interface BatchDeleteModalProps {
+  selectedWords: VocabularyWord[];
+  isDeleting: boolean;
+  error: string;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+const BatchDeleteModal: React.FC<BatchDeleteModalProps> = ({
+  selectedWords,
+  isDeleting,
+  error,
+  onClose,
+  onConfirm,
+}) => {
+  const reduceMotion = useReducedMotion();
+  const contract = getModalMotion(reduceMotion);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isDeleting) onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose, isDeleting]);
+
+  return (
+    <ModalPortal>
+      <motion.div
+        {...contract.backdrop}
+        className="fixed inset-0 z-[110] grid h-[100dvh] w-screen place-items-center overflow-y-auto bg-slate-950/60 p-4 backdrop-blur-sm"
+        onMouseDown={(e) => e.target === e.currentTarget && !isDeleting && onClose()}
+      >
+        <motion.div
+          {...contract.panel}
+          role="dialog"
+          aria-modal="true"
+          className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-2xl dark:shadow-none"
+          aria-label="Xác nhận xoá từ vựng"
+        >
+          {/* Header */}
+          <div className="flex items-start gap-3.5">
+            <div className="grid size-10 shrink-0 place-items-center rounded-2xl border border-rose-500/20 bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="size-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-black tracking-tight text-content">
+                Xác nhận xoá từ vựng
+              </h3>
+              <p className="mt-1 text-xs text-content-muted leading-relaxed">
+                Bạn có chắc chắn muốn xoá <strong className="text-content font-bold">{selectedWords.length} từ</strong> đã chọn khỏi sổ tay không? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={isDeleting}
+              onClick={onClose}
+              className="grid size-8 place-items-center rounded-xl text-content-muted hover:bg-surface-hover hover:text-content transition disabled:opacity-50"
+              aria-label="Đóng"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+
+          {/* Word preview chips */}
+          <div className="mt-4 rounded-2xl border border-line bg-surface-elevated p-3">
+            <div className="text-[11px] font-bold text-content-muted mb-2">
+              Danh sách từ sắp xoá:
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto pr-1">
+              {selectedWords.map((word) => (
+                <span
+                  key={word.id}
+                  className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface px-2 py-1 text-xs font-bold text-content"
+                >
+                  <span>{word.word}</span>
+                  <span className="text-[10px] text-content-muted font-normal truncate max-w-[120px]">
+                    ({word.meaningVi})
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {error && <p role="alert" className="mt-4 text-xs leading-relaxed text-negative">{error}</p>}
+          {/* Footer actions */}
+          <div className="mt-6 flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              autoFocus
+              disabled={isDeleting}
+              onClick={onClose}
+              className="rounded-xl border border-line bg-surface px-4 py-2 text-xs font-bold text-content hover:bg-surface-hover transition disabled:opacity-50"
+            >
+              Huỷ
+            </button>
+            <button
+              type="button"
+              disabled={isDeleting || selectedWords.length === 0}
+              onClick={onConfirm}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-black text-white shadow-sm hover:bg-rose-700 active:scale-98 transition disabled:opacity-60"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Đang xoá...</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-3.5" />
+                  <span>Xoá {selectedWords.length} từ</span>
+                </>
+              )}
             </button>
           </div>
         </motion.div>

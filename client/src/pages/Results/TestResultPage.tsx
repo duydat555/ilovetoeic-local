@@ -139,6 +139,30 @@ export const TestResultPage: React.FC = () => {
           isPartial,
         };
         setResult(loadedResult);
+
+        // Nạp trước danh sách câu hỏi từ review nếu máy chủ đã trả về
+        if (data.questions && data.questions.length > 0) {
+          const convertedQuestions: Question[] = data.questions.map((q) => ({
+            id: q.id,
+            partId: q.part,
+            difficultyLevel: q.level,
+            questionNumber: q.questionNumber,
+            promptText: q.promptText,
+            choices: q.choices,
+            correctAnswer: q.correctAnswer as any,
+            explanation: q.explanation,
+            explanationEn: q.explanationEn,
+            passageText: q.passageText,
+            passageTranslationHtml: q.passageTranslationHtml,
+            passageSentencePairs: q.passageSentencePairs,
+            transcript: q.transcript,
+            audioUrl: q.audioUrl,
+            imageUrl: q.imageUrl,
+            translation: q.translation,
+            optionsTranslation: q.optionsTranslation,
+          }));
+          setQuestions((prev) => (prev.length > 0 ? prev : convertedQuestions));
+        }
       })
       .catch((err) => {
         console.warn('[!] Không thể mở kết quả bài thi:', err);
@@ -177,7 +201,10 @@ export const TestResultPage: React.FC = () => {
     apiService
       .getFullTestQuestions(result.testId)
       .then((data) => {
-        if (active) setQuestions(data);
+        if (active && data && data.length > 0) setQuestions(data);
+      })
+      .catch((err) => {
+        console.warn('[!] Không thể tải bộ câu hỏi chi tiết từ test detail:', err);
       })
       .finally(() => {
         if (active) setLoadingQuestions(false);
@@ -720,9 +747,9 @@ export const TestResultPage: React.FC = () => {
       </div>
 
       {/* Modal xác nhận xoá kết quả bài thi này */}
-      <AnimatePresence>
-        {showDeleteModal &&
-          createPortal(
+      {createPortal(
+        <AnimatePresence>
+          {showDeleteModal && (
             <motion.div
               {...modalMotion.backdrop}
               className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-md"
@@ -791,10 +818,11 @@ export const TestResultPage: React.FC = () => {
                   </button>
                 </div>
               </motion.div>
-            </motion.div>,
-            document.body,
+            </motion.div>
           )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 };

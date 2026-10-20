@@ -35,8 +35,6 @@ import { QuestionHeader } from '../../components/common/QuestionHeader';
 import { InterleavedTranscript } from '../../components/common/InterleavedTranscript';
 import { InterleavedPassage } from '../../components/common/InterleavedPassage';
 import { PassageContent } from '../../components/common/PassageContent';
-import { ExamNotesWorkspace, ExamNotesButton, EXAM_NOTES_ENABLED } from '../../components/exam-notes/ExamNotesWorkspace';
-import { flushExamNotes } from '../../components/exam-notes/registry';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
 import { ResizableSplitPane } from '../../components/common/ResizableSplitPane';
@@ -44,6 +42,10 @@ import {
   PracticeTool, PracticeToolsPanel,
 } from '../../components/common/PracticeToolsPanel';
 import { useAuth } from '../../context/AuthContext';
+import { ExamAnnotationPassage, EXAM_ANNOTATIONS_ENABLED } from '../../components/exam-annotations/ExamAnnotationPassage';
+import { ExamNotesWorkspace, ExamNotesButton, EXAM_NOTES_ENABLED } from '../../components/exam-notes/ExamNotesWorkspace';
+import { flushExamNotes } from '../../components/exam-notes/registry';
+import { useReviewMarks } from '../../components/exam-annotations/useReviewMarks';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePrefetchImages } from '../../hooks/usePrefetchImages';
 import { apiService } from '../../services/api';
@@ -54,6 +56,7 @@ import { getTestHistoryAttemptId, storage } from '../../utils/storage';
 import { buildPracticeGroups, cleanExplanationText, cleanQuestionTranslation, cleanTranscriptSpacing, formatExplanationText, getCleanQuestionPromptTranslation, getEffectiveQuestionTranslation, getPracticeQuestionTitle, getUnifiedQuestionTranslationText, stripChoicePrefix } from '../../utils/practice';
 import { parseTestPartScope, serializeTestPartScope } from '../../utils/testScope';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
+import { useSavedQuestions } from '../../hooks/useSavedQuestions';
 import { soundFX } from '../../utils/soundEffects';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
@@ -66,6 +69,7 @@ const formatTimer = (seconds: number) => {
 
 export const PracticeRunnerPage: React.FC = () => {
   const { user, recordStudyActivity } = useAuth();
+  const { savedQuestions, toggleSavedQuestion } = useSavedQuestions(user?.id, 'toeic');
   const { refreshNotifications } = useNotifications();
   const { partId = 'all' } = useParams<{ partId: string }>();
   const [searchParams] = useSearchParams();
@@ -260,6 +264,7 @@ export const PracticeRunnerPage: React.FC = () => {
   }, [isLevelPractice, isWrongRetry, reviewAttemptId, reviewResult, scopeParts, selectedLevel, storageKey, testId, user?.id, wrongSource]);
 
   const groups = useMemo(() => buildPracticeGroups(questions), [questions]);
+  const reviewMarks = useReviewMarks(user?.id, `practice:${storageKey}`, groups, showQuestionDrawer);
   const checkedQuestionIds = useMemo(() => {
     const set = new Set<string>();
     groups.forEach((g) => {
@@ -650,7 +655,7 @@ export const PracticeRunnerPage: React.FC = () => {
             )}
           </button>}
 
-          <button
+          {(!EXAM_ANNOTATIONS_ENABLED || !user || !currentGroup.passageText) && <button
             type="button"
             onClick={() => openTool('annotator')}
             disabled={!currentGroup.passageText}
@@ -662,7 +667,7 @@ export const PracticeRunnerPage: React.FC = () => {
             title={currentGroup.passageText ? 'Đánh dấu nội dung bài đọc' : 'Nhóm này không có bài đọc'}
           >
             <Highlighter className={`size-4 ${activeTool === 'annotator' || annotatorEnabled ? 'text-brand-ink' : 'text-brand-600 dark:text-brand-300'}`} />
-            <span className="hidden lg:inline">Annotator</span>
+            <span className="hidden lg:inline">Đánh dấu</span>
             {currentAnnotations.length > 0 && (
               <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-extrabold ${activeTool === 'annotator' || annotatorEnabled
                 ? 'bg-white/30 text-brand-ink'
@@ -671,7 +676,7 @@ export const PracticeRunnerPage: React.FC = () => {
                 {currentAnnotations.length}
               </span>
             )}
-          </button>
+          </button>}
 
           <button
             type="button"
@@ -819,12 +824,21 @@ export const PracticeRunnerPage: React.FC = () => {
                               }
                             />
                           ) : (
-                            <AnnotatablePassage
+                            <ExamAnnotationPassage
+                              userId={user?.id}
+                              scope={`practice:${storageKey}`}
+                              group={annotationGroupKey}
+                              progress={`${safeGroupIndex + 1}/${groups.length}`}
+                              legacy={currentAnnotations}
+                              legacyNotes={currentGroup.questions.map(q => notes[q.id]).filter(Boolean)}
+                              html={currentGroup.passageText}
+                              passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                              fallback={<AnnotatablePassage
                               passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
                               html={currentGroup.passageText}
                               annotations={currentAnnotations}
                               enabled={annotatorEnabled}
-                              onAdd={addAnnotation}
+                              onAdd={addAnnotation} />}
                             />
                           )}
 
@@ -883,6 +897,8 @@ export const PracticeRunnerPage: React.FC = () => {
                           title={getPracticeQuestionTitle(question, currentGroupChecked)}
                           isChecked={currentGroupChecked}
                           isCorrect={selectedAnswer === question.correctAnswer}
+                          saved={Boolean(savedQuestions[question.id])}
+                          onToggleSaved={() => toggleSavedQuestion(question.id)}
                         />
 
                         <div className="space-y-2 p-3.5">
@@ -1085,12 +1101,21 @@ export const PracticeRunnerPage: React.FC = () => {
                           }
                         />
                       ) : (
-                        <AnnotatablePassage
+                        <ExamAnnotationPassage
+                          userId={user?.id}
+                          scope={`practice:${storageKey}`}
+                          group={annotationGroupKey}
+                          progress={`${safeGroupIndex + 1}/${groups.length}`}
+                          legacy={currentAnnotations}
+                          legacyNotes={currentGroup.questions.map(q => notes[q.id]).filter(Boolean)}
+                          html={currentGroup.passageText}
+                          passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                          fallback={<AnnotatablePassage
                           passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
                           html={currentGroup.passageText}
                           annotations={currentAnnotations}
                           enabled={annotatorEnabled}
-                          onAdd={addAnnotation}
+                          onAdd={addAnnotation} />}
                         />
                       )}
                     </div>
@@ -1108,6 +1133,8 @@ export const PracticeRunnerPage: React.FC = () => {
                       title={getPracticeQuestionTitle(question, currentGroupChecked)}
                       isChecked={currentGroupChecked}
                       isCorrect={selectedAnswer === question.correctAnswer}
+                      saved={Boolean(savedQuestions[question.id])}
+                      onToggleSaved={() => toggleSavedQuestion(question.id)}
                     />
 
                     <div className="space-y-2 p-3.5">
@@ -1235,6 +1262,7 @@ export const PracticeRunnerPage: React.FC = () => {
 
       {/* Slide-over Question Drawer */}
       <QuestionDrawer
+        reviewedQuestionIds={reviewMarks.reviewedQuestionIds} reviewLoading={reviewMarks.loading} reviewError={reviewMarks.error} onRetryReviews={reviewMarks.retry}
         isOpen={showQuestionDrawer}
         onClose={() => setShowQuestionDrawer(false)}
         questions={questions}
@@ -1256,6 +1284,7 @@ export const PracticeRunnerPage: React.FC = () => {
           }
         }}
         userAnswers={userAnswers}
+        flaggedQuestions={savedQuestions}
         checkedQuestionIds={checkedQuestionIds}
       />
 

@@ -1,8 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Bookmark, Check, ListChecks, X } from 'lucide-react';
+import { Bookmark, Check, Flag, ListChecks, X } from 'lucide-react';
+import { BoneyardSkeleton } from './BoneyardSkeleton';
 import { Question } from '../../types';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
 type ChoiceId = 'A' | 'B' | 'C' | 'D';
 
@@ -18,9 +20,13 @@ interface QuestionDrawerProps {
   checkedQuestionIds?: Set<string>;
   checkedGroupIds?: Set<string>;
   language?: 'vi' | 'en';
+  reviewedQuestionIds?: Set<string>;
+  reviewLoading?: boolean;
+  reviewError?: string;
+  onRetryReviews?: () => void;
 }
 
-type FilterTab = 'all' | 'answered' | 'unanswered' | 'flagged' | 'correct' | 'wrong';
+type FilterTab = 'all' | 'answered' | 'unanswered' | 'flagged' | 'correct' | 'wrong' | 'review';
 
 export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   isOpen,
@@ -33,11 +39,31 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   flaggedQuestions = {},
   checkedQuestionIds,
   language = 'vi',
+  reviewedQuestionIds,
+  reviewLoading = false,
+  reviewError,
+  onRetryReviews,
 }) => {
   const english = language === 'en';
   const [filter, setFilter] = useState<FilterTab>('all');
   const reduceMotion = useReducedMotion();
   const currentTileRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  const [present, setPresent] = useState(false);
+  const visible = isOpen || present;
+  useLayoutEffect(() => { if (isOpen) setPresent(true); }, [isOpen]);
+  useBodyScrollLock(visible);
+  useEffect(() => {
+    if (!visible) return;
+    if (document.activeElement instanceof HTMLElement && !panelRef.current?.contains(document.activeElement)) triggerRef.current = document.activeElement;
+    panelRef.current?.querySelector<HTMLButtonElement>('[data-close-navigator]')?.focus();
+    return () => { requestAnimationFrame(() => {
+      if (panelRef.current) return;
+      if (triggerRef.current?.isConnected && !triggerRef.current.closest('[inert]')) triggerRef.current.focus();
+      else document.querySelector<HTMLElement>('[role="dialog"][aria-modal="true"] button:not(:disabled)')?.focus();
+    }); };
+  }, [visible]);
 
   const currentIdSet = useMemo(() => {
     if (currentQuestionIds && currentQuestionIds.length > 0) {
@@ -69,20 +95,27 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
     if (isOpen && currentTileRef.current) {
       const timer = setTimeout(() => {
         currentTileRef.current?.scrollIntoView({
-          behavior: 'smooth',
+          behavior: reduceMotion ? 'auto' : 'smooth',
           block: 'center',
         });
       }, 220);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, reduceMotion]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.defaultPrevented || event.isComposing) return;
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); }
+      if (event.key === 'Tab') {
+        const nodes = Array.from(panelRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),[href],[tabindex="0"]') || []).filter(n => n.getClientRects().length);
+        const first = nodes[0], last = nodes[nodes.length - 1];
+        if (!panelRef.current?.contains(document.activeElement)) { event.preventDefault(); first?.focus(); }
+        else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
     };
-    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
@@ -90,12 +123,12 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
   }, [isOpen, onClose]);
 
   const handleExitComplete = () => {
-    document.body.style.overflow = '';
+    if (!isOpen) setPresent(false);
   };
 
   const hasCheckedQuestions = Boolean(checkedQuestionIds && checkedQuestionIds.size > 0);
-  const answeredCount = Object.keys(userAnswers).length;
-  const flaggedCount = Object.values(flaggedQuestions).filter(Boolean).length;
+  const answeredCount = questions.filter(question => Boolean(userAnswers[question.id])).length;
+  const flaggedCount = questions.filter((question) => flaggedQuestions[question.id]).length;
   const unansweredCount = Math.max(questions.length - answeredCount, 0);
   const correctCount = questions.filter(
     (q) => checkedQuestionIds?.has(q.id) && userAnswers[q.id] === q.correctAnswer,
@@ -121,30 +154,32 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
       if (filter === 'answered') return isAnswered;
       if (filter === 'unanswered') return !isAnswered;
       if (filter === 'flagged') return isFlagged;
+      if (filter === 'review') return reviewedQuestionIds?.has(question.id);
       return true;
     });
 
-  const tabs = hasCheckedQuestions
+  const tabs: { id: FilterTab; label: string; count: number }[] = hasCheckedQuestions
     ? [
         { id: 'all' as const, label: english ? 'All' : 'Tất cả', count: questions.length },
         { id: 'correct' as const, label: english ? 'Correct' : 'Đúng', count: correctCount },
         { id: 'wrong' as const, label: english ? 'Wrong' : 'Sai', count: wrongCount },
         { id: 'unanswered' as const, label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
-        { id: 'flagged' as const, label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
+        { id: 'flagged' as const, label: english ? 'Saved' : 'Đã lưu', count: flaggedCount },
       ]
     : [
         { id: 'all' as const, label: english ? 'All' : 'Tất cả', count: questions.length },
         { id: 'answered' as const, label: english ? 'Answered' : 'Đã làm', count: answeredCount },
         { id: 'unanswered' as const, label: english ? 'Blank' : 'Chưa làm', count: unansweredCount },
-        { id: 'flagged' as const, label: english ? 'Marked' : 'Đã lưu', count: flaggedCount },
+        { id: 'flagged' as const, label: english ? 'Saved' : 'Đã lưu', count: flaggedCount },
       ];
+  if (reviewedQuestionIds) tabs.push({ id: 'review', label: english ? 'Review' : 'Xem lại', count: questions.filter(q => reviewedQuestionIds.has(q.id)).length });
 
   if (typeof document === 'undefined') return null;
 
   return createPortal(
     <AnimatePresence onExitComplete={handleExitComplete}>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] overflow-hidden">
+        <div className="fixed inset-0 z-[120] overflow-hidden">
           {/* Full Screen Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -158,13 +193,14 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
           {/* Slide-over Drawer Panel */}
           <div className="fixed inset-y-0 right-0 flex max-w-full pl-6">
             <motion.div
-              initial={{ x: '100%' }}
+              initial={{ x: reduceMotion ? 0 : '100%' }}
               animate={{ x: 0 }}
-              exit={{ x: '100%' }}
+              exit={{ x: reduceMotion ? 0 : '100%' }}
               transition={{
                 duration: reduceMotion ? 0.1 : 0.24,
                 ease: [0.22, 1, 0.36, 1],
               }}
+              ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="question-navigator-title" tabIndex={-1}
               className="flex w-screen max-w-md flex-col bg-surface shadow-2xl border-l border-line text-content transform-gpu [will-change:transform] [webkit-backface-visibility:hidden]"
             >
               {/* Header */}
@@ -175,7 +211,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-base font-extrabold text-content">
+                      <h2 id="question-navigator-title" className="text-base font-extrabold text-content">
                         {english ? 'Question Navigator' : 'Danh sách câu hỏi'}
                       </h2>
                       {activeRangeLabel && (
@@ -194,6 +230,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                 <button
                   type="button"
                   onClick={onClose}
+                  data-close-navigator
                   aria-label={english ? 'Close question navigator' : 'Đóng danh sách câu hỏi'}
                   className="rounded-xl p-2 text-content-muted hover:bg-surface-hover hover:text-content transition-colors"
                 >
@@ -210,13 +247,14 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               </div>
 
               {/* Filter Tabs with Live Counters */}
-              <div className="flex gap-1.5 border-b border-line bg-canvas/40 p-3">
+              <div className="flex flex-wrap gap-1.5 border-b border-line bg-canvas/40 p-3">
                 {tabs.map((tab) => {
                   const active = filter === tab.id;
                   return (
                     <button
                       key={tab.id}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setFilter(tab.id)}
                       className={`flex flex-1 flex-col items-center rounded-xl py-2 px-1 text-center transition-all ${
                         active
@@ -232,10 +270,18 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
               </div>
 
               {/* Question Grid Area */}
+              {reviewedQuestionIds && filter === 'review' && <div className="px-4 pt-3 text-xs text-content-muted">
+                <p>{english ? 'Review marks apply to every question in a marked group.' : 'Dấu xem lại áp dụng cho các câu trong nhóm đã đánh dấu.'}</p>
+                {reviewLoading && <BoneyardSkeleton name="review-marks-loading" height={24} />}
+              </div>}
+              {reviewError && <div className="px-4 pt-3 text-xs text-amber-700" role="alert"><p>{reviewError}</p><button type="button" onClick={onRetryReviews} className="mt-1 underline">{english ? 'Retry' : 'Thử lại'}</button></div>}
               <div className="flex-1 overflow-y-auto p-4">
                 {filteredQuestions.length === 0 ? (
                   <div className="flex h-40 flex-col items-center justify-center text-xs text-content-muted">
-                    {english ? 'No questions match this filter.' : 'Không có câu hỏi nào trong mục này.'}
+                    {filter === 'review' && reviewLoading
+                      ? (english ? 'Loading review marks…' : 'Đang tải dấu xem lại…')
+                      : filter === 'review' && reviewError ? (english ? 'Review marks are unavailable. Please retry.' : 'Chưa xác định được dấu xem lại. Hãy thử tải lại.')
+                      : (english ? 'No questions match this filter.' : 'Không có câu hỏi nào trong mục này.')}
                   </div>
                 ) : (
                   <div className="grid grid-cols-5 sm:grid-cols-6 gap-2.5">
@@ -265,7 +311,7 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                         }
                       } else if (flagged) {
                         tileStyle +=
-                          ' border border-amber-500 bg-amber-500 text-white shadow-xs';
+                          ' border border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200 shadow-xs';
                       } else if (isChecked) {
                         if (isCorrect) {
                           tileStyle +=
@@ -306,8 +352,9 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                             <Check className={`mt-0.5 size-3 stroke-[3] ${isCurrent ? 'text-brand-ink/85' : 'text-brand-600 dark:text-brand-400'}`} />
                           )}
                           {flagged && (
-                            <Bookmark className={`absolute top-0.5 right-0.5 size-2.5 fill-current ${isCurrent && !isChecked ? 'text-brand-ink' : isCurrent && isChecked ? 'text-amber-500' : 'text-white'}`} />
+                            <Bookmark aria-label={english ? 'Saved question' : 'Câu đã lưu'} className={`absolute top-0.5 right-0.5 size-2.5 fill-current ${isCurrent && !isChecked ? 'text-brand-ink' : 'text-amber-700 dark:text-amber-300'}`} />
                           )}
+                          {reviewedQuestionIds?.has(question.id) && <Flag aria-label={english ? 'Marked for review' : 'Đã đánh dấu xem lại'} className="absolute left-0.5 top-0.5 size-3 text-rose-600 fill-rose-100" />}
                         </button>
                       );
                     })}
@@ -345,8 +392,9 @@ export const QuestionDrawer: React.FC<QuestionDrawerProps> = ({
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="size-3 rounded-md bg-amber-500" />
-                    <span>{english ? 'Marked' : 'Đã lưu'}</span>
+                    <span>{english ? 'Saved' : 'Đã lưu'}</span>
                   </div>
+                  {reviewedQuestionIds && <div className="flex items-center gap-1.5"><Flag className="size-3 text-rose-600" /><span>{english ? 'For review' : 'Xem lại'}</span></div>}
                 </div>
 
                 <button

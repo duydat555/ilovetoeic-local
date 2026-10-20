@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { Check, ListChecks, Loader2, X, XCircle } from 'lucide-react';
+import { Bookmark, Check, ListChecks, X, XCircle } from 'lucide-react';
 import type { GrammarQuestion } from '../../services/grammar';
+import { BoneyardSkeleton } from '../../components/common/BoneyardSkeleton';
 import { useLanguage } from '../../context/LanguageContext';
 
-type QuestionFilter = 'all' | 'unanswered' | 'correct' | 'wrong';
+type QuestionFilter = 'all' | 'unanswered' | 'correct' | 'wrong' | 'saved';
 
 interface GrammarQuestionDrawerProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ interface GrammarQuestionDrawerProps {
   currentIndex: number;
   answers: Record<string, string>;
   loadingMore: boolean;
+  savedQuestions?: Record<string, boolean>;
   onSelectQuestion: (index: number) => void;
 }
 
@@ -26,6 +28,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
   currentIndex,
   answers,
   loadingMore,
+  savedQuestions = {},
   onSelectQuestion,
 }) => {
   const { language } = useLanguage();
@@ -60,11 +63,12 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
     .map((question, index) => ({ question, index }))
     .filter(({ question }) => {
       const answer = answers[question.membership_id];
+      if (filter === 'saved') return Boolean(savedQuestions[question.question_id]);
       if (filter === 'unanswered') return !answer;
       if (filter === 'correct') return answer === question.correct_answer;
       if (filter === 'wrong') return Boolean(answer) && answer !== question.correct_answer;
       return true;
-    }), [answers, filter, questions]);
+    }), [answers, filter, questions, savedQuestions]);
 
   const answeredCount = counts.correct + counts.wrong;
   const completionPercent = total ? Math.round((answeredCount / total) * 100) : 0;
@@ -127,12 +131,13 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                 <div className="h-full bg-brand transition-[width] duration-300" style={{ width: `${completionPercent}%` }} />
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5 border-b border-line bg-canvas/50 p-3">
+              <div className="grid grid-cols-5 gap-1.5 border-b border-line bg-canvas/50 p-3">
                 {([
                   { id: 'all', label: language === 'en' ? 'All' : 'Tất cả', count: questions.length },
                   { id: 'unanswered', label: language === 'en' ? 'Unanswered' : 'Chưa làm', count: Math.max(questions.length - answeredCount, 0) },
                   { id: 'correct', label: language === 'en' ? 'Correct' : 'Đúng', count: counts.correct },
                   { id: 'wrong', label: language === 'en' ? 'Incorrect' : 'Sai', count: counts.wrong },
+                  { id: 'saved', label: language === 'en' ? 'Saved' : 'Đã lưu', count: questions.filter((q) => savedQuestions[q.question_id]).length },
                 ] as const).map((item) => (
                   <button
                     key={item.id}
@@ -178,8 +183,9 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                           }
                         >
                           {question.source_category === 'book' && (
-                            <span className="absolute top-1 right-1 size-1.5 rounded-full bg-amber-500" />
+                            <span className="absolute top-1 left-1 size-1.5 rounded-full bg-amber-500" />
                           )}
+                          {savedQuestions[question.question_id] && <Bookmark className="absolute right-1 top-1 size-2.5 fill-current text-amber-600 dark:text-amber-300" aria-label={language === 'en' ? 'Saved' : 'Đã lưu'} />}
                           <span>{index + 1}</span>
                           {!current && correct && <Check className="mt-0.5 size-3 stroke-[3]" />}
                           {!current && wrong && <XCircle className="mt-0.5 size-3" />}
@@ -195,7 +201,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
 
                 {loadingMore && (
                   <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-content-muted" role="status">
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+                    <BoneyardSkeleton name="grammar-question-list-more" variant="row" height={32} width="100%" />
                     <span>{language === 'en' ? 'Loading full question list...' : 'Đang tải đầy đủ danh sách câu'}</span>
                   </div>
                 )}
@@ -207,6 +213,7 @@ export const GrammarQuestionDrawer: React.FC<GrammarQuestionDrawerProps> = ({
                   <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-positive/70" />{language === 'en' ? 'Correct' : 'Đúng'}</span>
                   <span className="flex items-center gap-1.5"><i className="size-3 rounded bg-negative/70" />{language === 'en' ? 'Incorrect' : 'Sai'}</span>
                   <span className="flex items-center gap-1.5"><i className="size-3 rounded border border-line bg-canvas" />{language === 'en' ? 'Unanswered' : 'Chưa làm'}</span>
+                  <span className="flex items-center gap-1.5"><Bookmark className="size-3 fill-current text-amber-600" />{language === 'en' ? 'Saved' : 'Đã lưu'}</span>
                 </div>
               </footer>
             </motion.aside>

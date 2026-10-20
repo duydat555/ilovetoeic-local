@@ -1,0 +1,70 @@
+.exam-annotations { --annotation-line: #dce1e8; --annotation-bg: #fff; --annotation-ink: #334155; color: var(--annotation-ink); font-family: inherit; min-width: 0; }
+.dark .exam-annotations { --annotation-line: #344155; --annotation-bg: #182234; --annotation-ink: #e2e8f0; }
+.exam-annotation-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+.exam-annotation-summary label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.exam-annotation-summary input { width: 16px; height: 16px; accent-color: #2563eb; }
+.exam-annotation-layout { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: start; gap: 12px; }
+.exam-annotation-body { min-width: 0; }
+.exam-annotation-layout-docked { display: block; }
+.exam-annotation-toolbar { position: sticky; top: 8px; align-self: start; z-index: 5; max-height: var(--annotation-rail-max-height, calc(100dvh - 180px)); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; background: var(--annotation-bg); border: 1px solid var(--annotation-line); border-radius: 12px; box-shadow: 0 3px 12px #0f172a08; }
+.exam-annotation-tool-row { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; }
+.exam-annotations button { font: inherit; cursor: pointer; }
+.exam-annotation-tool-row button { flex: 0 0 36px; position: relative; width: 36px; height: 36px; display: inline-grid; place-items: center; border: 0; border-radius: 8px; color: inherit; background: transparent; }
+.exam-annotation-tool-row button:hover { background: #94a3b822; }
+.exam-annotation-tool-row button[aria-pressed="true"] { color: #1d4ed8; background: #dbeafe; }
+.dark .exam-annotation-tool-row button[aria-pressed="true"] { background: #253c66; color: #bfdbfe; }
+.exam-annotations button:disabled { opacity: .35; cursor: default; }
+.exam-annotations button:focus-visible, .exam-annotations textarea:focus-visible, .exam-annotations select:focus-visible, .exam-annotation-paper:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+.exam-annotation-divider { border-top: 1px solid var(--annotation-line); width: 24px; height: 1px; margin: 4px 0; }
+.exam-annotation-palette-btn { position: relative; }
+.exam-annotation-palette-dot { position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px; border-radius: 50%; pointer-events: none; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); border: 1.5px solid var(--annotation-bg, #fff); }
+.exam-annotation-palette-popover { position: fixed; z-index: 1000; width: 200px; background: var(--annotation-bg, #ffffff); border: 1px solid var(--annotation-line, #e2e8f0); border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08); padding: 16px; box-sizing: border-box;  }
+@keyframes exam-annotation-popover-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+.exam-annotation-palette-colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; justify-items: center; }
+.exam-annotation-palette-color-btn { width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; box-sizing: border-box; transition: transform 0.1s ease, border-color 0.15s ease; }
+.exam-annotation-palette-color-btn:hover { transform: scale(1.06); }
+.exam-annotation-palette-color-btn.selected { border-color: #1e293b; }
+.dark .exam-annotation-palette-color-btn.selected { border-color: #f8fafc; }
+.exam-annotation-palette-color-number { width: 20px; height: 20px; background-color: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #1e293b; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); line-height: 1; }
+.exam-annotation-palette-weight-section { margin-top: 16px; }
+.exam-annotation-palette-weight-label { font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 12px; }
+.dark .exam-annotation-palette-weight-label { color: #94a3b8; }
+.exam-annotation-palette-slider-wrapper { display: flex; align-items: center; padding: 4px 0; }
+.exam-annotation-palette-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 9999px; outline: none; cursor: pointer; margin: 0; }
+.dark .exam-annotation-palette-slider { background: #334155; border-color: #475569; }
+.exam-annotation-palette-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #0256d0; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.1s ease; }
+.exam-annotation-palette-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.exam-annotation-palette-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #0256d0; border: none; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); transition: transform 0.1s ease; }
+.exam-annotation-palette-slider::-moz-range-thumb:hover { transform: scale(1.1); }
+.exam-annotation-palette-slider::-moz-range-track { height: 8px; background: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 9999px; }
+.dark .exam-annotation-palette-slider::-moz-range-track { background: #334155; border-color: #475569; }
+.exam-annotation-palette-slider::-moz-range-progress { height: 8px; background: #0256d0; border-radius: 9999px 0 0 9999px; }
+.exam-annotation-badge { position: absolute; right: 0; top: 0; min-width: 14px; font-size: 9px; line-height: 14px; background: #dbeafe; color: #1e40af; border-radius: 7px; }
+.exam-annotation-hint, .exam-annotation-footnote { font-size: 11px; line-height: 1.6; opacity: .8; margin: 6px 0 12px; }
+.exam-annotation-footnote { margin: 14px 0 0; }
+.exam-annotation-paper { position: relative; isolation: isolate; min-width: 0; }
+.exam-annotation-overlay { position: absolute; inset: 0; overflow: visible; z-index: 1; pointer-events: none; }
+.exam-annotation-drawing { touch-action: none; user-select: none; cursor: crosshair; }
+.exam-annotation-paper[data-tool="highlight"], .exam-annotation-paper[data-tool="underline"] { user-select: text; cursor: text; }
+.exam-annotation-text { position: absolute; z-index: 2; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; font-size: 13px !important; line-height: 1.5; padding: 3px 6px; background: var(--annotation-bg); border: 1px dashed currentColor; border-radius: 4px; max-height: 220px; overflow-y: auto; }
+.exam-annotation-sticky { border: 1px solid #ffffff80; min-width: 28px; min-height: 28px; padding: 4px 8px; border-radius: 6px; box-shadow: 0 2px 6px #0f172a18; }
+.exam-annotation-text-box { background: transparent; border: 0; border-radius: 0; }
+.exam-annotation-inline-input { position: absolute; z-index: 3; box-sizing: border-box; min-height: 44px; max-height: 220px; resize: none; overflow-y: auto; border: 2px solid transparent; border-radius: 0; padding: 6px 8px; font: inherit; font-size: 13px; line-height: 1.5; cursor: text; user-select: text; touch-action: auto; }
+.exam-annotation-sticky-input { border-color: #fff; border-radius: 7px; box-shadow: 0 2px 6px #0f172a18; }
+.exam-annotation-text-input { min-height: 36px; padding: 4px 6px; }
+.exam-annotations textarea.exam-annotation-inline-input:focus { outline: 3px solid #2563eb; outline-offset: 1px; }
+.exam-annotation-inline-input::placeholder { color: inherit; opacity: .7; }
+.exam-annotation-paper:has(.exam-annotation-inline-input) { touch-action: auto; }
+.exam-annotation-notebook, .exam-annotation-message { margin: 10px 0; padding: 12px; border: 1px solid var(--annotation-line); border-radius: 10px; background: var(--annotation-bg); font-size: 12px; }
+.exam-annotation-message { border-color: #d97706; line-height: 1.7; }
+.exam-annotation-notebook label { display: block; font-weight: 600; }
+.exam-annotation-notebook textarea { display: block; width: 100%; resize: vertical; background: var(--annotation-bg); color: inherit; font: inherit; font-weight: 400; border: 1px solid var(--annotation-line); border-radius: 6px; padding: 8px; margin: 8px 0; }
+.exam-annotation-notebook button, .exam-annotation-message button { display: inline-flex; gap: 5px; align-items: center; padding: 6px 9px; border: 1px solid var(--annotation-line); border-radius: 6px; margin: 4px 6px 0 0; }
+.exam-annotation-save { background: #1d4ed8; color: #fff; }
+.exam-annotation-editor-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.exam-annotation-editor-heading strong { display: inline-flex; align-items: center; gap: 6px; }
+.exam-annotation-old-note { white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid var(--annotation-line); padding-top: 8px; margin-top: 10px; }
+@media (pointer: coarse) { .exam-annotation-tool-row button { width: 44px; height: 44px; flex-basis: 44px; } }
+@media (max-width: 639px) { .exam-annotation-layout { gap: 8px; } .exam-annotation-tool-row { padding: 3px; } .exam-annotation-summary { font-size: 11px; } }
+
+@media(prefers-reduced-motion:reduce) {.exam-annotation-palette-color-btn,.exam-annotation-palette-slider::-webkit-slider-thumb,.exam-annotation-palette-slider::-moz-range-thumb {transition:none}}

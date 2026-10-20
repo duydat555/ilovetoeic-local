@@ -22,6 +22,7 @@ from app.routers import (
     submissions,
     tests,
     user_data,
+    exam_annotations,
     exam_notes,
     system_vocabulary,
     listening,
@@ -84,6 +85,7 @@ app.include_router(feedback.router)
 app.include_router(features.router)
 app.include_router(grammar.router)
 app.include_router(user_data.router)
+app.include_router(exam_annotations.router)
 app.include_router(exam_notes.router)
 app.include_router(system_vocabulary.router)
 app.include_router(ranking.router)

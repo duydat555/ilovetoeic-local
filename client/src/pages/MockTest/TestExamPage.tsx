@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  Bookmark,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -19,9 +18,13 @@ import { ExamSubmitConfirmModal } from '../../components/mock-test/ExamSubmitCon
 import { AudioPlayer } from '../../components/common/AudioPlayer';
 import { ChoiceCard } from '../../components/common/ChoiceCard';
 import { PassageContent } from '../../components/common/PassageContent';
+import { ExamAnnotationPassage } from '../../components/exam-annotations/ExamAnnotationPassage';
 import { ExamNotesWorkspace, ExamNotesButton } from '../../components/exam-notes/ExamNotesWorkspace';
 import { flushExamNotes } from '../../components/exam-notes/registry';
+import { useReviewMarks } from '../../components/exam-annotations/useReviewMarks';
 import { dictionaryService } from '../../services/dictionary';
+import { QuestionSaveButton } from '../../components/common/QuestionSaveButton';
+import { useSavedQuestions } from '../../hooks/useSavedQuestions';
 import { QuestionDrawer } from '../../components/common/QuestionDrawer';
 import { QuestionImage } from '../../components/common/QuestionImage';
 import { useAuth } from '../../context/AuthContext';
@@ -63,7 +66,7 @@ export const TestExamPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState<Record<string, ChoiceId>>({});
-  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
+  const { savedQuestions: flaggedQuestions, toggleSavedQuestion: toggleFlag } = useSavedQuestions(user?.id, 'toeic');
   const [secondsRemaining, setSecondsRemaining] = useState(examDurationSeconds);
   const [submitting, setSubmitting] = useState(false);
   const [showQuestionDrawer, setShowQuestionDrawer] = useState(false);
@@ -91,7 +94,6 @@ export const TestExamPage: React.FC = () => {
       setQuestions(filteredQuestions);
       setCurrentIndex(0);
       setUserAnswers({});
-      setFlaggedQuestions({});
       setCompletedListeningGroups(new Set());
       setSecondsRemaining(examDurationSeconds);
 
@@ -218,6 +220,7 @@ export const TestExamPage: React.FC = () => {
   }, [loading, questions.length, secondsRemaining, submitting]);
 
   const groups = useMemo(() => buildPracticeGroups(questions), [questions]);
+  const reviewMarks = useReviewMarks(user?.id, `exam:${testId}`, groups, showQuestionDrawer);
   const currentQuestion = questions[currentIndex] || questions[0];
   const currentGroupIndex = Math.max(
     groups.findIndex((group) => group.questions.some((question) => question.id === currentQuestion?.id)),
@@ -255,10 +258,6 @@ export const TestExamPage: React.FC = () => {
 
   const selectChoice = (questionId: string, choiceId: ChoiceId) => {
     setUserAnswers((previous) => ({ ...previous, [questionId]: choiceId }));
-  };
-
-  const toggleFlag = (questionId: string) => {
-    setFlaggedQuestions((previous) => ({ ...previous, [questionId]: !previous[questionId] }));
   };
 
   const goToGroup = (groupIndex: number) => {
@@ -467,7 +466,9 @@ export const TestExamPage: React.FC = () => {
                   )}
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
-                      <PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />
+                      <ExamAnnotationPassage userId={user?.id} scope={`exam:${testId}`} group={currentGroup.questions.map(q => q.id).join(':')}
+                        progress={`${currentGroupIndex + 1}/${groups.length}`} html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                        fallback={<PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />} />
                     </div>
                   )}
                 </div>
@@ -492,16 +493,10 @@ export const TestExamPage: React.FC = () => {
                             {getExamQuestionPrompt(question)}
                           </h2>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleFlag(question.id)}
-                          aria-label={`Mark Question ${question.questionNumber} for review`}
-                          className={`grid size-7 shrink-0 place-items-center rounded-lg transition ${
-                            flagged ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400 hover:text-amber-500 dark:bg-surface-elevated'
-                          }`}
-                        >
-                          <Bookmark className="size-3.5" />
-                        </button>
+                        <QuestionSaveButton
+                          saved={flagged}
+                          onToggle={() => toggleFlag(question.id)}
+                        />
                       </div>
 
                       <div className="space-y-2 p-3.5">
@@ -570,7 +565,9 @@ export const TestExamPage: React.FC = () => {
                   )}
                   {currentGroup.passageText && (
                     <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed dark:border-line dark:bg-canvas">
-                      <PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />
+                      <ExamAnnotationPassage userId={user?.id} scope={`exam:${testId}`} group={currentGroup.questions.map(q => q.id).join(':')}
+                        progress={`${currentGroupIndex + 1}/${groups.length}`} html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId}
+                        fallback={<PassageContent html={currentGroup.passageText} passageId={currentGroup.passageId || currentGroup.questions[0]?.passageId} />} />
                     </div>
                   )}
                 </section>
@@ -591,16 +588,10 @@ export const TestExamPage: React.FC = () => {
                           {getExamQuestionPrompt(question)}
                         </h2>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleFlag(question.id)}
-                        aria-label={`Mark Question ${question.questionNumber} for review`}
-                        className={`grid size-7 shrink-0 place-items-center rounded-lg transition ${
-                          flagged ? 'bg-amber-500 text-white shadow-xs' : 'bg-slate-100 text-slate-400 hover:text-amber-500 dark:bg-surface-elevated'
-                        }`}
-                      >
-                        <Bookmark className="size-3.5" />
-                      </button>
+                      <QuestionSaveButton
+                        saved={flagged}
+                        onToggle={() => toggleFlag(question.id)}
+                      />
                     </div>
 
                     <div className="space-y-2 p-3.5">
@@ -648,6 +639,7 @@ export const TestExamPage: React.FC = () => {
 
       {/* Slide-over Question Drawer */}
       <QuestionDrawer
+        reviewedQuestionIds={reviewMarks.reviewedQuestionIds} reviewLoading={reviewMarks.loading} reviewError={reviewMarks.error} onRetryReviews={reviewMarks.retry}
         isOpen={showQuestionDrawer}
         onClose={() => setShowQuestionDrawer(false)}
         questions={questions}

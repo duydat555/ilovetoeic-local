@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatusBadge } from './StatusBadge';
+import { QuestionSaveButton } from './QuestionSaveButton';
 
 interface QuestionHeaderProps {
   questionNumber: number;
@@ -8,6 +9,8 @@ interface QuestionHeaderProps {
   isChecked?: boolean;
   isCorrect?: boolean | null;
   className?: string;
+  saved?: boolean;
+  onToggleSaved?: () => void;
 }
 
 export const QuestionHeader: React.FC<QuestionHeaderProps> = ({
@@ -17,6 +20,8 @@ export const QuestionHeader: React.FC<QuestionHeaderProps> = ({
   isChecked,
   isCorrect,
   className = '',
+  saved = false,
+  onToggleSaved,
 }) => {
   return (
     <div
@@ -38,11 +43,10 @@ export const QuestionHeader: React.FC<QuestionHeaderProps> = ({
       </div>
 
       {/* Badge trạng thái đặt trong container shrink-0 chống bị đè hoặc bóp méo */}
-      {isChecked && (
-        <div className="shrink-0 pt-0.5">
-          <StatusBadge isCorrect={isCorrect} />
-        </div>
-      )}
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {isChecked && <StatusBadge isCorrect={isCorrect} />}
+        {onToggleSaved && <QuestionSaveButton saved={saved} onToggle={onToggleSaved} />}
+      </div>
     </div>
   );
 };

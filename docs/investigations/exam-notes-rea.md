@@ -148,3 +148,59 @@ Phần này là kiểm chứng **ứng dụng của mình**, không phải Evide
 - Chưa kiểm tra trên thiết bị iOS/Android thật, chưa cố tình làm hết giờ/nộp bài thật để tránh tạo lịch sử ngoài QA. Không coi test fixture là bằng chứng DB; phần DB dùng API MySQL riêng và tài khoản QA local như trên.
 
 Các thay đổi đã có trước task được giữ nguyên. Commit chỉ chọn phần notes trong các file dùng chung; bridge mới trong `AnnotationSurface.tsx` nằm cùng thư mục annotation vốn chưa được track từ task trước, giữ lại trong working tree để không commit lẫn toàn bộ tính năng cũ. Cần review cùng phần annotation đó trước merge.
+
+### Điều chỉnh toolbar theo yêu cầu tiếp theo
+
+Toolbar đã chuyển thành cột dọc 54px riêng, sticky cạnh bài đọc khi cuộn. Chiều cao giới hạn theo viewport/vùng cuộn thực tế, màn hình thấp cuộn riêng các công cụ; không dùng tọa độ của toolbar để lưu neo chú thích. Boneyard tải ban đầu đổi thành hai cột tương ứng. QA fixture `/tests/exam-notes.fixture.html?scroll=1`: cuộn bài từ 220px đến 480px và cuối bài, toolbar giữ Y=24px; mobile 390×640 không tràn ngang/đè chữ, vẫn tới được lựa chọn nét; ArrowDown chuyển focus đúng công cụ, tô sáng sau thay đổi layout vẫn hoạt động. Typecheck/build đạt. Các file annotation vốn chưa track được giữ nguyên trạng thái để tránh commit lẫn công việc trước.
+
+Yêu cầu tiếp theo thay vị trí DOM: toolbar hiện portal vào `.exam-notes-workspace > div.exam-annotation-dock` **con thứ hai**, div đầu giữ màn hình làm bài. Không còn toolbar bên trong `.exam-annotation-layout` khi có workspace; có cột riêng và không phụ thuộc cuộn passage. Khi notes flag tắt nhưng annotations bật vẫn có dock, không tạo API ghi chú ngoài cờ. Đã kiểm tra DOM thứ tự hai div, cuộn không đổi vị trí, nút Sổ vẫn mở chung panel, mobile 390×640 không tràn/đè chữ và toolbar giới hạn 592px trong fixture. Build đạt sau thay đổi.
+
+### Bổ sung ngày 18/10/2026: tìm nhanh nhóm cần xem lại
+
+- `QuestionDrawer` có bộ lọc **Xem lại** (Review ở giao diện tiếng Anh), số lượng tính theo câu, icon cờ riêng với bookmark Đã lưu. Đánh dấu nhóm thì mọi câu trong nhóm xuất hiện ở bộ lọc; bấm câu giữ chỉ số gốc để nhảy đúng nhóm rồi đóng drawer. Drawer nằm trên panel note để không bị che.
+- Hook `useReviewMarks` dùng cùng user/scope/group với document annotation hiện có ở cả luyện/thi. Chỉ đọc khi mở navigator, cập nhật ngay theo queue local khi đánh dấu/bỏ dấu; so revision để dữ liệu server mới hơn không bị cache cũ che. Có skeleton/thông báo lỗi/nút thử lại; không thêm polling, migration hay ghi dữ liệu production.
+- API đọc batch: POST `/api/v1/exam-annotations/review-status`, body `{userId, scope, groups: string[]}` (1–200 nhóm); response `{groups: [{group, review, revision}]}`. Auth lấy user từ phiên, kiểm tra userId; hash khoá nhóm như GET/PUT hiện có, truy vấn PK theo user + IN hashes, chỉ đọc review/revision, `Cache-Control: no-store`.
+- Test MySQL disposable: **6 test backend đạt**, gồm đánh dấu/đọc batch/bỏ dấu, nhóm chưa tồn tại, tách user/scope, giới hạn batch; **15 test annotation client cũ đạt**. Fixture xác nhận đánh dấu 139–142 → lọc đúng bốn câu → nhảy lại đúng nhóm → reload giữ dấu → bỏ dấu thì danh sách rỗng; mobile 390×640 không tràn ngang. Typecheck/build và lint riêng các file thay đổi đạt. Chưa deploy.
+- Yêu cầu gộp màu/nét cũng đã kiểm tra: một icon bảng màu có chấm màu đang chọn, popover 6 màu số 1–6 và slider 1–8, Escape đóng/trả focus; màu xanh và độ dày 8 cập nhật đúng. Không dùng gradient; popover hỗ trợ fullscreen và reduced-motion. Không đổi dữ liệu màu đã lưu trước đây.
+
+### Sửa lỗi request xem lại vượt giới hạn batch
+
+Sau log `POST /api/v1/exam-annotations/review-status 422`, kiểm tra thấy client gửi nguyên danh sách nhóm trong khi schema API chỉ nhận tối đa 200. Level tập hợp câu từ nhiều đề có thể vượt giới hạn này. Log access riêng không có validation detail nên chưa đủ để khẳng định đó là payload cụ thể của người dùng; đã sửa lỗi hợp đồng có thể tái hiện này tại client: tách tuần tự tối đa 200 nhóm/request, loại trùng, gộp đủ kết quả và hủy request khi đóng/đổi phạm vi. Giữ giới hạn backend để bảo vệ query. UI giữ thông báo lỗi kèm thông điệp validation từ API nếu còn lỗi khác.
+
+Regression: 503 nhóm được chia 200/200/103, giữ đủ 503 kết quả; danh sách rỗng không gửi, khóa trùng chỉ đọc một lần, batch sau lỗi hoặc response thiếu không được coi là thành công. Ba test Node mới và sáu test API/MySQL đạt; build đạt. Không migration hoặc sửa dữ liệu người dùng.
+
+### Giấy nhớ nhập ngay trên bài đọc
+
+Theo ảnh người dùng cung cấp, công cụ Giấy nhớ đã đổi từ form phía trên passage sang textarea nằm trong paper tại neo vừa bấm: mặc định 204×60px, nền màu đang chọn, viền trắng/focus xanh, placeholder `...`, tự focus và tự tăng chiều cao tới 220px. Chiều rộng/vị trí kẹp trong paper trên màn hình hẹp; màu chữ chọn theo độ sáng nền để đọc được. Hộp chữ vẫn dùng form hiện có.
+
+Bấm ngoài hoặc Ctrl+Enter lưu, Enter xuống dòng, Escape huỷ bản sửa; có chặn commit khi IME đang composition và chặn blur lưu lặp sau Escape. Giấy mới rỗng bị bỏ; giấy cũ rỗng thì xoá bằng cùng lịch sử undo. Bấm giấy đã lưu để sửa ngay tại vị trí cũ. Neo block/caret, schema document và API/queue DB giữ nguyên, không migration.
+
+QA fixture desktop: ô nhập nằm trong paper, tự focus, nền đỏ, 204×60, không còn group form Giấy nhớ; blur lưu, Escape giữ nguyên nội dung trước sửa, Ctrl+Enter lưu nhiều dòng và reload giữ đúng ID/nội dung. Mobile 390×640 bấm sát mép phải vẫn nằm trong paper, không tràn ngang; giấy rỗng không tạo record, công cụ Hộp chữ vẫn mở form. 15 test annotation hiện có, typecheck/build và lint phần sửa đạt. Đây là QA trên fixture, không phải capture hành vi ByeToeic mới.
+
+### Hộp chữ nhập trực tiếp và thu gọn (18/10/2026)
+
+Theo yêu cầu tiếp theo, Hộp chữ cũng dùng textarea tại neo trên bài đọc, thay form phía trên. Kích thước khởi đầu hiện tại của cả Hộp chữ và Giấy nhớ là 168×44px, tăng chiều cao theo nội dung tới 220px, viền xanh 3px khi nhập. Hộp chữ có nền trong suốt, góc vuông và chữ theo màu chọn; khi lưu thu vừa nội dung (tối đa 204px, kẹp trong paper). Bấm bản đã lưu để sửa; blur/Ctrl+Enter lưu, Escape huỷ, nội dung rỗng bỏ mới/xoá bản cũ. Giữ schema, anchor và queue DB hiện có.
+
+QA fixture desktop: tự focus, nền trong suốt, 168×44px; ba dòng tăng lên 73px; blur thu còn khoảng 111×26px với nội dung ngắn. Escape giữ bản cũ, Ctrl+Enter và reload giữ ID/nội dung. Mobile 390×640: bấm sát mép phải vẫn nằm trong paper, không tràn ngang; Giấy nhớ vẫn có nền màu và góc bo. 15 test annotation, lint file sửa và build (gồm typecheck) đạt. Đây là kiểm tra triển khai bằng fixture, không phải Evidence ID mới từ REA hoặc kiểm tra trực tiếp DB production.
+
+### Chỉnh UI/UX panel Ghi chú (18/10/2026)
+
+Áp dụng skill `/evon:ui-ux` đã cài và `redesign-existing-projects`, sau khi đọc AGENTS.md và hướng dẫn UI motion/chú thích. Phạm vi là component panel trong màn làm bài. Ảnh người dùng cung cấp là hiện trạng: giữ các chức năng, bố cục panel phải, thay phân cấp và khoảng cách. Dùng token màu/font sẵn có (màu nhấn vàng, Inter/Be Vietnam Pro), tab segmented, chip chọn câu, trạng thái ghim, toolbar gọn, vùng viết có thể bấm suốt phần trống, footer trạng thái lưu và phím tắt. Light/dark, safe area và vùng bấm mobile được kiểm tra; không thêm thư viện, không đổi API/schema/feature flag.
+
+Motion: trượt từ mép phải bằng transform 350ms hai chiều, không scale/fade toàn panel, tắt khi reduced-motion. Giữ diện tích dành cho panel đến khi exit hoàn tất. Công cụ bổ sung có vào/ra nhẹ, Escape chỉ đóng cụm này. Dùng Boneyard với fallback khớp hình dạng chip/toolbar/dòng chữ, không gradient.
+
+QA: probe của skill ở 375/768/1366px, đã sửa tương phản placeholder, vòng cuối không có mục xếp Hỏng. Ảnh chụp desktop/mobile/dark trong `.playwright-mcp/notes-panel-redesign-*.png`. Kiểm tra thực tế bằng fixture: định dạng đậm, mở/đóng công cụ thêm, ghim và đổi nhóm, exit trước unmount, giữ/trả diện tích bài, trả focus về nút mở, dialog/inert/focus trap mobile, reduced-motion không transform. Bảy test notes trong browser đạt; lint phần sửa và build gồm typecheck đạt. Dữ liệu fixture là giả; không thao tác dữ liệu production. Probe có cảnh báo riêng cho phần bài đọc/checkbox gốc ngoài phạm vi panel và favicon fixture 404.
+
+### Đồng bộ kích thước panel với cài đặt hiển thị
+
+Audit tiếp theo bao phủ toolbar, review, bookmark và notes: [Báo cáo 18/10/2026](exam-tools-audit-2026-10-18.md). Có sửa lỗi focus, khoá cuộn, trạng thái lưu, bộ lọc rỗng và Escape/IME; xem bảng F01–F10 và kết quả regression trong báo cáo.
+
+Sửa các kích thước px cố định của chữ, icon, control, khoảng cách, chiều rộng panel và Boneyard fallback sang rem. Tiêu đề giảm từ 18px cố định xuống 1rem. Dùng đúng root size do applyDisplaySettings đặt, không thêm zoom/scale riêng. Mức hiển thị 90% của ứng dụng hiện ánh xạ thành 0.80 (root 12.8px); giữ nguyên quy ước này. Diện tích bài dành cho panel co giãn cùng panel; vùng bấm mobile vẫn cao 44px.
+
+QA bằng chính applyDisplaySettings trên fixture: các preset 90/100/110/125 lần lượt cho root 12.8/16/18.4/20.8px và panel rộng 312/390/448.5/507px. Ở 90%, tiêu đề 12.8px, nút tab 10.4px, editor 11.2px và icon định dạng 12.8px. Mobile 375px ở mức nhỏ/lớn nhất không tràn ngang, footer vẫn hiện và còn vùng viết. Build gồm typecheck đạt; ảnh `.playwright-mcp/notes-panel-scale90-desktop.png` và `notes-panel-scale90-mobile.png`. Chỉ sửa CSS panel và tài liệu, không đổi cài đặt lưu của người dùng.
+
+### Giữ panel ghim đứng yên khi đổi nhóm — 20/10/2026
+
+Nguyên nhân: Panel có React key gồm cả group nên mỗi lần đổi nhóm bị unmount/mount, chạy lại hiệu ứng mở và autofocus. Bỏ group key khỏi shell (workspace vẫn tách user/scope); chỉ editor bên trong key theo nhóm và câu. Flush store cũ khi đổi store; xác nhận xoá tách theo nhóm và bị huỷ khi rời nhóm. Giữ skeleton tải nội dung và hiệu ứng mở/đóng thực sự.
+
+QA fixture: ghim rồi chuyển 139–142 sang 143–146 và quay lại giữ đúng cùng DOM panel; 12 frame sau đổi nhóm đều có transform none. Nội dung nhóm cập nhật và draft nhóm 139 được phục hồi đúng. Bỏ ghim rồi đổi nhóm đóng panel; mở lại vẫn có hiệu ứng trượt. Bảy test notes browser, lint phần sửa và build đạt.

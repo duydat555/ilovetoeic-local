@@ -41,6 +41,8 @@ import type { WordTranslation } from '../../types';
 import { createClientId } from '../../utils/id';
 import { useQuestionActivityBatch } from '../../hooks/useQuestionActivityBatch';
 import { GrammarQuestionDrawer } from './GrammarQuestionDrawer';
+import { useSavedQuestions } from '../../hooks/useSavedQuestions';
+import { QuestionSaveButton } from '../../components/common/QuestionSaveButton';
 import { soundFX } from '../../utils/soundEffects';
 
 const QUESTION_BATCH_SIZE = 50;
@@ -436,6 +438,7 @@ const GrammarLoadingState = () => (
 
 export const GrammarLivePage: React.FC = () => {
   const { user } = useAuth();
+  const { savedQuestions, toggleSavedQuestion } = useSavedQuestions(user?.id, 'grammar');
   const { t, language } = useLanguage();
   const modeMeta = useMemo(() => getModeMeta(language), [language]);
   const [activityAttemptId, setActivityAttemptId] = useState(() => createClientId());
@@ -1350,6 +1353,14 @@ export const GrammarLivePage: React.FC = () => {
 
                   <div className="px-4 py-5 sm:px-6 sm:py-6">
                     <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-content-muted">
+                      <div className="ml-auto order-last">
+                        <QuestionSaveButton
+                          key={currentQuestion.question_id}
+                          saved={Boolean(savedQuestions[currentQuestion.question_id])}
+                          onToggle={() => toggleSavedQuestion(currentQuestion.question_id)}
+                          language={language}
+                        />
+                      </div>
                       {currentQuestion.source_category && (
                         <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold ${
                           currentQuestion.source_category === 'book'
@@ -1648,6 +1659,7 @@ export const GrammarLivePage: React.FC = () => {
         currentIndex={currentIndex}
         answers={answers}
         loadingMore={isQuestionListLoading}
+        savedQuestions={savedQuestions}
         onSelectQuestion={moveToQuestion}
       />
       <AnimatePresence>

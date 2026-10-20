@@ -3,7 +3,7 @@
 ## Infra
 - VPS: Ubuntu 24.04, đứng sau Nginx, SSL qua Certbot.
 - Backend chạy qua systemd (FastAPI).
-- CI/CD qua GitHub Actions (`appleboy/ssh-action`) với secrets cấu hình cho VPS.
+- CI/CD qua GitHub Actions (`.github/workflows/deploy.yml`, OpenSSH CLI) với secrets cấu hình cho VPS; push main hoặc workflow_dispatch.
 - DNS quản lý qua Vietnix.
 - Monitoring: Beszel.
 
@@ -11,6 +11,8 @@
 - Flow chuẩn: `git pull → rebuild → restart`.
 - Không skip bước `npm run build` (client) khi deploy frontend — lỗi build phải được xử lý trước khi push/deploy.
 - Trước khi merge, phải chạy `npm run build` (client) và kiểm tra server khởi động được không lỗi.
+- Từ đợt phát hành công cụ bài thi 20/10/2026: CI/CD xác minh backup `.sql.gz` còn dữ liệu và `gzip -t` trước migration. Migration tạo `user_exam_annotations`, `user_exam_notes` là additive và được ghi vào schema_migrations.
+- Workflow production build với `VITE_EXAM_ANNOTATIONS_V2=true`, `VITE_EXAM_NOTES_V2=true`; sau build thành công, sao lưu server/.env vào `/var/backups/toeic/server_env_*.bak` (0600) rồi đặt riêng `EXAM_NOTES_ENABLED=true`, restart và kiểm tra `/api/v1/status`. Không đưa secret/.env thật vào git. Các `.env.example` vẫn mặc định tắt.
 
 ## Tài nguyên VPS
 - Dung lượng đĩa hạn chế — theo dõi các thư mục log/backup dễ phình to (đã từng đầy đĩa do binlog tích tụ).

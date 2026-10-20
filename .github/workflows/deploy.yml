@@ -144,6 +144,9 @@ jobs:
 
           chmod 600 "$BACKUP_FILE"
           gzip "$BACKUP_FILE"
+          test -s "$BACKUP_FILE.gz"
+          gzip -t "$BACKUP_FILE.gz"
+          echo "Verified database backup: $BACKUP_FILE.gz"
 
           # Chỉ giữ backup trong 14 ngày.
           find /var/backups/toeic \
@@ -252,6 +255,7 @@ jobs:
           .venv/bin/python -m pip install \
             --disable-pip-version-check \
             -r requirements.txt
+          .venv/bin/python -m compileall -q app main.py
 
           echo "==> Importing Grammar data"
           GRAMMAR_IMPORT_VERSION="20260812_02_import_grammar_csv"
@@ -283,7 +287,28 @@ jobs:
           cd "$DEPLOY_PATH/client"
 
           npm ci --no-audit --no-fund
+          # Production rollout; documented defaults remain disabled elsewhere.
+          export VITE_EXAM_ANNOTATIONS_V2=true
+          export VITE_EXAM_NOTES_V2=true
           npm run build
+
+          echo "==> Enabling durable exam notes"
+          # Preserve the environment securely before changing only this flag.
+          python3 - <<'PY'
+          import os
+          import shutil
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path(os.environ['DEPLOY_PATH']) / 'server' / '.env'
+          backup = Path('/var/backups/toeic') / ('server_env_' + datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S') + '.bak')
+          shutil.copy2(path, backup)
+          backup.chmod(0o600)
+          lines = [line for line in path.read_text().splitlines()
+                   if line.partition('=')[0].strip() not in ('EXAM_NOTES_ENABLED', 'export EXAM_NOTES_ENABLED')]
+          lines.append('EXAM_NOTES_ENABLED=true')
+          path.write_text('\n'.join(lines) + '\n')
+          PY
 
           echo "==> Restarting services"
           systemctl restart toeic-api
@@ -291,6 +316,9 @@ jobs:
 
           systemctl is-active --quiet toeic-api
           systemctl is-active --quiet nginx
+          curl --fail --silent --show-error --retry 10 --retry-connrefused \
+            --retry-delay 2 --max-time 10 \
+            http://127.0.0.1:8000/api/v1/status > /dev/null
 
           echo "Deployment completed successfully."
           REMOTE_SCRIPT

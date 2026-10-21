@@ -1,0 +1,15 @@
+{
+  "reports": [
+    "1920x1080: background edge-to-edge, no outer padding or overflow",
+    "1440x900: background edge-to-edge, no outer padding or overflow",
+    "1366x768: background edge-to-edge, no outer padding or overflow",
+    "768x1024: background edge-to-edge, no outer padding or overflow",
+    "390x844: background edge-to-edge, no outer padding or overflow",
+    "snow animates normally and becomes still with reduced motion",
+    "first gesture unlocks AudioContext and generates a measurable nonzero audio signal",
+    "mute stops note scheduling and persists after reload",
+    "countdown/round/answer/result transitions generate distinct cues; repeated polling does not replay answer feedback",
+    "leaving Arena closes its audio context"
+  ],
+  "errors": []
+}

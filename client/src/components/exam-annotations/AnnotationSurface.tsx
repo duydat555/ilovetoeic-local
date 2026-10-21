@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, Pencil, X } from 'lucide-react';
 import { PassageContent } from '../common/PassageContent';
 import { createClientId } from '../../utils/id';
 import type { PracticeAnnotation } from '../common/AnnotatablePassage';
@@ -19,6 +19,7 @@ export interface AnnotationSurfaceProps {
 type Drawing = { pointerId: number; tool: 'pen' | 'rectangle' | 'arrow'; block: BlockAnchor; element: HTMLElement; points: Point[]; pixels: [number, number][]; origin: DOMRect };
 type Editor = { kind: 'text' | 'sticky'; block: BlockAnchor; points: Point[]; text: string; id?: string };
 const drawingTools = new Set<Tool>(['pen', 'rectangle', 'arrow', 'text', 'sticky', 'eraser']);
+const TOOLBAR_HIDDEN_KEY = 'toeic_exam_annotation_toolbar_hidden';
 const hintFor: Record<Tool, string> = {
   select: 'Chọn chữ để tra từ như bình thường.', highlight: 'Bôi đen đoạn chữ cần tô sáng.', underline: 'Bôi đen đoạn chữ cần gạch chân.',
   pen: 'Kéo để vẽ. Chọn Chuột để cuộn bằng cảm ứng.', eraser: 'Chạm vào chú thích để xoá.', text: 'Chạm vào bài đọc để thêm chữ.',
@@ -38,6 +39,22 @@ export default function AnnotationSurface(p: AnnotationSurfaceProps) {
     return () => publishNotes?.(undefined);
   }, [publishNotes, doc, saved.edit]);
   const [tool, setTool] = useState<Tool>('select');
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(() => {
+    try { return localStorage.getItem(TOOLBAR_HIDDEN_KEY) === 'true'; } catch { return false; }
+  });
+  const restoreToolbar = useRef<HTMLButtonElement>(null);
+  const surfaceRef = useRef<HTMLElement>(null);
+  const toolbarFocusPending = useRef(false);
+  useLayoutEffect(() => {
+    if (!toolbarFocusPending.current) return;
+    // The dock becomes visible after its portal MutationObserver updates the workspace.
+    const frame = requestAnimationFrame(() => {
+      toolbarFocusPending.current = false;
+      if (toolbarCollapsed) restoreToolbar.current?.focus();
+      else (toolbarDock || surfaceRef.current)?.querySelector<HTMLButtonElement>('[aria-label="Ẩn thanh công cụ"]')?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [toolbarCollapsed, toolbarDock]);
   const [color, setColor] = useState<string>(COLORS[0]);
   const [width, setWidth] = useState(2);
   const [hidden, setHidden] = useState(false);
@@ -104,6 +121,12 @@ export default function AnnotationSurface(p: AnnotationSurfaceProps) {
     if (add({ id: createClientId(), kind: tool, anchor, color, width })) window.getSelection()?.removeAllRanges();
   };
   const changeTool = (value: Tool) => { setTool(value); setEditor(null); setConfirmClear(false); if (value !== 'select') setHidden(false); };
+  const toggleToolbar = (collapsed: boolean) => {
+    cancelDrawing(); changeTool('select');
+    toolbarFocusPending.current = true;
+    setToolbarCollapsed(collapsed);
+    try { localStorage.setItem(TOOLBAR_HIDDEN_KEY, String(collapsed)); } catch { /* Preference remains usable without storage. */ }
+  };
   const closeClear = () => {
     setConfirmClear(false);
     requestAnimationFrame(() => {
@@ -262,14 +285,14 @@ export default function AnnotationSurface(p: AnnotationSurfaceProps) {
   const noteCount = doc.items.filter(a => a.kind === 'text' || a.kind === 'sticky').length + Number(!!doc.note.trim()) + (p.legacyNotes?.length || 0);
   // layout is incremented by observers so all Range/anchor coordinates are recomputed after reflow.
   void layout;
-  return <section className="exam-annotations" aria-label="Chú thích bài đọc" onFocusCapture={() => { activeRef.current = true; }}>
-    <div className={`exam-annotation-layout ${toolbarDock ? 'exam-annotation-layout-docked' : ''}`}>
-    <AnnotationToolbar tool={tool} onTool={changeTool} color={color} onColor={setColor} width={width} onWidth={setWidth}
+  return <section ref={surfaceRef} className="exam-annotations" aria-label="Chú thích bài đọc" onFocusCapture={() => { activeRef.current = true; }}>
+    <div className={`exam-annotation-layout ${toolbarDock || toolbarCollapsed ? 'exam-annotation-layout-docked' : ''}`}>
+    {!toolbarCollapsed && <AnnotationToolbar onCollapse={() => toggleToolbar(true)} tool={tool} onTool={changeTool} color={color} onColor={setColor} width={width} onWidth={setWidth}
       hidden={hidden} onHidden={() => { setHidden(v => !v); setTool('select'); }} undo={() => { cancelDrawing(); saved.undo(); }} redo={() => { cancelDrawing(); saved.redo(); }}
       canUndo={saved.canUndo} canRedo={saved.canRedo} hasContent={!!doc.items.length || !!doc.note}
-      onClear={() => { cancelDrawing(); setEditor(null); setConfirmClear(true); }} onNotebook={() => notesPanel ? notesPanel.dispatch({ type: 'toggle' }) : setNotebook(v => !v)} notebookOpen={notesPanel ? notesPanel.ui.open : notebook} count={notesPanel ? notesPanel.count : noteCount} />
+      onClear={() => { cancelDrawing(); setEditor(null); setConfirmClear(true); }} onNotebook={() => notesPanel ? notesPanel.dispatch({ type: 'toggle' }) : setNotebook(v => !v)} notebookOpen={notesPanel ? notesPanel.ui.open : notebook} count={notesPanel ? notesPanel.count : noteCount} />}
     <div className="exam-annotation-body">
-    <div className="exam-annotation-summary"><span>Nhóm {p.progress}</span><label><input type="checkbox" checked={doc.review}
+    <div className="exam-annotation-summary">{toolbarCollapsed && <button ref={restoreToolbar} type="button" className="exam-annotation-restore" aria-label="Hiện thanh công cụ" aria-expanded="false" onClick={() => toggleToolbar(false)}><Pencil size={16} /> Công cụ</button>}<span>Nhóm {p.progress}</span><label><input type="checkbox" checked={doc.review}
       onChange={e => saved.edit({ ...doc, review: e.target.checked })} /> Đánh dấu xem lại</label></div>
     <p className="exam-annotation-hint">{hintFor[tool]}</p>
     {saved.error && <div className="exam-annotation-message" role="alert"><p>{saved.error}</p>

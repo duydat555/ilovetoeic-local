@@ -11,6 +11,7 @@ venv/
 .venv/
 
 # Generated output
+.playwright-mcp/
 dist/
 build/
 *.log
@@ -28,4 +29,4 @@ backups/
 GEMINI.md
 scratch/
 server/*passages*.json
-
+

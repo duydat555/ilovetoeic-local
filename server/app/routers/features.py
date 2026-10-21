@@ -5,11 +5,13 @@ from pydantic import BaseModel
 
 from app.db import db
 from app.security import get_current_user
+from app.services.arena_service import rollout_allowed
 
 
 router = APIRouter(prefix="/api/v1/features", tags=["Feature management"])
 
 FEATURE_KEYS = (
+    "arena",
     "dashboard",
     "mock_test",
     "vocabulary",
@@ -47,7 +49,7 @@ def validate_feature_key(feature_key: str):
 
 def ensure_feature_rows():
     for feature_key in FEATURE_KEYS:
-        default_val = 0 if feature_key == "national_day_theme" else 1
+        default_val = 0 if feature_key in ("national_day_theme", "arena") else 1
         db.execute(
             """
             INSERT INTO feature_flags (feature_key, is_enabled)
@@ -75,7 +77,7 @@ def global_flags():
 
     for feature_key in FEATURE_KEYS:
         if feature_key != "national_day_theme":
-            values.setdefault(feature_key, True)
+            values.setdefault(feature_key, feature_key != "arena")
     for feature_key in CORE_FEATURES:
         values[feature_key] = True
     return values
@@ -279,6 +281,7 @@ def audit_log_rows():
 @router.get("/effective")
 def get_effective_features(user=Depends(get_current_user)):
     flags = global_flags()
+    flags['arena'] = bool(flags.get('arena')) and rollout_allowed(user)
     sources = {feature_key: "global" for feature_key in FEATURE_KEYS}
     for feature_key in CORE_FEATURES:
         flags[feature_key] = True

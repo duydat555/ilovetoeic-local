@@ -1,0 +1,12 @@
+# Known gaps and review gates
+
+1. **Reference access:** CDP 9222 disconnected after lobby/bundle observations and history navigation. Additional original viewports, modal internals and live games were not captured. The user reported reopening Chrome, but REA continued to return endpoint-unreachable. High visual/behavioral equivalence beyond the observed lobby is unverified; no 100% fidelity claim.
+2. **Original algorithms:** no original API response schemas, scoring, queue/room internals, payouts in execution or anti-cheat rules were verified. Replacements are documented in architecture/inventory.
+3. **Invitations/quiet mode:** the original quiet-mode button was observed, but invitation flows were not reconstructed. No nonfunctional switch was added.
+4. **Sound/motion:** local synthesized round/result tones, shared modal animation and restrained decoration approximate observable style. Original music, particles and detailed transitions are not reproduced byte-for-byte.
+5. **Scale:** a short global Arena transaction lock and authenticated polling favor correctness for a limited rollout. No production-scale load test, push transport or high-volume anti-abuse/rate-limiting program is included. Measure before expanding rollout.
+6. **Question coverage:** random sample comes from the first bounded pool of up to 500 eligible rows per mode. Missing/insufficient banks fail safely. Production listening assets and semantic content quality were not audited. Browser tests use a generated tone and synthetic sentences only in an isolated fixture, not production material.
+7. **Ledger prerequisite:** the existing XP migration and level definitions must be installed. Arena does not silently create or repair those tables. Missing prerequisites are an operational review item.
+8. **Feature shutdown:** drain/settle active games before permanently stopping Arena recovery. Emergency switch-off blocks access and pauses its expiry task; existing holds remain recorded for recovery when enabled again.
+9. **Existing lint setup:** the repository `npm run lint` command is present but ESLint/configuration is absent. The command was attempted and its failure recorded; no broad unrelated lint cleanup was performed.
+10. **Production review:** manual migration, backup verification, limited rollout and real-content acceptance remain for the owner. No production migration, deployment, account creation, third-party match or XP write was performed.

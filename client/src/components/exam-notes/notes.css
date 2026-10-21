@@ -6,7 +6,14 @@
 .exam-annotation-dock>.exam-annotation-toolbar {position:static;max-height:100%;width:54px}
 .exam-workspace-has-toolbar:has(>.fixed)>.exam-annotation-dock {position:fixed;left:8px;top:8px;height:calc(100dvh - 16px);z-index:45}
 .exam-workspace-has-toolbar>.fixed {left:74px}
-@media(max-width:639px) {.exam-workspace-has-toolbar {column-gap:8px}}
+@media(max-width:1023px) {
+  .exam-workspace-has-toolbar {--annotation-mobile-space:calc(max(44px,2.75rem) + 24px + env(safe-area-inset-top,0px));grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);gap:8px}
+  .exam-workspace-has-toolbar>:first-child {grid-column:1;grid-row:2;min-height:0;max-height:100%}
+  .exam-workspace-has-toolbar>.exam-annotation-dock {grid-column:1;grid-row:1;height:calc(max(44px,2.75rem) + 18px);max-height:none;min-width:0;width:100%}
+  .exam-annotation-dock>.exam-annotation-toolbar {width:100%;height:100%;max-height:none}
+  .exam-workspace-has-toolbar:has(>.fixed)>.exam-annotation-dock {left:max(4px,env(safe-area-inset-left,0px));right:max(4px,env(safe-area-inset-right,0px));top:max(4px,env(safe-area-inset-top,0px));width:auto;height:calc(max(44px,2.75rem) + 18px)}
+  .exam-workspace-has-toolbar>.fixed {left:0;top:var(--annotation-mobile-space);min-height:0;max-height:none}
+}
 .exam-notes-panel,.exam-notes-loading {
   --notes-surface:rgb(var(--color-bg-surface,255 255 255));
   --notes-canvas:rgb(var(--color-bg-canvas,248 250 252));

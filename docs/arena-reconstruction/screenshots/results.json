@@ -1,0 +1,22 @@
+{
+  "reports": [
+    "viewport 1920x1080: no horizontal overflow",
+    "viewport 1920x900: no horizontal overflow",
+    "viewport 1440x900: no horizontal overflow",
+    "viewport 1366x768: no horizontal overflow",
+    "viewport 768x1024: no horizontal overflow",
+    "viewport 390x844: no horizontal overflow",
+    "create dialog opens and dismisses with Escape",
+    "sound toggle updates its accessible pressed state",
+    "in-game reload resumes the server round",
+    "speed: two authenticated browsers completed 7 rounds; history, ledger and XP balance agree",
+    "vocabulary: two authenticated browsers completed 10 rounds; history, ledger and XP balance agree",
+    "listening: two authenticated browsers completed 5 rounds; history, ledger and XP balance agree",
+    "history, XP transactions and full leaderboard render server records",
+    "temporary network failure reconnects to the same persisted room",
+    "reload restores private room; leave cancels and refunds",
+    "no browser console errors or uncaught page errors"
+  ],
+  "errors": [],
+  "expectedOfflineErrors": 1
+}

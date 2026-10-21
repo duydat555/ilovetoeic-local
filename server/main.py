@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config
 from app.routers import (
+    arena,
     admin_feature_status,
     audio_proxy,
     auth,
@@ -33,13 +34,22 @@ from app.routers import (
 )
 
 from contextlib import asynccontextmanager
+import asyncio
 from app.services.gemini_service import gemini_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     gemini_service.start_background_flush_task()
-    yield
-    await gemini_service.shutdown()
+    arena_expiry = asyncio.create_task(arena.expire_abandoned_rooms())
+    try:
+        yield
+    finally:
+        arena_expiry.cancel()
+        try:
+            await arena_expiry
+        except asyncio.CancelledError:
+            pass
+        await gemini_service.shutdown()
 
 app = FastAPI(
     title="TOEIC Practice REST API Server",
@@ -74,6 +84,7 @@ app.mount("/media", CachedStaticFiles(directory=str(config.MEDIA_DIR)), name="me
 
 # Include API Routers
 app.include_router(status.router)
+app.include_router(arena.router)
 app.include_router(admin_feature_status.router)
 app.include_router(tests.router)
 app.include_router(practice.router)

@@ -12,10 +12,9 @@ const MIGRATION_FLAG = 'toeic_legacy_data_migrated_v3';
 export const migrateLegacyLocalStorageToDatabase = async (userId: string): Promise<void> => {
   if (!userId) return;
 
-  const isMigrated = localStorage.getItem(`${MIGRATION_FLAG}:${userId}`);
-  if (isMigrated === 'true') return;
-
   try {
+    const isMigrated = localStorage.getItem(`${MIGRATION_FLAG}:${userId}`);
+    if (isMigrated === 'true') return;
     // 1. Migrate legacy local wrong questions
     const legacyWrongQuestions = readLocalWrongQuestions(userId);
     if (legacyWrongQuestions.length > 0) {

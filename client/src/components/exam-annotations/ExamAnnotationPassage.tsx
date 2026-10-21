@@ -15,8 +15,8 @@ class AnnotationBoundary extends React.Component<{ children: React.ReactNode; fa
 /** Keyed mount prevents a group/account change from writing the previous group's state. */
 export function ExamAnnotationPassage({ fallback, userId, ...props }: Props) {
   if (!EXAM_ANNOTATIONS_ENABLED || !userId) return <>{fallback}</>;
-  return <AnnotationBoundary fallback={fallback}><Suspense fallback={<div className="grid grid-cols-[54px_minmax(0,1fr)] gap-3">
-    <BoneyardSkeleton name="exam-annotation-rail-loading" height={220} />
+  return <AnnotationBoundary fallback={fallback}><Suspense fallback={<div className="grid grid-cols-1 lg:grid-cols-[54px_minmax(0,1fr)] gap-3">
+    <div className="h-16 lg:h-[220px] overflow-hidden"><BoneyardSkeleton name="exam-annotation-rail-loading" height="100%" /></div>
     <BoneyardSkeleton name="exam-annotations-loading" height={220} />
   </div>}>
     <AnnotationSurface key={JSON.stringify([userId, props.scope, props.group])} {...props} userId={userId} />

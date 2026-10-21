@@ -32,7 +32,9 @@ export const getActualFontScale = (scaleValue: number): number => {
   if (FONT_SCALE_ACTUAL_MAP[scaleValue] !== undefined) {
     return FONT_SCALE_ACTUAL_MAP[scaleValue];
   }
-  return (scaleValue || 100) / 100;
+  // Only the four supported presets may affect the entire app. Corrupt cached
+  // values can otherwise make every rem-based element effectively invisible.
+  return 1;
 };
 
 export const FONT_SIZE_PRESETS = [
@@ -118,7 +120,7 @@ export const getStoredDisplaySettings = (): DisplaySettings => {
     if (!raw) return { ...DEFAULT_DISPLAY_SETTINGS };
     const parsed = JSON.parse(raw);
     return {
-      fontSizeScale: Number(parsed.fontSizeScale) || DEFAULT_DISPLAY_SETTINGS.fontSizeScale,
+      fontSizeScale: FONT_SIZE_PRESETS.some(preset => preset.value === Number(parsed.fontSizeScale)) ? Number(parsed.fontSizeScale) : DEFAULT_DISPLAY_SETTINGS.fontSizeScale,
       fontFamily: typeof parsed.fontFamily === 'string' && parsed.fontFamily.trim() ? parsed.fontFamily.trim() : DEFAULT_DISPLAY_SETTINGS.fontFamily,
       isCustomFont: Boolean(parsed.isCustomFont),
       fontWeight: Number(parsed.fontWeight) || DEFAULT_DISPLAY_SETTINGS.fontWeight,

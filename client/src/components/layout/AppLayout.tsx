@@ -26,6 +26,7 @@ export const AppLayout: React.FC = () => {
     location.pathname.includes('/mock-test/exam') ||
     location.pathname.includes('/practice/runner');
   const isAdminArea = role === 'admin' && location.pathname.startsWith('/admin');
+  const isArenaPage = location.pathname === '/arena';
   const needsRankingIdentity = Boolean(
     user && role === 'student' && !user.hasValidRankingName,
   );
@@ -84,7 +85,7 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div
-      className={`app-shell h-screen text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden ${needsRankingIdentity ? 'pointer-events-none select-none' : ''}`}
+      className={`app-shell ${isArenaPage ? 'h-[100dvh]' : 'h-screen'} text-slate-800 dark:text-content flex flex-col md:flex-row antialiased overflow-hidden ${needsRankingIdentity ? 'pointer-events-none select-none' : ''}`}
       aria-hidden={needsRankingIdentity || undefined}
     >
       {/* Desktop & Tablet Sidebar */}
@@ -102,30 +103,36 @@ export const AppLayout: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+      <div className={`flex-1 flex flex-col min-w-0 ${isArenaPage ? 'h-[100dvh]' : 'h-screen'} overflow-hidden`}>
         <Header onOpenMobileMenu={() => setMobileMenuOpen(true)} />
         <main
           ref={mainRef}
           className={
-            isTestRunnerPage
-              ? 'relative flex-1 w-full max-w-[1540px] mx-auto p-1.5 sm:p-2.5 h-[calc(100dvh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden flex flex-col'
-              : 'relative flex-1 w-full max-w-[1540px] mx-auto p-3 sm:p-4 md:p-5 overflow-x-hidden overflow-y-auto'
+            isArenaPage
+              ? 'relative flex-1 min-h-0 min-w-0 w-full p-0 overflow-x-hidden overflow-y-auto bg-[#09172b]'
+              : isTestRunnerPage
+                ? 'relative flex-1 w-full max-w-[1540px] mx-auto p-1.5 sm:p-2.5 h-[calc(100dvh-56px)] sm:h-[calc(100vh-72px)] overflow-hidden flex flex-col'
+                : 'relative flex-1 w-full max-w-[1540px] mx-auto p-3 sm:p-4 md:p-5 overflow-x-hidden overflow-y-auto'
           }
         >
           <div
             className={
-              isTestRunnerPage
-                ? 'grid flex-1 h-full w-full overflow-hidden'
-                : 'grid min-h-[calc(100vh-8rem)] w-full'
+              isArenaPage
+                ? 'grid min-h-full w-full'
+                : isTestRunnerPage
+                  ? 'grid flex-1 h-full w-full overflow-hidden'
+                  : 'grid min-h-[calc(100vh-8rem)] w-full'
             }
           >
             <AnimatePresence initial={false} mode="sync">
               <motion.div
                 key={location.pathname}
                 className={
-                  isTestRunnerPage
-                    ? 'col-start-1 row-start-1 min-w-0 h-full w-full overflow-hidden'
-                    : 'col-start-1 row-start-1 min-w-0 w-full'
+                  isArenaPage
+                    ? 'col-start-1 row-start-1 min-w-0 min-h-full w-full'
+                    : isTestRunnerPage
+                      ? 'col-start-1 row-start-1 min-w-0 h-full w-full overflow-hidden'
+                      : 'col-start-1 row-start-1 min-w-0 w-full'
                 }
                 initial={reduceMotion ? false : { opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}

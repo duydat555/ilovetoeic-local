@@ -1,0 +1,11 @@
+{
+  "reports": [
+    "actual settings service updates font size, font family and body weight in Arena",
+    "20 viewport/scale combinations: page scrolls to last action without horizontal overflow",
+    "long history modal scrolls, contains focus and closes with Escape at mobile/125%",
+    "searching state does not expose a nonfunctional ready action",
+    "copy room code has success/fallback feedback",
+    "long Vietnamese questions/answers and opponent names fit gameplay at 125%; leave confirmation can be cancelled"
+  ],
+  "errors": []
+}

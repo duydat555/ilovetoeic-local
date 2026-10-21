@@ -8,8 +8,10 @@ Chi tiết theo từng mảng được tách trong `docs/agents/`. Dựa vào lo
 |---|---|
 | Schema DB, migration, backup, connection pool, cache DB | `docs/agents/database.md` |
 | Deploy, CI/CD, VPS, secrets, tài nguyên server | `docs/agents/deployment.md` |
+| Khởi động frontend, màn hình trắng, lỗi tải trang | `docs/agents/frontend-startup.md` |
 | Modal, dialog, animation, motion | `docs/agents/ui-motion.md` |
 | API endpoint, cache logic, performance backend | `docs/agents/backend-api.md` |
+| Thách đấu Arena, ghép trận, cược XP, phòng chơi | `docs/agents/arena.md` |
 | Bôi đen dịch AI, từ điển ngữ cảnh, lemmatization | `docs/agents/highlight-to-translate/README.md` |
 | Luyện theo Levels, phân loại độ khó, ngân hàng câu sai | `docs/agents/practice-by-level/README.md` |
 | Dashboard tiến độ, XP/Streak, Phân tích AI & BXH | `docs/agents/progress-gamification/README.md` |

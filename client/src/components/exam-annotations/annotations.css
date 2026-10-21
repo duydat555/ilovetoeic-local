@@ -3,6 +3,7 @@
 .exam-annotation-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; }
 .exam-annotation-summary label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
 .exam-annotation-summary input { width: 16px; height: 16px; accent-color: #2563eb; }
+.exam-annotation-restore {display:inline-flex;align-items:center;gap:.375rem;min-height:44px;padding:.375rem .625rem;border:1px solid var(--annotation-line);border-radius:.5rem;background:var(--annotation-bg);color:var(--annotation-ink);font-size:.8125rem}
 .exam-annotation-layout { display: grid; grid-template-columns: 54px minmax(0, 1fr); align-items: start; gap: 12px; }
 .exam-annotation-body { min-width: 0; }
 .exam-annotation-layout-docked { display: block; }
@@ -66,5 +67,16 @@
 .exam-annotation-old-note { white-space: pre-wrap; overflow-wrap: anywhere; border-top: 1px solid var(--annotation-line); padding-top: 8px; margin-top: 10px; }
 @media (pointer: coarse) { .exam-annotation-tool-row button { width: 44px; height: 44px; flex-basis: 44px; } }
 @media (max-width: 639px) { .exam-annotation-layout { gap: 8px; } .exam-annotation-tool-row { padding: 3px; } .exam-annotation-summary { font-size: 11px; } }
+
+@media (max-width: 1023px) {
+  .exam-annotation-layout {grid-template-columns:minmax(0,1fr);gap:8px}
+  .exam-annotation-layout-docked {display:block}
+  .exam-annotation-toolbar {width:100%;max-width:100%;max-height:none;overflow-x:auto;overflow-y:hidden;scroll-padding-inline:6px}
+  .exam-annotation-tool-row {flex-direction:row;justify-content:flex-start;width:max-content;min-width:100%;padding:5px;gap:2px}
+  .exam-annotation-tool-row button {width:max(44px,2.75rem);height:max(44px,2.75rem);flex-basis:max(44px,2.75rem)}
+  .exam-annotation-tool-row svg {width:1.125rem;height:1.125rem;min-width:18px;min-height:18px}
+  .exam-annotation-divider {border-top:0;border-left:1px solid var(--annotation-line);width:1px;height:24px;margin:0 4px;flex-shrink:0}
+  .exam-annotation-palette-popover {max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);overflow-y:auto;overscroll-behavior:contain}
+}
 
 @media(prefers-reduced-motion:reduce) {.exam-annotation-palette-color-btn,.exam-annotation-palette-slider::-webkit-slider-thumb,.exam-annotation-palette-slider::-moz-range-thumb {transition:none}}

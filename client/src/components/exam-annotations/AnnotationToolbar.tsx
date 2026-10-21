@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAnnotationDock } from '../exam-notes/AnnotationDock';
-import { ArrowUpRight, BookOpen, Eraser, Eye, EyeOff, Highlighter, MousePointer2, Palette, Pencil, Redo2, Square, StickyNote, Trash2, Type, Underline, Undo2 } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Eraser, Eye, EyeOff, Highlighter, MousePointer2, Palette, PanelLeftClose, Pencil, Redo2, Square, StickyNote, Trash2, Type, Underline, Undo2 } from 'lucide-react';
 import type { Tool } from './model';
 import { COLORS } from './model';
 
@@ -24,6 +24,7 @@ interface Props {
   width: number; onWidth: (value: number) => void; hidden: boolean; onHidden: () => void;
   undo: () => void; redo: () => void; canUndo: boolean; canRedo: boolean; onClear: () => void;
   onNotebook: () => void; notebookOpen: boolean; count: number; hasContent: boolean;
+  onCollapse: () => void;
 }
 
 export function AnnotationToolbar(p: Props) {
@@ -33,18 +34,27 @@ export function AnnotationToolbar(p: Props) {
   const paletteBtnRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [horizontal, setHorizontal] = useState(() => window.matchMedia('(max-width: 1023px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 1023px)');
+    const update = () => setHorizontal(query.matches);
+    query.addEventListener('change', update); update();
+    return () => query.removeEventListener('change', update);
+  }, []);
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const updatePopoverPos = useCallback(() => {
     if (!paletteBtnRef.current) return;
     const rect = paletteBtnRef.current.getBoundingClientRect();
-    const popoverWidth = 210;
-    const popoverHeight = 220;
-    let left = rect.right + 8;
+    const popoverWidth = popoverRef.current?.offsetWidth || 200;
+    const popoverHeight = popoverRef.current?.offsetHeight || 220;
+    const horizontal = window.matchMedia('(max-width: 1023px)').matches;
+    let left = horizontal ? Math.min(rect.left, window.innerWidth - popoverWidth - 8) : rect.right + 8;
     if (left + popoverWidth > window.innerWidth - 8) {
       left = Math.max(8, rect.left - popoverWidth - 8);
     }
-    let top = Math.max(8, rect.top);
+    left = Math.max(8, left);
+    let top = Math.max(8, horizontal ? rect.bottom + 8 : rect.top);
     if (top + popoverHeight > window.innerHeight - 8) {
       top = Math.max(8, window.innerHeight - popoverHeight - 8);
     }
@@ -112,17 +122,20 @@ export function AnnotationToolbar(p: Props) {
   const sliderPct = Math.max(0, Math.min(100, ((p.width - 1) / (8 - 1)) * 100));
 
   const toolbar = (
-    <div ref={rail} className="exam-annotation-toolbar" role="toolbar" aria-label="Công cụ chú thích" aria-orientation="vertical"
+    <div ref={rail} className="exam-annotation-toolbar" role="toolbar" aria-label="Công cụ chú thích" aria-orientation={horizontal ? 'horizontal' : 'vertical'}
       onKeyDown={e => {
-        if ((e.target as HTMLElement).tagName === 'SELECT' || !['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+        const previous = horizontal ? 'ArrowLeft' : 'ArrowUp';
+        const nextKey = horizontal ? 'ArrowRight' : 'ArrowDown';
+        if ((e.target as HTMLElement).tagName === 'SELECT' || ![previous, nextKey, 'Home', 'End'].includes(e.key)) return;
         const controls = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),select'));
         const index = controls.indexOf(e.target as HTMLElement);
         if (index < 0) return;
         e.preventDefault();
-        const next = e.key === 'Home' ? 0 : e.key === 'End' ? controls.length - 1 : (index + (e.key === 'ArrowDown' ? 1 : -1) + controls.length) % controls.length;
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? controls.length - 1 : (index + (e.key === nextKey ? 1 : -1) + controls.length) % controls.length;
         controls[next]?.focus();
       }}>
       <div className="exam-annotation-tool-row">
+        <button type="button" title="Ẩn thanh công cụ" aria-label="Ẩn thanh công cụ" aria-expanded="true" onClick={p.onCollapse}><PanelLeftClose size={18} /></button>
         {tools.map(({ tool, label, icon: Icon }) => (
           <button type="button" key={tool} title={label} aria-label={label}
             aria-pressed={p.tool === tool} onClick={() => p.onTool(tool)}>

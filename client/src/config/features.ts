@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 export type FeatureKey =
+  | 'arena'
   | 'dashboard'
   | 'mock_test'
   | 'vocabulary'
@@ -62,6 +63,10 @@ export const FEATURE_CATEGORIES: Array<{
 ];
 
 export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
+  {
+    key: 'arena', name: 'Thách đấu', description: 'Thi đấu TOEIC cùng bạn bè và tích lũy XP.',
+    category: 'community', core: false, icon: Trophy,
+  },
   {
     key: 'dashboard',
     name: 'Tổng quan',
@@ -147,11 +152,12 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
 export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
   FEATURE_DEFINITIONS.map((feature) => [
     feature.key,
-    feature.key === 'national_day_theme' ? false : true,
+    !['national_day_theme', 'arena'].includes(feature.key),
   ]),
 ) as Record<FeatureKey, boolean>;
 
 const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
+  ['/arena', 'arena'],
   ['/practice/runner', 'mock_test'],
   ['/mock-test/exam', 'mock_test'],
   ['/practice-by-level', 'mock_test'],

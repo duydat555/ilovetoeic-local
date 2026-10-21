@@ -35,26 +35,26 @@ const TOKEN_KEY = 'toeic_master_auth_token';
 const REMEMBER_KEY = 'toeic_master_remember_login';
 let memoryToken = '';
 
-const readStorageValue = (storage: Storage, key: string) => {
+const readStorageValue = (storage: 'localStorage' | 'sessionStorage', key: string) => {
   try {
-    return storage.getItem(key) || '';
+    return window[storage].getItem(key) || '';
   } catch {
     return '';
   }
 };
 
-const writeStorageValue = (storage: Storage, key: string, value: string) => {
+const writeStorageValue = (storage: 'localStorage' | 'sessionStorage', key: string, value: string) => {
   try {
-    storage.setItem(key, value);
+    window[storage].setItem(key, value);
     return true;
   } catch {
     return false;
   }
 };
 
-const removeStorageValue = (storage: Storage, key: string) => {
+const removeStorageValue = (storage: 'localStorage' | 'sessionStorage', key: string) => {
   try {
-    storage.removeItem(key);
+    window[storage].removeItem(key);
   } catch {
     // The storage can already be unavailable or empty.
   }
@@ -113,8 +113,8 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 };
 
 const getToken = () => memoryToken
-  || readStorageValue(localStorage, TOKEN_KEY)
-  || readStorageValue(sessionStorage, TOKEN_KEY);
+  || readStorageValue('localStorage', TOKEN_KEY)
+  || readStorageValue('sessionStorage', TOKEN_KEY);
 
 export const authFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
   const token = getToken();
@@ -133,16 +133,16 @@ export const sessionService = {
   set(token: string, _remember = true) {
     memoryToken = token;
     // Đảm bảo token luôn được lưu vào localStorage để giữ phiên khi tắt/mở lại trình duyệt
-    writeStorageValue(localStorage, TOKEN_KEY, token);
-    writeStorageValue(localStorage, REMEMBER_KEY, 'true');
-    removeStorageValue(sessionStorage, TOKEN_KEY);
+    writeStorageValue('localStorage', TOKEN_KEY, token);
+    writeStorageValue('localStorage', REMEMBER_KEY, 'true');
+    removeStorageValue('sessionStorage', TOKEN_KEY);
   },
 
   clear() {
     memoryToken = '';
-    removeStorageValue(localStorage, TOKEN_KEY);
-    removeStorageValue(sessionStorage, TOKEN_KEY);
-    removeStorageValue(localStorage, REMEMBER_KEY);
+    removeStorageValue('localStorage', TOKEN_KEY);
+    removeStorageValue('sessionStorage', TOKEN_KEY);
+    removeStorageValue('localStorage', REMEMBER_KEY);
   },
 
   consumeOAuthCallback() {

@@ -25,3 +25,11 @@ Local reproduction before the fixes:
 Results and recovery screenshots: `.playwright-mcp/startup-audit/`.
 
 The deployment workflow builds directly into the served `client/dist` path. Vite's normal cleanup/replacement can invalidate asset URLs held by older tabs. The new recovery UI handles the resulting failed imports; this audit did not change server cache headers or deployment publishing, and does not claim that invalidation caused the reported production incident.
+
+## Follow-up: first Chrome visit to /dashboard stays white until refresh
+
+The owner clarified that this happens on Chrome at `/dashboard`. A cold-load reproduction held the Google Fonts stylesheet response open. After 2.5 seconds, HTML content already existed but `document.readyState` was still `loading` and the browser recorded no paint entries. The blocking stylesheet in the document head also delayed module execution and the recovery script. Refresh can mask this dependency by using a cached stylesheet or a recovered connection. This reproduces a matching failure path; it is not a capture of the owner's original session.
+
+Changed the preset font link, custom font links inserted by initial HTML, and later font links to load with `media="print"`, switching to `all` on completion. The browser can paint using the system fallback while fonts are pending. Existing Google Fonts URLs retain `display=swap` for font-file loading.
+
+The production-preview regression now has 18 passing cases. Two added cases restore a synthetic authenticated student on `/dashboard` while all Google Fonts responses remain stalled, using both default and saved custom fonts. They verify first contentful paint, the dashboard shell, absence of uncaught errors and successful content display without reload. Ancillary API failures are simulated; no real user credentials/data are used. Build passed, exit 0.

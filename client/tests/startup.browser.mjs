@@ -23,6 +23,40 @@ try {
     await page.goto(`${origin}/login`); await page.getByRole('heading', { name: 'Chào mừng bạn quay trở lại!' }).waitFor();
     assert.deepEqual(errors, []);
   });
+  for (const customFont of [false, true]) {
+    await test(`Cold authenticated dashboard paints while font stylesheets remain stalled (custom font: ${customFont})`, async (page, context) => {
+      const errors = []; page.on('pageerror', error => errors.push(error.message));
+      await context.addInitScript(custom => {
+        localStorage.setItem('toeic_master_auth_token', 'synthetic-startup-token');
+        localStorage.setItem('toeic_tour_completed_general', 'true');
+        localStorage.setItem('toeic_legacy_data_migrated_v3:startup-fixture', 'true');
+        if (custom) localStorage.setItem('display_settings', JSON.stringify({ fontSizeScale:100, fontFamily:'Roboto', isCustomFont:true, fontWeight:400 }));
+      }, customFont);
+      await context.route('**/api/v1/auth/me', route => route.fulfill({json:{user:{id:'startup-fixture',name:'Startup_K1',email:'startup@example.invalid',role:'student',approvalStatus:'approved',hasValidRankingName:true,xp:1000,streakDays:0,longestStreak:0,currentScore:0,targetScore:750}}}));
+      let release;
+      const gate = new Promise(resolve => { release = resolve; });
+      let fontRequests = 0;
+      await page.route('https://fonts.googleapis.com/**', async route => {
+        fontRequests++; await gate;
+        try { await route.fulfill({contentType:'text/css',body:''}); } catch { /* Page may already be closed after assertion failure. */ }
+      });
+      try {
+        await page.goto(`${origin}/dashboard`, {waitUntil:'commit'});
+        await page.locator('.app-shell header').first().waitFor({timeout:5000});
+        await page.waitForFunction(() => performance.getEntriesByType('paint').some(e => e.name === 'first-contentful-paint'), null, {timeout:5000});
+        assert(fontRequests>0,'Font delay was not exercised');
+        assert.equal(new URL(page.url()).pathname,'/dashboard');
+        assert((await page.locator('body').innerText()).length>200,'Dashboard lacks visible content');
+        assert.equal(await page.getByRole('heading',{name:'Chưa thể mở nội dung',exact:true}).count(),0);
+        assert.deepEqual(errors,[]);
+        const cdp=await context.newCDPSession(page);
+        const screenshot=await cdp.send('Page.captureScreenshot');
+        await fs.writeFile(`${output}/dashboard-slow-font-${customFont}.png`,Buffer.from(screenshot.data,'base64'));
+        release();
+        await page.waitForFunction(() => Array.from(document.querySelectorAll('link[rel="stylesheet"][href*="fonts.googleapis.com"]')).every(link => link.media === 'all'));
+      } finally { release(); }
+    });
+  }
   for (const [name, pattern] of [['entry', '**/assets/index-*.js'], ['app', '**/assets/App-*.js'], ['route', '**/assets/LandingPage-*.js']]) {
     await test(`Missing ${name} module displays recovery and manual reload restores the page`, async page => {
       let requests = 0;

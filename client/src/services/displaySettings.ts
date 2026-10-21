@@ -235,6 +235,8 @@ export const loadGoogleFont = async (fontName: string): Promise<string | null> =
         const link = document.createElement('link');
         link.id = fontId;
         link.rel = 'stylesheet';
+        link.media = 'print';
+        link.onload = () => { link.media = 'all'; };
         link.href = fontUrl;
         document.head.appendChild(link);
 

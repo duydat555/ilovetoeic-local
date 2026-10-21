@@ -281,6 +281,12 @@ jobs:
             echo "Skipping applied Grammar import: $GRAMMAR_IMPORT_VERSION"
           fi
 
+          echo "==> Verifying Arena prerequisites before enabling server access"
+          ARENA_TABLE_COUNT="$(mysql --host=127.0.0.1 --user=toeic_app --batch --skip-column-names toeic_db -e "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('arena_control','arena_matches','arena_players','arena_stats','user_xp_ledger','level_definitions')")"
+          test "$ARENA_TABLE_COUNT" = "6"
+          test "$(mysql --host=127.0.0.1 --user=toeic_app --batch --skip-column-names toeic_db -e 'SELECT COUNT(*) FROM arena_control WHERE id=1')" = "1"
+          # Read-only: preserve the owner's existing admin feature toggle.
+          mysql --host=127.0.0.1 --user=toeic_app --batch --skip-column-names toeic_db -e "SELECT CONCAT('Arena admin flag: ',is_enabled) FROM feature_flags WHERE feature_key='arena'"
           unset DBPASS MYSQL_PWD
 
           echo "==> Building frontend"
@@ -292,8 +298,8 @@ jobs:
           export VITE_EXAM_NOTES_V2=true
           npm run build
 
-          echo "==> Enabling durable exam notes"
-          # Preserve the environment securely before changing only this flag.
+          echo "==> Configuring exam notes and Arena server access"
+          # Owner-authorized Arena release. Preserve credentials and the admin toggle.
           python3 - <<'PY'
           import os
           import shutil
@@ -304,10 +310,12 @@ jobs:
           backup = Path('/var/backups/toeic') / ('server_env_' + datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S') + '.bak')
           shutil.copy2(path, backup)
           backup.chmod(0o600)
+          settings = {'EXAM_NOTES_ENABLED': 'true', 'ARENA_ENABLED': 'true', 'ARENA_ROLLOUT_PERCENT': '100'}
           lines = [line for line in path.read_text().splitlines()
-                   if line.partition('=')[0].strip() not in ('EXAM_NOTES_ENABLED', 'export EXAM_NOTES_ENABLED')]
-          lines.append('EXAM_NOTES_ENABLED=true')
+                   if line.partition('=')[0].strip().removeprefix('export ').strip() not in settings]
+          lines.extend(f'{key}={value}' for key, value in settings.items())
           path.write_text('\n'.join(lines) + '\n')
+          print('Arena server enabled; rollout=100%; admin feature flag preserved.')
           PY
 
           echo "==> Restarting services"
@@ -319,6 +327,14 @@ jobs:
           curl --fail --silent --show-error --retry 10 --retry-connrefused \
             --retry-delay 2 --max-time 10 \
             http://127.0.0.1:8000/api/v1/status > /dev/null
+
+          cd "$DEPLOY_PATH/server"
+          .venv/bin/python - <<'PY'
+          from app import config
+          from app.services.arena_service import rollout_allowed
+          assert rollout_allowed({'id': 'arena-deployment-check', 'role': 'student'}), 'Arena server access is still disabled'
+          print('Arena server access verified for student accounts.')
+          PY
 
           echo "Deployment completed successfully."
           REMOTE_SCRIPT

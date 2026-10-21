@@ -12,11 +12,22 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from app.services.arena_service import ArenaService, normalize, score_answer
+from app.services.arena_service import ArenaService, normalize, rollout_allowed, score_answer
 from arena_fixture import ArenaFixture
 
 
 class ArenaUnitTests(unittest.TestCase):
+    def test_server_switch_and_rollout_are_both_required(self):
+        student = {'id': 'rollout-fixture', 'role': 'student'}
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(rollout_allowed(student))
+            os.environ['ARENA_ENABLED'] = 'true'
+            self.assertFalse(rollout_allowed(student))
+            os.environ['ARENA_ROLLOUT_PERCENT'] = '100'
+            self.assertTrue(rollout_allowed(student))
+            os.environ['ARENA_ENABLED'] = 'false'
+            self.assertFalse(rollout_allowed(student))
+
     def test_score_bounds(self):
         self.assertEqual(score_answer(True, 0, 15), 150)
         self.assertEqual(score_answer(True, 15, 15), 100)

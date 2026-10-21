@@ -2,6 +2,7 @@
 
 - Arena is additive and off by default. Never apply its migration or enable the flag on production without owner review and a verified backup.
 - Keep `ARENA_ENABLED=false`, `ARENA_ROLLOUT_PERCENT=0` and the `arena` feature flag off until review. Percentage rollout uses a stable hash of user ID; admin still needs the server switch and global flag.
+- Production release was authorized by the owner on 2026-10-22 after enabling the admin flag still left Arena hidden. The deploy workflow now backs up, verifies prerequisites and sets server access to true/100%; it preserves the existing admin flag. Defaults in examples and other environments remain closed.
 - `arena_control` serializes short transactions across API workers. Do not hold its lock while waiting for clients or doing network work.
 - Every XP hold/refund/payout must use `user_xp_ledger` and a unique `arena:hold/settle:<match>:<user>` key in the same transaction as balance and match state updates. Client XP and correctness are never accepted.
 - `users.xp` is the existing authoritative field. Preset ranks are wager tiers, separate from the existing learning level system. Update the existing `users.level` from `level_definitions` after balance changes.

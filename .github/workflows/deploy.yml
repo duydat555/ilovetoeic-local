@@ -46,14 +46,29 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          ssh \
-            -o BatchMode=yes \
-            -o IdentitiesOnly=yes \
-            -o ConnectTimeout=15 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
-            "$VPS_USER@$VPS_HOST" \
-            "echo 'SSH connection successful'"
+          SSH_OK=0
+          for attempt in 1 2 3 4 5; do
+            echo "Testing SSH connection to VPS (attempt $attempt/5)..."
+            if ssh \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o ConnectTimeout=30 \
+              -o ConnectionAttempts=3 \
+              -o ServerAliveInterval=15 \
+              -o ServerAliveCountMax=4 \
+              "$VPS_USER@$VPS_HOST" \
+              "echo 'SSH connection successful'"; then
+              SSH_OK=1
+              break
+            fi
+            echo "SSH attempt $attempt timed out or failed. Retrying in 8 seconds..."
+            sleep 8
+          done
+
+          if [ "$SSH_OK" -ne 1 ]; then
+            echo "Failed to establish SSH connection to VPS after 5 attempts."
+            exit 1
+          fi
 
       - name: Deploy application
         shell: bash
@@ -67,9 +82,10 @@ jobs:
           ssh \
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
-            -o ConnectTimeout=15 \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=3 \
+            -o ConnectTimeout=30 \
+            -o ConnectionAttempts=3 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
             "$VPS_USER@$VPS_HOST" \
             "DEPLOY_PATH='$DEPLOY_PATH' bash -s" <<'REMOTE_SCRIPT'
           set -Eeuo pipefail

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Settings, Volume2, Keyboard, X, Check } from 'lucide-react';
+import { Settings, Volume2, Keyboard, X, Minus, Plus } from 'lucide-react';
 import { getModalMotion } from '../../../components/common/modalMotion';
 import { ModalPortal } from '../../../components/common/ModalPortal';
 import {
@@ -12,6 +12,10 @@ import {
 interface Props {
   onClose: () => void;
 }
+
+const MIN_RATE = 0.5;
+const MAX_RATE = 1.5;
+const RATE_STEP = 0.05;
 
 export const VocabularySettingsModal: React.FC<Props> = ({ onClose }) => {
   const reduceMotion = useReducedMotion();
@@ -26,8 +30,9 @@ export const VocabularySettingsModal: React.FC<Props> = ({ onClose }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  const updateRate = (rate: number) => {
-    const updated = { ...settings, playbackRate: rate };
+  const updateRate = (rawRate: number) => {
+    const clamped = Math.min(MAX_RATE, Math.max(MIN_RATE, Number(rawRate.toFixed(2))));
+    const updated = { ...settings, playbackRate: clamped };
     setSettings(updated);
     saveAudioSettings(updated);
   };
@@ -39,10 +44,12 @@ export const VocabularySettingsModal: React.FC<Props> = ({ onClose }) => {
   };
 
   const speedOptions = [
-    { label: '0.75x (Chậm)', value: 0.75 },
-    { label: '0.9x (Khuyên dùng)', value: 0.9 },
-    { label: '1.0x (Tự nhiên)', value: 1.0 },
-    { label: '1.25x (Nhanh)', value: 1.25 },
+    { label: 'Rất chậm', value: 0.5 },
+    { label: 'Chậm vừa', value: 0.6 },
+    { label: 'Chậm', value: 0.75 },
+    { label: 'Khuyên dùng', value: 0.9 },
+    { label: 'Tự nhiên', value: 1.0 },
+    { label: 'Nhanh', value: 1.25 },
   ];
 
   return (
@@ -82,26 +89,74 @@ export const VocabularySettingsModal: React.FC<Props> = ({ onClose }) => {
           <div className="mt-5 space-y-6">
             {/* Audio Speed */}
             <div>
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-content-muted">
-                <Volume2 className="size-4 text-accent" />
-                <span>Tốc độ phát âm (Voice Speed)</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-content-muted">
+                  <Volume2 className="size-4 text-accent" />
+                  <span>Tốc độ phát âm</span>
+                </div>
+                <span className="rounded-lg bg-accent/15 px-2.5 py-0.5 font-mono text-xs font-black text-accent-strong">
+                  {Number(settings.playbackRate.toFixed(2))}x
+                </span>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+
+              {/* Thanh trượt điều chỉnh tốc độ tuỳ thích */}
+              <div className="mt-3 rounded-2xl border border-line bg-surface-elevated p-3">
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => updateRate(settings.playbackRate - RATE_STEP)}
+                    disabled={settings.playbackRate <= MIN_RATE}
+                    aria-label="Giảm tốc độ 0.05x"
+                    className="grid size-8 shrink-0 place-items-center rounded-xl border border-line bg-surface text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Minus className="size-4" />
+                  </button>
+
+                  <input
+                    type="range"
+                    min={MIN_RATE}
+                    max={MAX_RATE}
+                    step={RATE_STEP}
+                    value={settings.playbackRate}
+                    onChange={(e) => updateRate(Number(e.target.value))}
+                    aria-label="Thanh trượt tốc độ phát âm"
+                    className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-brand-600 dark:bg-slate-700 dark:accent-brand-400"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => updateRate(settings.playbackRate + RATE_STEP)}
+                    disabled={settings.playbackRate >= MAX_RATE}
+                    aria-label="Tăng tốc độ 0.05x"
+                    className="grid size-8 shrink-0 place-items-center rounded-xl border border-line bg-surface text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+
+                <div className="mt-1.5 flex justify-between px-1 font-mono text-[10px] font-semibold text-content-muted">
+                  <span>0.5x</span>
+                  <span>1.0x</span>
+                  <span>1.5x</span>
+                </div>
+              </div>
+
+              <div className="mt-2.5 grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {speedOptions.map((opt) => {
-                  const isSelected = Math.abs(settings.playbackRate - opt.value) < 0.05;
+                  const isSelected = Math.abs(settings.playbackRate - opt.value) < 0.01;
                   return (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => updateRate(opt.value)}
-                      className={`flex flex-col items-center justify-center rounded-2xl border p-3 text-xs font-bold transition-all ${
+                      className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 text-xs font-bold transition-all ${
                         isSelected
                           ? 'border-accent bg-accent/10 text-accent-strong shadow-sm'
                           : 'border-line bg-surface-elevated text-content-muted hover:border-accent/40 hover:text-content'
                       }`}
                     >
-                      <span className="text-sm font-extrabold">{opt.value}x</span>
-                      <span className="mt-0.5 text-[10px] opacity-80">{opt.label.split(' ')[1] || ''}</span>
+                      <span className="font-mono text-sm font-extrabold">{opt.value}x</span>
+                      <span className="mt-0.5 text-[10px] opacity-80">{opt.label}</span>
                     </button>
                   );
                 })}

@@ -182,6 +182,15 @@ class TopicOverridePayload(BaseModel):
     topicName: str = Field(min_length=1, max_length=255)
 
 
+class VocabularyTopicPayload(BaseModel):
+    id: str = Field(min_length=1, max_length=100)
+    name: str = Field(min_length=1, max_length=255)
+    icon: str = Field(default="briefcase", max_length=50)
+    description: str = Field(default="", max_length=500)
+    wordIds: Optional[List[str]] = None
+    createdAt: Optional[str] = None
+
+
 class PracticeSessionPayload(BaseModel):
     sessionKey: str = Field(min_length=1, max_length=190)
     attemptId: str = Field(min_length=1, max_length=36)
@@ -1939,6 +1948,116 @@ def save_topic_override(
         """,
         (user["id"], normalized_key, payload.topicId, payload.topicName),
     )
+    return {"success": True}
+
+
+@router.get("/vocabulary/topics")
+def get_vocabulary_topics(user=Depends(get_current_user)):
+    rows = db.fetch_all(
+        """
+        SELECT id, name, icon, description, word_ids, created_at
+        FROM user_vocabulary_topics
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        """,
+        (user["id"],),
+        use_cache=False,
+    )
+    data = []
+    for row in rows:
+        created_at = row.get("created_at")
+        data.append({
+            "id": str(row["id"]),
+            "name": row.get("name") or "Chủ đề cá nhân",
+            "icon": row.get("icon") or "briefcase",
+            "description": row.get("description") or "",
+            "wordIds": parse_json(row.get("word_ids"), []),
+            "createdAt": created_at.isoformat() if hasattr(created_at, "isoformat") else str(created_at or ""),
+        })
+    return {"data": data}
+
+
+@router.put("/vocabulary/topics/{topic_id}")
+def save_vocabulary_topic(
+    topic_id: str,
+    payload: VocabularyTopicPayload,
+    user=Depends(get_current_user),
+):
+    if topic_id != payload.id:
+        raise HTTPException(status_code=400, detail="Topic ID không khớp.")
+
+    created_at = parse_datetime(payload.createdAt) if payload.createdAt else datetime.utcnow()
+    word_ids_json = (
+        json.dumps(list(dict.fromkeys(payload.wordIds)), ensure_ascii=False)
+        if payload.wordIds is not None
+        else None
+    )
+
+    if word_ids_json is not None:
+        db.execute(
+            """
+            INSERT INTO user_vocabulary_topics (
+                id, user_id, name, icon, description, word_ids, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                icon = VALUES(icon),
+                description = VALUES(description),
+                word_ids = VALUES(word_ids)
+            """,
+            (
+                payload.id,
+                user["id"],
+                payload.name.strip(),
+                payload.icon.strip() or "briefcase",
+                payload.description.strip(),
+                word_ids_json,
+                created_at,
+            ),
+        )
+    else:
+        db.execute(
+            """
+            INSERT INTO user_vocabulary_topics (
+                id, user_id, name, icon, description, word_ids, created_at
+            ) VALUES (?, ?, ?, ?, ?, '[]', ?)
+            ON DUPLICATE KEY UPDATE
+                name = VALUES(name),
+                icon = VALUES(icon),
+                description = VALUES(description)
+            """,
+            (
+                payload.id,
+                user["id"],
+                payload.name.strip(),
+                payload.icon.strip() or "briefcase",
+                payload.description.strip(),
+                created_at,
+            ),
+        )
+    return {"success": True}
+
+
+@router.delete("/vocabulary/topics/{topic_id}")
+def delete_vocabulary_topic(topic_id: str, user=Depends(get_current_user)):
+    with db.transaction() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM user_vocabulary_topics WHERE user_id = %s AND id = %s",
+                (user["id"], topic_id),
+            )
+            cursor.execute(
+                """
+                UPDATE user_vocabulary
+                SET topic_id = 'ai', topic_name = 'Từ đã tra bằng AI'
+                WHERE user_id = %s AND topic_id = %s
+                """,
+                (user["id"], topic_id),
+            )
+            cursor.execute(
+                "DELETE FROM user_vocabulary_topic_overrides WHERE user_id = %s AND topic_id = %s",
+                (user["id"], topic_id),
+            )
     return {"success": True}
 
 

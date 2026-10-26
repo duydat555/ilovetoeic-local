@@ -260,6 +260,20 @@ CREATE TABLE IF NOT EXISTS user_vocabulary_topic_overrides (
     CONSTRAINT fk_topic_overrides_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS user_vocabulary_topics (
+    id VARCHAR(100) NOT NULL,
+    user_id CHAR(36) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    icon VARCHAR(50) NOT NULL DEFAULT 'briefcase',
+    description TEXT NULL,
+    word_ids JSON NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, id),
+    CONSTRAINT fk_vocab_topics_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_vocab_topics_user_created (user_id, created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS translation_cache (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     hash CHAR(64) NOT NULL,

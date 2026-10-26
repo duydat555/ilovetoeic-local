@@ -143,14 +143,17 @@ export const vocabularyService = {
     // Recover words that were saved locally during an earlier cloud failure.
     // Sync sequentially so schema-compatibility detection only runs once.
     const remoteKeys = new Set(mapped.map((word) => word.word.trim().toLocaleLowerCase('en')));
+    const unsyncedLocal: VocabularyWord[] = [];
     for (const localWord of localWords) {
       if (!remoteKeys.has(localWord.word.trim().toLocaleLowerCase('en'))) {
         const synced = await backendService.addVocabularyWord(userId, localWord);
         if (synced) remoteKeys.add(localWord.word.trim().toLocaleLowerCase('en'));
+        unsyncedLocal.push(localWord);
       }
     }
 
-    const merged = deduplicate([...localWords, ...mapped]);
+    // Remote rows are authoritative for shared words (topicId, topicName, remembered state, etc.)
+    const merged = deduplicate([...mapped, ...unsyncedLocal]);
     writeLocal(userId, merged, false);
     return merged;
   },
@@ -167,7 +170,7 @@ export const vocabularyService = {
     const merged = { ...localOverrides };
     remoteOverrides.forEach((row: any) => {
       const key = String(row.word_key || '').trim().toLocaleLowerCase('en');
-      if (key && !merged[key]) {
+      if (key) {
         merged[key] = {
           topicId: row.topic_id,
           topicName: row.topic_name,

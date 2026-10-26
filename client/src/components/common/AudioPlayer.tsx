@@ -1,9 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Check,
+  ChevronDown,
   Gauge,
   Keyboard,
+  Minus,
   Pause,
   Play,
+  Plus,
   RotateCcw,
   RotateCw,
   Volume2,
@@ -20,8 +24,12 @@ interface AudioPlayerProps {
   onEnded?: () => void;
 }
 
-const PLAYBACK_RATES = [0.75, 1, 1.25, 1.5, 2];
+const PLAYBACK_RATES = [0.5, 0.6, 0.75, 0.9, 1, 1.25, 1.5, 2];
 const SEEK_SECONDS = 5;
+const MIN_RATE = 0.5;
+const MAX_RATE = 2.0;
+const RATE_STEP = 0.05;
+const PLAYBACK_RATE_STORAGE_KEY = 'toeic_audio_playback_rate';
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   audioUrl,
@@ -35,12 +43,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState<number>(() => {
+    if (examMode) return 1;
+    try {
+      const saved = Number(localStorage.getItem(PLAYBACK_RATE_STORAGE_KEY));
+      if (Number.isFinite(saved) && saved >= MIN_RATE && saved <= MAX_RATE) {
+        return Number(saved.toFixed(2));
+      }
+    } catch {
+      // ignore
+    }
+    return 1;
+  });
+  const [isSpeedOpen, setIsSpeedOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speedPopoverRef = useRef<HTMLDivElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -51,6 +72,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setHasStarted(false);
     setHasEnded(false);
   }, [audioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.playbackRate = examMode ? 1 : playbackRate;
+  }, [audioUrl, examMode, playbackRate]);
+
+  useEffect(() => {
+    if (!isSpeedOpen) return undefined;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (speedPopoverRef.current && !speedPopoverRef.current.contains(event.target as Node)) {
+        setIsSpeedOpen(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSpeedOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [isSpeedOpen]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -137,6 +184,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleLoadedMetadata = () => {
     const audio = audioRef.current;
     if (!audio) return;
+    audio.playbackRate = examMode ? 1 : playbackRate;
     setDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
   };
 
@@ -144,11 +192,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     seekTo(Number(event.target.value));
   };
 
-  const handleRateChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextRate = Number(event.target.value);
-    if (audioRef.current) audioRef.current.playbackRate = nextRate;
-    setPlaybackRate(nextRate);
+  const applyPlaybackRate = (rawRate: number) => {
+    const clamped = Math.min(MAX_RATE, Math.max(MIN_RATE, Number(rawRate.toFixed(2))));
+    if (audioRef.current) {
+      audioRef.current.playbackRate = clamped;
+    }
+    setPlaybackRate(clamped);
+    try {
+      localStorage.setItem(PLAYBACK_RATE_STORAGE_KEY, String(clamped));
+    } catch {
+      // ignore
+    }
   };
+
+  const formatRate = (rate: number) => `${Number(rate.toFixed(2))}x`;
 
   useEffect(() => {
     if (examMode) return undefined;
@@ -195,7 +252,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   return (
     <section
       aria-label={examMode ? 'Listening audio player' : 'Trình phát âm thanh'}
-      className="overflow-hidden rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-brand-50/70 shadow-sm dark:border-line dark:from-slate-800 dark:to-slate-900"
+      className="relative rounded-3xl border border-slate-200/80 bg-surface shadow-sm dark:border-line"
     >
       <audio
         ref={audioRef}
@@ -330,20 +387,123 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-600 dark:border-line dark:bg-surface-elevated dark:text-content-muted">
-                  <Gauge className="h-4 w-4 text-brand-600" />
-                  <span className="sr-only sm:not-sr-only">Tốc độ</span>
-                  <select
-                    value={playbackRate}
-                    onChange={handleRateChange}
-                    aria-label="Tốc độ phát"
-                    className="cursor-pointer bg-transparent font-bold text-slate-800 outline-none dark:text-content"
+                <div className="relative" ref={speedPopoverRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSpeedOpen((prev) => !prev)}
+                    aria-expanded={isSpeedOpen}
+                    aria-label="Điều chỉnh tốc độ phát"
+                    title="Điều chỉnh tốc độ phát âm thanh"
+                    className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                      isSpeedOpen || playbackRate !== 1
+                        ? 'border-brand-300 bg-brand-50/80 text-brand-800 dark:border-brand-700/60 dark:bg-brand-950/40 dark:text-brand-200'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-line dark:bg-surface-elevated dark:text-content-muted'
+                    }`}
                   >
-                    {PLAYBACK_RATES.map(rate => (
-                      <option key={rate} value={rate}>{rate}x</option>
-                    ))}
-                  </select>
-                </label>
+                    <Gauge className="h-4 w-4 text-brand-600 dark:text-brand-400" />
+                    <span className="hidden sm:inline">Tốc độ</span>
+                    <span className="font-mono font-extrabold text-slate-900 dark:text-content">
+                      {formatRate(playbackRate)}
+                    </span>
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                        isSpeedOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {isSpeedOpen && (
+                    <div className="absolute right-0 bottom-full z-50 mb-2 w-72 rounded-2xl border border-line bg-surface p-3.5 shadow-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-extrabold text-content">
+                          Tốc độ phát âm thanh
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {playbackRate !== 1 && (
+                            <button
+                              type="button"
+                              onClick={() => applyPlaybackRate(1)}
+                              className="rounded-lg border border-line bg-surface-elevated px-2 py-0.5 text-[10px] font-bold text-content-muted transition hover:bg-surface-hover hover:text-content"
+                            >
+                              Mặc định (1x)
+                            </button>
+                          )}
+                          <span className="rounded-lg bg-brand/15 px-2 py-0.5 font-mono text-xs font-black text-brand-700 dark:text-brand-300">
+                            {formatRate(playbackRate)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Thanh trượt điều chỉnh tốc độ tuỳ thích */}
+                      <div className="mt-3 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyPlaybackRate(playbackRate - RATE_STEP)}
+                          disabled={playbackRate <= MIN_RATE}
+                          aria-label="Giảm tốc độ 0.05x"
+                          title="Giảm 0.05x"
+                          className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Minus className="size-3.5" />
+                        </button>
+
+                        <input
+                          type="range"
+                          min={MIN_RATE}
+                          max={MAX_RATE}
+                          step={RATE_STEP}
+                          value={playbackRate}
+                          onChange={(e) => applyPlaybackRate(Number(e.target.value))}
+                          aria-label="Thanh trượt điều chỉnh tốc độ phát"
+                          className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-brand-600 dark:bg-slate-700 dark:accent-brand-400"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => applyPlaybackRate(playbackRate + RATE_STEP)}
+                          disabled={playbackRate >= MAX_RATE}
+                          aria-label="Tăng tốc độ 0.05x"
+                          title="Tăng 0.05x"
+                          className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          <Plus className="size-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="mt-1 flex justify-between px-1 font-mono text-[10px] font-semibold text-content-muted">
+                        <span>0.5x (Chậm)</span>
+                        <span>1.0x (Chuẩn)</span>
+                        <span>2.0x (Nhanh)</span>
+                      </div>
+
+                      {/* Các mức chọn nhanh */}
+                      <div className="mt-3 border-t border-line pt-2.5">
+                        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                          Mức chọn nhanh
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {PLAYBACK_RATES.map((rate) => {
+                            const isActive = Math.abs(playbackRate - rate) < 0.01;
+                            return (
+                              <button
+                                key={rate}
+                                type="button"
+                                onClick={() => applyPlaybackRate(rate)}
+                                className={`flex items-center justify-center rounded-xl border py-1.5 font-mono text-xs font-bold transition ${
+                                  isActive
+                                    ? 'border-brand bg-brand text-brand-ink shadow-xs font-extrabold'
+                                    : 'border-line bg-surface-elevated text-content-muted hover:border-brand/40 hover:text-content'
+                                }`}
+                              >
+                                {rate}x
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
                 <button
                   type="button"

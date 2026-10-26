@@ -836,6 +836,60 @@ export const backendService = {
     }
   },
 
+  async getVocabularyTopics(_userId: string) {
+    try {
+      const response = await authFetch<{
+        data: Array<{
+          id: string;
+          name: string;
+          icon: string;
+          description: string;
+          wordIds: string[];
+          createdAt: string;
+        }>;
+      }>('/vocabulary/topics');
+      return response.data;
+    } catch (error) {
+      console.warn('[!] Không thể tải danh sách bộ từ vựng cá nhân từ MySQL:', error);
+      return null;
+    }
+  },
+
+  async saveVocabularyTopic(
+    _userId: string,
+    payload: {
+      id: string;
+      name: string;
+      icon: string;
+      description: string;
+      wordIds?: string[];
+      createdAt?: string;
+    },
+  ) {
+    try {
+      await authFetch(`/vocabulary/topics/${encodeURIComponent(payload.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      return true;
+    } catch (error) {
+      console.warn('[!] Bộ từ vựng đã lưu trên thiết bị nhưng chưa đồng bộ lên MySQL:', error);
+      return false;
+    }
+  },
+
+  async deleteVocabularyTopic(_userId: string, topicId: string) {
+    try {
+      await authFetch(`/vocabulary/topics/${encodeURIComponent(topicId)}`, {
+        method: 'DELETE',
+      });
+      return true;
+    } catch (error) {
+      console.warn('[!] Không thể xoá bộ từ vựng khỏi MySQL:', error);
+      return false;
+    }
+  },
+
   async getPracticeSession(sessionKey: string): Promise<PracticeSessionData | null> {
     try {
       const response = await authFetch<{ session: PracticeSessionData | null }>(

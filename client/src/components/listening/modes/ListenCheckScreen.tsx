@@ -10,9 +10,11 @@ import {
   Eye,
   Gauge,
   Languages,
+  Minus,
   Pause,
   PenTool,
   Play,
+  Plus,
   Repeat,
   RotateCcw,
   SkipBack,
@@ -133,7 +135,10 @@ export interface AudioControlCardProps {
   hasNext?: boolean;
 }
 
-const SPEED_OPTIONS = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+const SPEED_OPTIONS = [0.5, 0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 2.0];
+const MIN_RATE = 0.5;
+const MAX_RATE = 2.0;
+const RATE_STEP = 0.05;
 
 export const AudioControlCard: React.FC<AudioControlCardProps> = ({
   isPlaying = false,
@@ -158,6 +163,11 @@ export const AudioControlCard: React.FC<AudioControlCardProps> = ({
 }) => {
   const [speedDropdownOpen, setSpeedDropdownOpen] = useState(false);
   const speedRef = useRef<HTMLDivElement>(null);
+
+  const applySpeed = (rawSpeed: number) => {
+    const clamped = Math.min(MAX_RATE, Math.max(MIN_RATE, Number(rawSpeed.toFixed(2))));
+    onSpeedChange?.(clamped);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -220,7 +230,7 @@ export const AudioControlCard: React.FC<AudioControlCardProps> = ({
               className="inline-flex items-center gap-1 rounded-xl border border-line px-2.5 py-2 text-xs font-bold text-content-muted transition hover:bg-surface-hover hover:text-content active:scale-95"
             >
               <Gauge className="size-3.5" />
-              <span className="text-content">{playbackSpeed}x</span>
+              <span className="font-mono text-content">{Number(playbackSpeed.toFixed(2))}x</span>
               <ChevronDown
                 className={`size-3 transition-transform duration-200 ${
                   speedDropdownOpen ? 'rotate-180' : ''
@@ -229,25 +239,90 @@ export const AudioControlCard: React.FC<AudioControlCardProps> = ({
             </button>
 
             {speedDropdownOpen && (
-              <div className="absolute top-full left-0 z-50 mt-1 min-w-[100px] rounded-xl border border-line bg-surface p-1 shadow-lg backdrop-blur-md">
-                {SPEED_OPTIONS.map((speed) => (
+              <div className="absolute top-full left-0 z-50 mt-2 w-72 rounded-2xl border border-line bg-surface p-3.5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-content">
+                    Tốc độ phát
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {playbackSpeed !== 1 && (
+                      <button
+                        type="button"
+                        onClick={() => applySpeed(1)}
+                        className="rounded-lg border border-line bg-surface-elevated px-2 py-0.5 text-[10px] font-bold text-content-muted transition hover:bg-surface-hover hover:text-content"
+                      >
+                        Mặc định (1x)
+                      </button>
+                    )}
+                    <span className="rounded-lg bg-accent/15 px-2 py-0.5 font-mono text-xs font-black text-accent-strong">
+                      {Number(playbackSpeed.toFixed(2))}x
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-2">
                   <button
-                    key={speed}
                     type="button"
-                    onClick={() => {
-                      onSpeedChange?.(speed);
-                      setSpeedDropdownOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
-                      playbackSpeed === speed
-                        ? 'bg-accent/15 font-bold text-accent-strong'
-                        : 'text-content-muted hover:bg-surface-hover hover:text-content'
-                    }`}
+                    onClick={() => applySpeed(playbackSpeed - RATE_STEP)}
+                    disabled={playbackSpeed <= MIN_RATE}
+                    aria-label="Giảm tốc độ"
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span>{speed}x</span>
-                    {playbackSpeed === speed && <Check className="size-3" />}
+                    <Minus className="size-3.5" />
                   </button>
-                ))}
+
+                  <input
+                    type="range"
+                    min={MIN_RATE}
+                    max={MAX_RATE}
+                    step={RATE_STEP}
+                    value={playbackSpeed}
+                    onChange={(e) => applySpeed(Number(e.target.value))}
+                    aria-label="Thanh trượt điều chỉnh tốc độ phát"
+                    className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-brand-600 dark:bg-slate-700 dark:accent-brand-400"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => applySpeed(playbackSpeed + RATE_STEP)}
+                    disabled={playbackSpeed >= MAX_RATE}
+                    aria-label="Tăng tốc độ"
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+
+                <div className="mt-1 flex justify-between px-1 font-mono text-[10px] font-semibold text-content-muted">
+                  <span>0.5x</span>
+                  <span>1.0x</span>
+                  <span>2.0x</span>
+                </div>
+
+                <div className="mt-3 border-t border-line pt-2.5">
+                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                    Mức chọn nhanh
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {SPEED_OPTIONS.map((speed) => {
+                      const isActive = Math.abs(playbackSpeed - speed) < 0.01;
+                      return (
+                        <button
+                          key={speed}
+                          type="button"
+                          onClick={() => applySpeed(speed)}
+                          className={`flex items-center justify-center rounded-xl border py-1.5 font-mono text-xs font-bold transition ${
+                            isActive
+                              ? 'border-accent bg-accent text-accent-contrast shadow-xs font-extrabold'
+                              : 'border-line bg-surface-elevated text-content-muted hover:border-accent/40 hover:text-content'
+                          }`}
+                        >
+                          {speed}x
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -64,14 +64,23 @@ export const TopicFlashcardPage: React.FC = () => {
         topicId === 'my-words' || topicId === 'saved' || topicId === 'ai' || topicId === 'notebook';
 
       if (isPersonalNotebook) {
-        const loadedWords = await vocabularyService.getAll(user.id);
+        const [loadedWords, overrides] = await Promise.all([
+          vocabularyService.getAll(user.id),
+          vocabularyService.getAllTopicOverrides(user.id),
+        ]);
+        await vocabularyTopicService.syncTopics(user.id, loadedWords, overrides);
         const topicWords = vocabularyTopicService.wordsForTopic(user.id, topicId, loadedWords);
         setWords(topicWords);
         setTopic(MY_WORDS_TOPIC);
       } else {
-        const personalTopic = vocabularyTopicService.getTopics(user.id).find((item) => item.id === topicId && !item.system);
+        const [loadedWords, overrides] = await Promise.all([
+          vocabularyService.getAll(user.id),
+          vocabularyService.getAllTopicOverrides(user.id),
+        ]);
+        const syncedTopics = await vocabularyTopicService.syncTopics(user.id, loadedWords, overrides);
+        const personalTopic = syncedTopics.find((item) => item.id === topicId && !item.system);
+
         if (personalTopic) {
-          const loadedWords = await vocabularyService.getAll(user.id);
           const topicWords = vocabularyTopicService.wordsForTopic(user.id, topicId, loadedWords);
           setWords(topicWords);
           setTopic(personalTopic);
@@ -90,16 +99,14 @@ export const TopicFlashcardPage: React.FC = () => {
                 createdAt: '',
               });
             } else {
-              const loadedWords = await vocabularyService.getAll(user.id);
               const topicWords = vocabularyTopicService.wordsForTopic(user.id, topicId, loadedWords);
               setWords(topicWords);
-              setTopic(vocabularyTopicService.getTopics(user.id).find((item) => item.id === topicId) || null);
+              setTopic(syncedTopics.find((item) => item.id === topicId) || null);
             }
           } catch {
-            const loadedWords = await vocabularyService.getAll(user.id);
             const topicWords = vocabularyTopicService.wordsForTopic(user.id, topicId, loadedWords);
             setWords(topicWords);
-            setTopic(vocabularyTopicService.getTopics(user.id).find((item) => item.id === topicId) || null);
+            setTopic(syncedTopics.find((item) => item.id === topicId) || null);
           }
         }
       }
@@ -410,6 +417,7 @@ export const TopicFlashcardPage: React.FC = () => {
           <AddWordModal
             userId={user.id}
             defaultTopicId={topicId === 'my-words' ? 'ai' : topicId}
+            topics={vocabularyTopicService.getTopics(user.id)}
             onClose={() => setAddWordOpen(false)}
             onWordAdded={() => void loadWords(false)}
           />

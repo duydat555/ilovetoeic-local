@@ -18,8 +18,10 @@ import {
   RefreshCw,
   Maximize2,
   Minimize2,
+  Minus,
   Pause,
   Play,
+  Plus,
   Repeat,
   RotateCcw,
   SkipBack,
@@ -122,14 +124,18 @@ const isAutoplayBlocked = (error: unknown) => (
 
 const SPEED_OPTIONS = [
   { value: 0.5, label: '0.5x' },
+  { value: 0.6, label: '0.6x' },
   { value: 0.75, label: '0.75x' },
   { value: 0.9, label: '0.9x' },
-  { value: 1.0, label: '1.0x (Chuẩn)' },
+  { value: 1.0, label: '1.0x' },
   { value: 1.25, label: '1.25x' },
   { value: 1.5, label: '1.5x' },
-  { value: 1.75, label: '1.75x' },
   { value: 2.0, label: '2.0x' },
 ];
+const MIN_RATE = 0.5;
+const MAX_RATE = 2.0;
+const RATE_STEP = 0.05;
+const LISTENING_RATE_STORAGE_KEY = 'toeic_listening_playback_rate';
 
 function getYouTubeId(url?: string | null): string | null {
   if (!url) return null;
@@ -221,7 +227,17 @@ export const ListeningMediaPlayer = forwardRef<
   const [currentTime, setCurrentTime] = useState(startTime || 0);
   const [isSentenceEnded, setIsSentenceEnded] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem(LISTENING_RATE_STORAGE_KEY));
+      if (Number.isFinite(saved) && saved >= MIN_RATE && saved <= MAX_RATE) {
+        return Number(saved.toFixed(2));
+      }
+    } catch {
+      // ignore
+    }
+    return 1;
+  });
   const [isMuted, setIsMuted] = useState(false);
   const [loopA, setLoopA] = useState<number | null>(null);
   const [loopB, setLoopB] = useState<number | null>(null);
@@ -985,14 +1001,22 @@ export const ListeningMediaPlayer = forwardRef<
     }
   }, [activeWordIndex, isKaraokeVisible, onActiveWordIndexChange]);
 
-  const changeSpeed = (rate: number) => {
+  const changeSpeed = (rawRate: number) => {
+    const rate = Math.min(MAX_RATE, Math.max(MIN_RATE, Number(rawRate.toFixed(2))));
     setPlaybackRate(rate);
+    try {
+      localStorage.setItem(LISTENING_RATE_STORAGE_KEY, String(rate));
+    } catch {
+      // ignore
+    }
     if (isYouTube && ytPlayerRef.current?.setPlaybackRate) {
       ytPlayerRef.current.setPlaybackRate(rate);
     } else if (audioRef.current) {
       audioRef.current.playbackRate = rate;
     }
   };
+
+  const formatRate = (rate: number) => `${Number(rate.toFixed(2))}x`;
 
   const toggleMute = () => {
     const next = !isMuted;
@@ -1074,7 +1098,7 @@ export const ListeningMediaPlayer = forwardRef<
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-sm transition-all ${className}`}
+      className={`relative rounded-2xl border border-line bg-surface p-3.5 sm:p-4 shadow-sm transition-all ${className}`}
       role="region"
       aria-label="Trình phát âm thanh và video luyện nghe"
     >
@@ -1423,13 +1447,13 @@ export const ListeningMediaPlayer = forwardRef<
               onClick={() => setIsSpeedOpen((prev) => !prev)}
               title={language === 'en' ? 'Adjust playback speed' : 'Điều chỉnh tốc độ phát âm thanh'}
               className={`inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition active:scale-95 ${
-                isSpeedOpen
+                isSpeedOpen || playbackRate !== 1
                   ? 'border-accent bg-accent/15 text-accent-strong shadow-sm'
                   : 'border-line text-content-muted hover:bg-surface-hover hover:text-content'
               }`}
             >
               <Gauge className="size-3.5" />
-              <span>{playbackRate}x</span>
+              <span className="font-mono">{formatRate(playbackRate)}</span>
               <ChevronDown
                 className={`size-3 transition-transform duration-200 ${
                   isSpeedOpen ? 'rotate-180' : ''
@@ -1438,31 +1462,93 @@ export const ListeningMediaPlayer = forwardRef<
             </button>
 
             {isSpeedOpen && (
-              <div className="absolute bottom-full right-0 mb-2 z-50 min-w-[125px] rounded-xl border border-line bg-surface p-1 shadow-lg backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-2 py-1 text-[10px] font-extrabold uppercase tracking-wider text-content-muted/70">
-                  {language === 'en' ? 'Playback speed' : 'Tốc độ phát'}
+              <div className="absolute bottom-full right-0 mb-2 z-50 w-72 rounded-2xl border border-line bg-surface p-3.5 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-content">
+                    {language === 'en' ? 'Playback speed' : 'Tốc độ phát'}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    {playbackRate !== 1 && (
+                      <button
+                        type="button"
+                        onClick={() => changeSpeed(1)}
+                        className="rounded-lg border border-line bg-surface-elevated px-2 py-0.5 text-[10px] font-bold text-content-muted transition hover:bg-surface-hover hover:text-content"
+                      >
+                        {language === 'en' ? 'Reset (1x)' : 'Mặc định (1x)'}
+                      </button>
+                    )}
+                    <span className="rounded-lg bg-accent/15 px-2 py-0.5 font-mono text-xs font-black text-accent-strong">
+                      {formatRate(playbackRate)}
+                    </span>
+                  </div>
                 </div>
-                <div className="space-y-0.5">
-                  {SPEED_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => {
-                        changeSpeed(opt.value);
-                        setIsSpeedOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-xs font-semibold transition ${
-                        playbackRate === opt.value
-                          ? 'bg-accent/15 text-accent-strong font-bold'
-                          : 'text-content-muted hover:bg-surface-hover hover:text-content'
-                      }`}
-                    >
-                      <span>{opt.label}</span>
-                      {playbackRate === opt.value && (
-                        <Check className="size-3.5 text-accent-strong" />
-                      )}
-                    </button>
-                  ))}
+
+                {/* Custom slider control */}
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => changeSpeed(playbackRate - RATE_STEP)}
+                    disabled={playbackRate <= MIN_RATE}
+                    title={language === 'en' ? 'Decrease speed by 0.05x' : 'Giảm 0.05x'}
+                    aria-label={language === 'en' ? 'Decrease speed' : 'Giảm tốc độ'}
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Minus className="size-3.5" />
+                  </button>
+
+                  <input
+                    type="range"
+                    min={MIN_RATE}
+                    max={MAX_RATE}
+                    step={RATE_STEP}
+                    value={playbackRate}
+                    onChange={(e) => changeSpeed(Number(e.target.value))}
+                    aria-label={language === 'en' ? 'Playback speed slider' : 'Thanh trượt điều chỉnh tốc độ phát'}
+                    className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-200 accent-brand-600 dark:bg-slate-700 dark:accent-brand-400"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => changeSpeed(playbackRate + RATE_STEP)}
+                    disabled={playbackRate >= MAX_RATE}
+                    title={language === 'en' ? 'Increase speed by 0.05x' : 'Tăng 0.05x'}
+                    aria-label={language === 'en' ? 'Increase speed' : 'Tăng tốc độ'}
+                    className="grid size-7 shrink-0 place-items-center rounded-lg border border-line bg-surface-elevated text-content-muted transition hover:bg-surface-hover hover:text-content disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+                </div>
+
+                <div className="mt-1 flex justify-between px-1 font-mono text-[10px] font-semibold text-content-muted">
+                  <span>0.5x</span>
+                  <span>1.0x</span>
+                  <span>2.0x</span>
+                </div>
+
+                {/* Preset grid */}
+                <div className="mt-3 border-t border-line pt-2.5">
+                  <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-content-muted">
+                    {language === 'en' ? 'Quick presets' : 'Mức chọn nhanh'}
+                  </div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {SPEED_OPTIONS.map((opt) => {
+                      const isActive = Math.abs(playbackRate - opt.value) < 0.01;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => changeSpeed(opt.value)}
+                          className={`flex items-center justify-center rounded-xl border py-1.5 font-mono text-xs font-bold transition ${
+                            isActive
+                              ? 'border-accent bg-accent text-accent-contrast shadow-xs font-extrabold'
+                              : 'border-line bg-surface-elevated text-content-muted hover:border-accent/40 hover:text-content'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}

@@ -151,13 +151,14 @@ export const TopicListPage: React.FC = () => {
     if (!user) return;
     setLoading(true);
     try {
-      const [loadedWords, setsData] = await Promise.all([
+      const [loadedWords, setsData, overrides] = await Promise.all([
         vocabularyService.getAll(user.id),
         systemVocabularyService.getSets(),
+        vocabularyService.getAllTopicOverrides(user.id),
       ]);
+      const allTopics = await vocabularyTopicService.syncTopics(user.id, loadedWords, overrides);
       setWords(loadedWords);
       setSystemSets(setsData);
-      const allTopics = vocabularyTopicService.getTopics(user.id);
       setPersonalTopics(allTopics.filter((t) => !t.system));
     } catch (err) {
       console.error('Failed to load vocabulary sets:', err);

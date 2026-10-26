@@ -72,9 +72,19 @@ export const CreateTopicModal: React.FC<CreateTopicModalProps> = ({ userId, word
 
     const assignedIds = [...selectedWordIds];
     if (translation) {
-      const result = await vocabularyService.add(userId, translation, '', { id: savedTopic.id, name: savedTopic.name });
+      const result = await vocabularyService.add(userId, translation, '', { id: savedTopic.id, name: name.trim() });
       assignedIds.push(result.word.id);
     }
+
+    // Also update topicId & topicName for selected existing words so any device can see their topic assignment
+    const selectedSet = new Set(selectedWordIds);
+    const wordsToAssign = words.filter((w) => selectedSet.has(w.id));
+    await Promise.all(
+      wordsToAssign.map((w) =>
+        vocabularyService.setTopic(userId, w, savedTopic.id, name.trim())
+      )
+    );
+
     vocabularyTopicService.setWords(userId, savedTopic.id, assignedIds);
     onSaved({ ...savedTopic, name: name.trim(), icon, description: description.trim() });
   };

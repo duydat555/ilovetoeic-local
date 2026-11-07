@@ -1,3 +1,10 @@
+# Local development repository
+
+This repository is duydat555/ilovetoeic-local, for development on a local machine only.
+Do not deploy to VPS, configure production services, or connect to production databases.
+The inherited production documentation below is reference material for the source project.
+The deployment workflow is disabled (deploy.yml.disabled). Push changes only to ilovetoeic-local.
+
 # TOEIC Master
 
 Ứng dụng học TOEIC gồm React + Tailwind ở `client` và FastAPI + MySQL ở

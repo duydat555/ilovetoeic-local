@@ -1,3 +1,10 @@
+# Local development repository
+
+This repository is duydat555/ilovetoeic-local, for development on a local machine only.
+Do not deploy to VPS, configure production services, or connect to production databases.
+The inherited production documentation below is reference material for the source project.
+The deployment workflow is disabled (deploy.yml.disabled). Push changes only to ilovetoeic-local.
+
 # Project collaboration rules
 
 Đây là **production app có user thật** (ilovetoeic.com / TOEICMaster). Mọi thay đổi phải an toàn cho production: không breaking change, không thao tác trực tiếp lên dữ liệu thật mà không backup, luôn cân nhắc edge case.

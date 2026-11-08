@@ -22,8 +22,11 @@ FEATURE_KEYS = (
     "profile",
     "settings",
     "feedback",
+    "ai_voice",
     "national_day_theme",
 )
+# Off until the teacher switches them on.
+DEFAULT_OFF_FEATURES = ("national_day_theme", "arena", "ai_voice")
 CORE_FEATURES = {"dashboard", "profile", "settings"}
 
 
@@ -49,7 +52,7 @@ def validate_feature_key(feature_key: str):
 
 def ensure_feature_rows():
     for feature_key in FEATURE_KEYS:
-        default_val = 0 if feature_key in ("national_day_theme", "arena") else 1
+        default_val = 0 if feature_key in DEFAULT_OFF_FEATURES else 1
         db.execute(
             """
             INSERT INTO feature_flags (feature_key, is_enabled)
@@ -77,7 +80,7 @@ def global_flags():
 
     for feature_key in FEATURE_KEYS:
         if feature_key != "national_day_theme":
-            values.setdefault(feature_key, feature_key != "arena")
+            values.setdefault(feature_key, feature_key not in DEFAULT_OFF_FEATURES)
     for feature_key in CORE_FEATURES:
         values[feature_key] = True
     return values

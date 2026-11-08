@@ -8,6 +8,7 @@ import {
   LibraryBig,
   MessageSquare,
   MessageSquarePlus,
+  Mic,
   Settings,
   SlidersHorizontal,
   Trophy,
@@ -54,6 +55,7 @@ export const studentNavItems: NavigationItem[] = [
   { path: '/listening', label: 'Luyện nghe TOEIC', icon: Headphones, featureKey: 'listening' },
   { path: '/ranking', label: 'Bảng xếp hạng', icon: Trophy, featureKey: 'ranking' },
   { path: '/arena', label: 'Thách đấu', icon: Swords, featureKey: 'arena' },
+  { path: '/voice', label: 'Trò chuyện với AI', icon: Mic, featureKey: 'ai_voice' },
   { path: '/feedback', label: 'Góp ý & Phản hồi', icon: MessageSquarePlus, featureKey: 'feedback' },
   { path: '/profile', label: 'Hồ sơ cá nhân', icon: UserRound, featureKey: 'profile' },
   { path: '/settings', label: 'Cài đặt', icon: Settings, featureKey: 'settings' },
@@ -65,6 +67,7 @@ export const adminNavItems: NavigationItem[] = [
   { path: '/admin/feedback', label: 'Quản lý Góp ý', icon: MessageSquare },
   { path: '/admin/announcements', label: 'Quản lý thông báo', icon: BellRing },
   { path: '/admin/features', label: 'Quản lý tính năng', icon: Wrench },
+  { path: '/voice', label: 'Trò chuyện với AI', icon: Mic },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 

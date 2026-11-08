@@ -1,0 +1,33 @@
+# Profile for the Mac mini (Apple Silicon, 32 GB). Always-on AI server.
+[server]
+host = "0.0.0.0"          # reachable over Tailscale; the token below is required
+port = 8100
+# token is read from AI_SERVICE_TOKEN (never commit it)
+
+[llm]
+backend = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "qwen3:14b"
+keep_alive = -1           # keep the model resident in RAM
+num_ctx = 4096
+temperature = 0.6
+
+[stt]
+backend = "fake"          # real backend (mlx-whisper large-v3-turbo) is added in the next step
+model = "large-v3-turbo"
+
+[tts.en]
+backend = "fake"          # real backend (Kokoro-82M) is added in the next step
+
+[tts.vi]
+backend = "fake"          # real backend (Piper / VieNeu-TTS) is added in the next step
+
+[vad]
+backend = "energy"
+threshold = 0.015
+min_silence_ms = 600
+min_speech_ms = 160
+
+[voice]
+max_history_chars = 8000
+max_session_seconds = 900

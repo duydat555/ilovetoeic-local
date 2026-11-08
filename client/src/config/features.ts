@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LibraryBig,
   MessageSquarePlus,
+  Mic,
   Settings,
   Trophy,
   UserRound,
@@ -20,6 +21,7 @@ export type FeatureKey =
   | 'listening'
   | 'ranking'
   | 'feedback'
+  | 'ai_voice'
   | 'profile'
   | 'settings'
   | 'national_day_theme';
@@ -63,6 +65,10 @@ export const FEATURE_CATEGORIES: Array<{
 ];
 
 export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
+  {
+    key: 'ai_voice', name: 'Trò chuyện với AI', description: 'Luyện nói và hỏi đáp bằng giọng nói với trợ lý AI.',
+    category: 'learning', core: false, icon: Mic,
+  },
   {
     key: 'arena', name: 'Thách đấu', description: 'Thi đấu TOEIC cùng bạn bè và tích lũy XP.',
     category: 'community', core: false, icon: Trophy,
@@ -152,12 +158,13 @@ export const FEATURE_DEFINITIONS: FeatureDefinition[] = [
 export const DEFAULT_FEATURE_FLAGS = Object.fromEntries(
   FEATURE_DEFINITIONS.map((feature) => [
     feature.key,
-    !['national_day_theme', 'arena'].includes(feature.key),
+    !['national_day_theme', 'arena', 'ai_voice'].includes(feature.key),
   ]),
 ) as Record<FeatureKey, boolean>;
 
 const ROUTE_FEATURE_RULES: Array<[string, FeatureKey]> = [
   ['/arena', 'arena'],
+  ['/voice', 'ai_voice'],
   ['/practice/runner', 'mock_test'],
   ['/mock-test/exam', 'mock_test'],
   ['/practice-by-level', 'mock_test'],

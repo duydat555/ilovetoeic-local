@@ -31,6 +31,7 @@ from app.routers import (
     gamification,
     announcements,
     classes,
+    ai_voice,
 )
 
 from contextlib import asynccontextmanager
@@ -107,6 +108,7 @@ app.include_router(study_time.router)
 app.include_router(gamification.router)
 app.include_router(announcements.router)
 app.include_router(classes.router)
+app.include_router(ai_voice.router)
 
 
 

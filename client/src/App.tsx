@@ -46,6 +46,7 @@ const InterleavedPreviewPage = lazy(() => import('./pages/InterleavedPreviewPage
 
 import { BoneyardSkeleton } from './components/common/BoneyardSkeleton';
 const ArenaPage = lazy(() => import('./pages/Arena/ArenaPage'));
+const VoiceModePage = lazy(() => import('./pages/Voice/VoiceModePage'));
 
 const StudentPracticeRedirect: React.FC = () => {
   const { studentId = '' } = useParams();
@@ -84,6 +85,7 @@ export const App: React.FC = () => {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardLivePage />} />
               <Route element={<FeatureRouteGuard feature="arena" />}><Route path="/arena" element={<ArenaPage />} /></Route>
+              <Route element={<FeatureRouteGuard feature="ai_voice" />}><Route path="/voice" element={<VoiceModePage />} /></Route>
               <Route element={<FeatureRouteGuard feature="mock_test" />}>
                 <Route path="/practice-by-level" element={<PracticeByLevelPage />} />
                 <Route path="/practice/runner/:partId" element={<PracticeRunnerPage />} />

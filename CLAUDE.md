@@ -13,6 +13,7 @@ Chi tiết theo từng mảng được tách trong `docs/agents/`. Dựa vào lo
 | Bôi đen dịch AI, từ điển ngữ cảnh, lemmatization | `docs/agents/highlight-to-translate/README.md` |
 | Luyện theo Levels, phân loại độ khó, ngân hàng câu sai | `docs/agents/practice-by-level/README.md` |
 | Dashboard tiến độ, XP/Streak, Phân tích AI & BXH | `docs/agents/progress-gamification/README.md` |
+| AI chạy local, Voice Mode, ai-service (Mac/laptop), relay WebSocket | `docs/agents/local-ai.md` |
 
 ## Production safety (áp dụng chung, luôn đọc trước khi sửa gì)
 

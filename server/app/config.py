@@ -102,3 +102,13 @@ GEMINI_RATE_LIMIT_PER_MINUTE = int(os.getenv("GEMINI_RATE_LIMIT_PER_MINUTE", "30
 RANKING_XP_CLUSTER_EPSILON = int(os.getenv("RANKING_XP_CLUSTER_EPSILON", "200"))
 
 
+
+# Local AI service (Mac mini primary, laptop fallback). Leave AI_PRIMARY_URL empty to disable.
+AI_PRIMARY_URL = os.getenv("AI_PRIMARY_URL", "").rstrip("/")
+AI_FALLBACK_URL = os.getenv("AI_FALLBACK_URL", "").rstrip("/")
+AI_PRIMARY_LABEL = os.getenv("AI_PRIMARY_LABEL", "Mac")
+AI_FALLBACK_LABEL = os.getenv("AI_FALLBACK_LABEL", "Laptop")
+AI_SERVICE_TOKEN = os.getenv("AI_SERVICE_TOKEN", "")
+AI_HEALTH_TTL_SECONDS = float(os.getenv("AI_HEALTH_TTL_SECONDS", "10"))
+AI_HEALTH_TIMEOUT_SECONDS = float(os.getenv("AI_HEALTH_TIMEOUT_SECONDS", "2.5"))
+AI_FORCE_ENDPOINT = os.getenv("AI_FORCE_ENDPOINT", "auto")  # auto | primary | fallback

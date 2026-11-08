@@ -1,0 +1,32 @@
+# Profile for the Windows laptop (NVIDIA < 6 GB VRAM). Offline fallback when the Mac is unreachable.
+[server]
+host = "127.0.0.1"
+port = 8100
+
+[llm]
+backend = "ollama"
+base_url = "http://127.0.0.1:11434"
+model = "qwen2.5:3b-instruct-q4_K_M"
+keep_alive = "30m"
+num_ctx = 2048
+temperature = 0.6
+
+[stt]
+backend = "fake"          # real backend (faster-whisper small, CUDA int8) is added in the next step
+model = "small"
+
+[tts.en]
+backend = "fake"          # real backend (kokoro-onnx on CPU) is added in the next step
+
+[tts.vi]
+backend = "fake"          # real backend (Piper vi_VN on CPU) is added in the next step
+
+[vad]
+backend = "energy"
+threshold = 0.015
+min_silence_ms = 700
+min_speech_ms = 160
+
+[voice]
+max_history_chars = 4000
+max_session_seconds = 900

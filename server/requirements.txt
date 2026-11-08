@@ -10,3 +10,4 @@ redis>=5.0.0
 asyncmy>=0.2.14
 gunicorn>=21.0.0; sys_platform != 'win32'
 
+websockets>=12.0
